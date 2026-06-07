@@ -1,0 +1,63 @@
+/**
+ * @file console.cpp
+ * @brief 统一控制台输出与日志管理工具实现。
+ * @author clk
+ */
+
+#include <utils/console.h>
+#include <cstdio>
+#include <cstdarg>
+
+namespace spiration {
+
+log_level console::s_level = log_level::info;
+
+void console::set_level(log_level level) {
+    s_level = level;
+}
+
+log_level console::get_level() {
+    return s_level;
+}
+
+void console::debug(const char* format, ...) {
+#ifndef NDEBUG
+    if (s_level > log_level::debug) return;
+    va_list args;
+    va_start(args, format);
+    vprint("[DEBUG] ", format, args);
+    va_end(args);
+#endif
+}
+
+void console::info(const char* format, ...) {
+    if (s_level > log_level::info) return;
+    va_list args;
+    va_start(args, format);
+    vprint("[INFO]  ", format, args);
+    va_end(args);
+}
+
+void console::warning(const char* format, ...) {
+    if (s_level > log_level::warning) return;
+    va_list args;
+    va_start(args, format);
+    vprint("[WARN]  ", format, args);
+    va_end(args);
+}
+
+void console::error(const char* format, ...) {
+    if (s_level > log_level::error) return;
+    va_list args;
+    va_start(args, format);
+    vprint("[ERROR] ", format, args);
+    va_end(args);
+}
+
+void console::vprint(const char* prefix, const char* format, va_list args) {
+    printf("%s", prefix);
+    vprintf(format, args);
+    printf("\n");
+}
+
+} 
