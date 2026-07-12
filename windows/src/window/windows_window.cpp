@@ -145,14 +145,20 @@ LRESULT Window::HandleMessage(UINT uMsg, WPARAM wParam, LPARAM lParam) {
         return 0;
     }
 
+    case WM_NCPAINT:
+        return TRUE;
+
+    case WM_NCACTIVATE:
+        return TRUE;
+
     case WM_ERASEBKGND:
-        
         return TRUE;
 
     case WM_PAINT: {
         PAINTSTRUCT ps;
         BeginPaint(m_hWnd, &ps);
         if (m_Widget && m_Renderer) {
+            m_Widget->layout();
             m_Renderer->begin_frame();
             m_Widget->paint(m_Renderer);
             m_Renderer->end_frame();
@@ -162,11 +168,9 @@ LRESULT Window::HandleMessage(UINT uMsg, WPARAM wParam, LPARAM lParam) {
     }
 
     case WM_DPICHANGED: {
-        
         UINT dpi = HIWORD(wParam);
         m_DPIScale = static_cast<float>(dpi) / 96.0f;
 
-        
         RECT* prcNew = reinterpret_cast<RECT*>(lParam);
         if (prcNew) {
             SetWindowPos(m_hWnd, nullptr,
@@ -176,7 +180,6 @@ LRESULT Window::HandleMessage(UINT uMsg, WPARAM wParam, LPARAM lParam) {
                          SWP_NOZORDER | SWP_NOACTIVATE);
         }
 
-        
         if (m_Renderer) {
             int32_t widthDIP, heightDIP;
             get_size(widthDIP, heightDIP);
@@ -184,7 +187,6 @@ LRESULT Window::HandleMessage(UINT uMsg, WPARAM wParam, LPARAM lParam) {
                                static_cast<uint32_t>(heightDIP));
         }
 
-        
         NotifyWidgetResize();
         if (m_OnResize) m_OnResize(this);
 
@@ -202,7 +204,6 @@ LRESULT Window::HandleMessage(UINT uMsg, WPARAM wParam, LPARAM lParam) {
     case WM_GETMINMAXINFO: {
         MINMAXINFO* mmi = reinterpret_cast<MINMAXINFO*>(lParam);
         if (mmi) {
-            
             float minW = 400.0f, minH = 300.0f;
             mmi->ptMinTrackSize.x = static_cast<LONG>(std::lround(minW * m_DPIScale));
             mmi->ptMinTrackSize.y = static_cast<LONG>(std::lround(minH * m_DPIScale));
@@ -230,11 +231,9 @@ LRESULT Window::HandleMessage(UINT uMsg, WPARAM wParam, LPARAM lParam) {
         return TRUE;
 
     case WM_SIZE: {
-        
         int widthPx = LOWORD(lParam);
         int heightPx = HIWORD(lParam);
         if (widthPx > 0 && heightPx > 0 && m_Renderer) {
-            
             uint32_t widthDIP = static_cast<uint32_t>(std::lround(widthPx / m_DPIScale));
             uint32_t heightDIP = static_cast<uint32_t>(std::lround(heightPx / m_DPIScale));
             m_Renderer->resize(widthDIP, heightDIP);
@@ -247,11 +246,9 @@ LRESULT Window::HandleMessage(UINT uMsg, WPARAM wParam, LPARAM lParam) {
 
     case WM_SYSKEYDOWN:
         if (wParam == VK_F4) {
-            
             return DefWindowProcW(m_hWnd, uMsg, wParam, lParam);
         }
         if (wParam == VK_SPACE) {
-            
             return DefWindowProcW(m_hWnd, uMsg, wParam, lParam);
         }
         if (m_OnKey) m_OnKey(this);
@@ -266,7 +263,6 @@ LRESULT Window::HandleMessage(UINT uMsg, WPARAM wParam, LPARAM lParam) {
             set_fullscreen(false);
             return TRUE;
         }
-        
         if (m_Widget) {
             key_event_data ked;
             ked.key_code = static_cast<int>(wParam);
@@ -316,19 +312,16 @@ LRESULT Window::HandleMessage(UINT uMsg, WPARAM wParam, LPARAM lParam) {
             clientPos.y = GET_Y_LPARAM(lParam);
             ScreenToClient(m_hWnd, &clientPos);
         } else {
-            
             clientPos.x = GET_X_LPARAM(lParam);
             clientPos.y = GET_Y_LPARAM(lParam);
         }
 
-        
         float xDIP = static_cast<float>(clientPos.x) / m_DPIScale;
         float yDIP = static_cast<float>(clientPos.y) / m_DPIScale;
 
         console::debug("mouse msg=0x%04X raw=(%d,%d) dip=(%.2f,%.2f) scale=%.2f",
                        uMsg, clientPos.x, clientPos.y, xDIP, yDIP, m_DPIScale);
 
-        
         mouse_button btn = mouse_button::none;
         switch (uMsg) {
             case WM_LBUTTONDOWN: case WM_LBUTTONUP:   btn = mouse_button::left; break;
@@ -337,7 +330,6 @@ LRESULT Window::HandleMessage(UINT uMsg, WPARAM wParam, LPARAM lParam) {
             default: break;
         }
 
-        
         mouse_action act = mouse_action::move;
         switch (uMsg) {
             case WM_LBUTTONDOWN: case WM_LBUTTONDBLCLK:
@@ -361,17 +353,14 @@ LRESULT Window::HandleMessage(UINT uMsg, WPARAM wParam, LPARAM lParam) {
             m_Widget->handle_event(event_type::mouse, &data);
         }
 
-        
         if (!data.consumed && yDIP < DRAG_AREA_HEIGHT) {
             if (uMsg == WM_LBUTTONDOWN) {
-                
                 POINT screenPt = { clientPos.x, clientPos.y };
                 ClientToScreen(m_hWnd, &screenPt);
                 ReleaseCapture();
                 SendMessageW(m_hWnd, WM_NCLBUTTONDOWN, HTCAPTION,
                              MAKELPARAM(screenPt.x, screenPt.y));
             } else if (uMsg == WM_LBUTTONDBLCLK) {
-                
                 if (is_maximized()) {
                     restore();
                 } else {
@@ -395,7 +384,6 @@ bool Window::initialize(const window_params& params) {
     if (!CreateWindowClass()) return false;
     if (!CreateActualWindow(params)) return false;
 
-    
     UpdateDPIScale();
 
     if (!CreateRenderer()) return false;
@@ -406,10 +394,6 @@ bool Window::initialize(const window_params& params) {
     m_OnMouse = params.on_mouse;
     m_UserData = params.user_data;
 
-    if (m_hWnd && params.visible) {
-        ShowWindow(m_hWnd, SW_SHOW);
-        UpdateWindow(m_hWnd);
-    }
     return true;
 }
 
@@ -459,20 +443,15 @@ bool Window::CreateActualWindow(const window_params& params) {
     int widthPx = static_cast<int>(std::lround(params.width * m_DPIScale));
     int heightPx = static_cast<int>(std::lround(params.height * m_DPIScale));
 
-    RECT rect = { 0, 0, widthPx, heightPx };
-    if (style != WS_POPUP) {
-        AdjustWindowRect(&rect, style, FALSE);
-    }
-
     int screenWidth  = GetSystemMetrics(SM_CXSCREEN);
     int screenHeight = GetSystemMetrics(SM_CYSCREEN);
-    int x = (screenWidth - (rect.right - rect.left)) / 2;
-    int y = (screenHeight - (rect.bottom - rect.top)) / 2;
+    int x = (screenWidth - widthPx) / 2;
+    int y = (screenHeight - heightPx) / 2;
 
     std::wstring wideTitle(params.title.begin(), params.title.end());
     m_hWnd = CreateWindowExW(
         exStyle, m_WindowClassName.c_str(), wideTitle.c_str(),
-        style, x, y, rect.right - rect.left, rect.bottom - rect.top,
+        style, x, y, widthPx, heightPx,
         nullptr, nullptr, m_hInstance, this
     );
     if (!m_hWnd) return false;
@@ -486,10 +465,6 @@ bool Window::CreateActualWindow(const window_params& params) {
                           &corner, sizeof(corner));
 
     if (params.fullscreen) set_fullscreen(true);
-    if (params.visible) {
-        ShowWindow(m_hWnd, SW_SHOW);
-        UpdateWindow(m_hWnd);
-    }
     return true;
 }
 
@@ -577,7 +552,12 @@ void Window::set_fullscreen(bool fullscreen) {
 }
 
 
-void Window::show()   { if (m_hWnd) ShowWindow(m_hWnd, SW_SHOW); }
+void Window::show() {
+    if (m_hWnd) {
+        ShowWindow(m_hWnd, SW_SHOW);
+        RedrawWindow(m_hWnd, nullptr, nullptr, RDW_INVALIDATE | RDW_UPDATENOW);
+    }
+}
 void Window::hide()   { if (m_hWnd) ShowWindow(m_hWnd, SW_HIDE); }
 void Window::maximize(){ if (m_hWnd) ShowWindow(m_hWnd, SW_MAXIMIZE); }
 void Window::minimize(){ if (m_hWnd) ShowWindow(m_hWnd, SW_MINIMIZE); }
@@ -616,11 +596,7 @@ void Window::set_size(int32_t widthDIP, int32_t heightDIP) {
     
     int widthPx  = static_cast<int>(std::lround(widthDIP * m_DPIScale));
     int heightPx = static_cast<int>(std::lround(heightDIP * m_DPIScale));
-    RECT rect = { 0, 0, widthPx, heightPx };
-    DWORD style = GetWindowLong(m_hWnd, GWL_STYLE);
-    AdjustWindowRect(&rect, style, FALSE);
-    SetWindowPos(m_hWnd, nullptr, 0, 0,
-                 rect.right - rect.left, rect.bottom - rect.top,
+    SetWindowPos(m_hWnd, nullptr, 0, 0, widthPx, heightPx,
                  SWP_NOMOVE | SWP_NOZORDER);
 }
 
@@ -709,6 +685,7 @@ void Window::set_widget(std::unique_ptr<widget> widget) {
         });
     }
     NotifyWidgetResize();
+    request_repaint();
 }
 
 

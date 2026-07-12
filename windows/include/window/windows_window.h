@@ -1,6 +1,6 @@
 /**
  * @file windows_window.h
- * @brief Windows 平台窗口实现（Win32 API）。
+ * @brief Windows 平台窗口实现。
  * @author clk
  */
 
@@ -18,12 +18,6 @@ namespace spiration {
 
 /**
  * @brief Windows 平台窗口实现。
- *
- * 基于 Win32 API 实现窗口框架，支持：
- * - DPI 感知与自适应缩放
- * - 全屏切换
- * - Direct2D 渲染器绑定
- * - Widget 树绑定与消息分发
  */
 class Window : public window {
 public:
@@ -109,12 +103,10 @@ private:
     void* m_UserData = nullptr;
     uint32_t m_WindowId = 0;
 
-    float m_DPIScale = 1.0f;          
+    float m_DPIScale = 1.0f;
 
-    
     static constexpr float DRAG_AREA_HEIGHT = 34.0f;
 
-    
     static constexpr float RESIZE_BORDER_WIDTH = 6.0f;
 
     std::shared_ptr<renderer> m_Renderer = nullptr;

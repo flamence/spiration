@@ -20,9 +20,6 @@ namespace spiration {
 
 /**
  * @brief Direct2D 渲染器实现。
- *
- * 基于 Direct2D 1.0 + DirectWrite + WIC 实现硬件加速 2D 渲染。
- * 支持基本图元、文本排版、图像加载、变换栈和 Alpha 混合。
  */
 class direct2d_renderer : public renderer {
 public:
@@ -126,7 +123,7 @@ private:
     transform m_CurrentTransform;
     
     float m_Alpha = 1.0f;
-    bool m_BlendEnabled = true;      
+    bool m_BlendEnabled = true;
     bool m_DeviceLost = false;
     
     static constexpr wchar_t DEFAULT_FONT[] = L"Arial";
