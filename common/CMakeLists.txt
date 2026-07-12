@@ -9,6 +9,10 @@ file(GLOB_RECURSE COMMON_HEADERS
 
 add_library(common STATIC ${COMMON_SOURCES} ${COMMON_HEADERS})
 
+set_target_properties(common PROPERTIES
+    POSITION_INDEPENDENT_CODE ON
+)
+
 target_include_directories(common
     PUBLIC 
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
