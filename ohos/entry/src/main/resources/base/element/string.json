@@ -2,15 +2,15 @@
   "string": [
     {
       "name": "module_desc",
-      "value": "module description"
+      "value": "Spiration 模块"
     },
     {
       "name": "EntryAbility_desc",
-      "value": "description"
+      "value": "Spiration 能力"
     },
     {
       "name": "EntryAbility_label",
-      "value": "label"
+      "value": "Spiration"
     }
   ]
 }
