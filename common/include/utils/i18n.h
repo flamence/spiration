@@ -9,27 +9,18 @@
 #include <string>
 #include <unordered_map>
 #include <vector>
+#include <cstdint>
 
 namespace spiration {
 
 /**
  * @brief 国际化翻译管理器。
- *
- * 支持多语言字符串的加载与查询。
- * 通过 load() 加载翻译文件，tr() 获取翻译文本。
- *
- * 文件格式（每行一组）：
- * @code
- * # 注释
- * hello = 你好
- * file = 文件
- * @endcode
  */
 class i18n {
 public:
     /**
      * @brief 从文件加载指定语言的翻译。
-     * @param locale  语言代码，如 "zh-CN", "en-US"
+     * @param locale  语言代码
      * @param filepath 翻译文件路径
      * @return true 加载成功
      */
@@ -48,10 +39,21 @@ public:
     /**
      * @brief 获取指定 key 的翻译文本。
      * @param key 翻译键
-     * @param default_value 未找到时返回的默认值（默认返回 key 本身）
+     * @param default_value 未找到时返回的默认值
      * @return 翻译后的字符串
      */
     static std::string tr(const std::string& key,
+                          const std::string& default_value = "");
+
+    /**
+     * @brief 获取带参数替换的翻译文本。
+     * @param key 翻译键
+     * @param args 替换参数列表
+     * @param default_value 未找到时返回的默认值
+     * @return 参数替换后的字符串
+     */
+    static std::string tr(const std::string& key,
+                          const std::vector<std::string>& args,
                           const std::string& default_value = "");
 
     /**

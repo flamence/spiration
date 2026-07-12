@@ -13,7 +13,7 @@
 namespace spiration {
 
 void menu_bar::init() {
-    style.background_color = theme::menu_bar_bg();
+    widget_style.background_color = theme::get(theme::MENU_BAR_BG);
     auto hlayout = std::make_unique<horizontal_layout>(0.0f);
     set_layout_manager(std::move(hlayout));
 }
@@ -69,10 +69,10 @@ void menu_bar::show_menu_popup(int index) {
 menu_desc& menu_bar::add_menu(const std::string& text) {
     auto item = std::make_unique<menu_item>();
     item->text = i18n::tr(text, text);
-    item->style.width = 60;
+    item->widget_style.width = 60;
     item->height = height;
-    item->hover_color = theme::button_hover();
-    item->press_color = theme::button_press();
+    item->hover_color = theme::get(theme::BUTTON_HOVER);
+    item->press_color = theme::get(theme::BUTTON_PRESS);
     item->init();
 
     items_.push_back(item.get());
@@ -82,6 +82,18 @@ menu_desc& menu_bar::add_menu(const std::string& text) {
     desc.title = text;
     menus_.push_back(std::move(desc));
     return menus_.back();
+}
+
+bool menu_bar::add_sub_item(const std::string& menu_title,
+                             const std::string& label,
+                             std::function<void()> callback) {
+    for (auto& menu : menus_) {
+        if (menu.title == menu_title) {
+            menu.sub_items.push_back({label, std::move(callback)});
+            return true;
+        }
+    }
+    return false;
 }
 
 } 

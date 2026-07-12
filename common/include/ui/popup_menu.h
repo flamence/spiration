@@ -7,6 +7,7 @@
 #pragma once
 
 #include <ui/container.h>
+#include <utils/animation.h>
 #include <functional>
 #include <memory>
 #include <string>
@@ -27,6 +28,7 @@ public:
     void init() override;
     void paint(std::shared_ptr<renderer> renderer) override;
     void handle_event(const event_type& type, void* data) override;
+    void tick(float dt_ms) override;
 
     void add_item(const std::string& text, std::function<void()> callback);
     void set_dismiss_callback(std::function<void()> cb) { on_dismiss_ = cb; }
@@ -35,7 +37,9 @@ private:
     std::vector<popup_item> items_;
     int hovered_index_ = -1;
     std::function<void()> on_dismiss_ = nullptr;
-    float item_height_ = 26.0f;
+    float item_height_ = 28.0f;
+
+    color_transition hover_bg_{color::transparent()};
 
     void layout_items();
 };

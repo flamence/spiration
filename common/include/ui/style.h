@@ -15,9 +15,6 @@ namespace spiration {
 
 /**
  * @brief 控件的视觉样式集合。
- *
- * 包含背景色、文字颜色、字体、边距、边框等样式属性，
- * 为控件绘制提供配置参数。
  */
 class style {
 public:

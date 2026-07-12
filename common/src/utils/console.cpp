@@ -8,6 +8,20 @@
 #include <cstdio>
 #include <cstdarg>
 
+#ifdef _WIN32
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
+
+namespace {
+    static bool ensure_utf8_console() {
+        SetConsoleOutputCP(CP_UTF8);
+        SetConsoleCP(CP_UTF8);
+        return true;
+    }
+    static bool s_utf8_console = ensure_utf8_console();
+}
+#endif
+
 namespace spiration {
 
 log_level console::s_level = log_level::info;

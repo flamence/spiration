@@ -1,6 +1,6 @@
 /**
  * @file size.h
- * @brief 尺寸数据结构（宽度和高度）。
+ * @brief 尺寸数据结构。
  * @author clk
  */
 
@@ -9,7 +9,7 @@
 namespace spiration {
 
 /**
- * @brief 二维尺寸表示（宽度和高度）。
+ * @brief 二维尺寸表示。
  */
 struct size {
     float width = 0.0f;

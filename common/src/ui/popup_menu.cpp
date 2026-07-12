@@ -12,7 +12,7 @@
 namespace spiration {
 
 void popup_menu::init() {
-    style.background_color = theme::popup_bg();
+    widget_style.background_color = theme::get(theme::POPUP_BG);
     auto vlayout = std::make_unique<vertical_layout>(0.0f);
     set_layout_manager(std::move(vlayout));
 }
@@ -31,7 +31,6 @@ void popup_menu::layout_items() {
         maxW = std::max(maxW, static_cast<float>(item.text.size()) * 8.0f + 24.0f);
     }
     width = maxW;
-    
     height = 0.0f;
     for (auto& item : items_) {
         height += (item.text == "---") ? 8.0f : item_height_;
@@ -60,20 +59,23 @@ void popup_menu::handle_event(const event_type& type, void* data) {
 
         if (idx != hovered_index_) {
             hovered_index_ = idx;
+            if (idx >= 0) {
+                hover_bg_.animate_to(theme::get(theme::POPUP_HOVER), 100.0f);
+            } else {
+                hover_bg_.animate_to(color::transparent(), 100.0f);
+            }
             if (request_repaint_) request_repaint_();
         }
 
-        
         if (md->action == mouse_action::down && idx >= 0) {
             md->consumed = true;
-            if (items_[idx].text == "---") return; 
+            if (items_[idx].text == "---") return;
             auto cb = items_[idx].callback;
             if (on_dismiss_) on_dismiss_();
             if (cb) cb();
             return;
         }
 
-        
         if (md->action == mouse_action::down && idx < 0) {
             if (on_dismiss_) on_dismiss_();
             return;
@@ -82,23 +84,26 @@ void popup_menu::handle_event(const event_type& type, void* data) {
     container::handle_event(type, data);
 }
 
+void popup_menu::tick(float dt_ms) {
+    if (hover_bg_.update(dt_ms) && request_repaint_) request_repaint_();
+    container::tick(dt_ms);
+}
+
 void popup_menu::paint(std::shared_ptr<renderer> renderer) {
-renderer->draw_rectangle({x, y, width, height}, theme::popup_bg());
-    renderer->draw_rectangle_outline({x, y, width, height}, theme::popup_border(), 1.0f);
+    renderer->draw_rectangle({x, y, width, height}, theme::get(theme::POPUP_BG));
 
     float iy = y;
     for (size_t i = 0; i < items_.size(); ++i) {
         float h = (items_[i].text == "---") ? 8.0f : item_height_;
         if (items_[i].text == "---") {
-            
             float cy = iy + h * 0.5f;
-            renderer->draw_line({x + 8.0f, cy}, {x + width - 8.0f, cy}, theme::separator(), 1.0f);
+            renderer->draw_line({x + 8.0f, cy}, {x + width - 8.0f, cy}, theme::get(theme::SEPARATOR), 1.0f);
         } else {
             if (static_cast<int>(i) == hovered_index_) {
-                renderer->draw_rectangle({x, iy, width, h}, theme::popup_hover());
+                renderer->draw_rectangle({x, iy, width, h}, hover_bg_.current());
             }
-            renderer->draw_text_aligned(items_[i].text, {x + 8.0f, iy, width - 16.0f, h},
-                                        theme::popup_text(), text_alignment::left, vertical_alignment::center, 14.0f);
+            renderer->draw_text_aligned(items_[i].text, {x + 12.0f, iy, width - 18.0f, h},
+                                        theme::get(theme::POPUP_TEXT), text_alignment::left, vertical_alignment::center, 14.0f);
         }
         iy += h;
     }

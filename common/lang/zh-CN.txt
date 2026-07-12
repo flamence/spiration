@@ -1,5 +1,46 @@
-# Spiration 中文翻译
 file = 文件
 edit = 编辑
 view = 视图
 help = 帮助
+new = 新建
+open = 打开
+save = 保存
+exit = 退出
+undo = 撤销
+redo = 重做
+cut = 剪切
+copy = 复制
+paste = 粘贴
+fullscreen = 全屏
+zoom_in = 放大
+zoom_out = 缩小
+about = 关于
+untitled = 无标题
+Spiration = Spiration
+
+line = 行
+column = 列
+char_count = 字符数
+
+confirm_close = 确认关闭
+save_changes = 是否保存更改？
+yes = 是
+no = 否
+cancel = 取消
+
+file_not_found = 文件未找到
+open_failed = 打开失败
+save_failed = 保存失败
+
+extensions = 拓展
+extensions_title = 扩展管理器
+no_extensions = 暂无已加载的扩展。
+extensions_hint = 将扩展文件放入扩展目录以加载。
+ext_name = 名称
+ext_version = 版本
+ext_description = 描述
+
+about_version = 版本
+about_platform = 平台
+about_desc = Spiration 是一个轻量级、跨平台的代码编辑器，支持扩展系统和自定义 UI。
+about_copyright = 版权所有 (c) 2026 炽光科技

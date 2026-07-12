@@ -9,7 +9,7 @@
 namespace spiration {
 
 /**
- * @brief 二维空间中的坐标点 (x, y)。
+ * @brief 二维空间中的坐标点。
  */
 struct point {
     float x = 0.0f;

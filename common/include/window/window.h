@@ -38,9 +38,6 @@ struct window_params {
 
 /**
  * @brief 跨平台窗口抽象基类。
- *
- * 定义统一窗口接口，各平台提供具体实现。
- * 负责窗口生命周期管理、事件回调、Widget 树绑定及重绘请求。
  */
 class window {
 public:

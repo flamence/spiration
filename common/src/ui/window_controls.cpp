@@ -12,12 +12,10 @@ namespace spiration {
 window_controls::hit_part window_controls::hit_test_btn(float mx, float my) const {
     if (my < 0.0f || my > height) return hit_part::none;
 #ifdef __APPLE__
-    
     if (mx >= 0.0f && mx < btn_size_) return hit_part::close;
     if (mx >= btn_size_ && mx < btn_size_ * 2) return hit_part::min;
     if (mx >= btn_size_ * 2 && mx < btn_size_ * 3) return hit_part::max;
 #else
-    
     float startX = width - btn_size_ * 3.0f;
     if (mx >= startX && mx < startX + btn_size_) return hit_part::min;
     if (mx >= startX + btn_size_ && mx < startX + btn_size_ * 2) return hit_part::max;
@@ -27,7 +25,7 @@ window_controls::hit_part window_controls::hit_test_btn(float mx, float my) cons
 }
 
 void window_controls::init() {
-    style.background_color = color::transparent();
+    widget_style.background_color = color::transparent();
     btn_h_ = height > 0 ? height : 34.0f;
 }
 
@@ -67,7 +65,6 @@ void window_controls::paint(std::shared_ptr<renderer> renderer) {
     float iconHalf = iconSize * 0.5f;
 
 #ifdef __APPLE__
-    
     float xs[3] = { (btn_size_ - iconSize) * 0.5f,
                     btn_size_ + (btn_size_ - iconSize) * 0.5f,
                     btn_size_ * 2 + (btn_size_ - iconSize) * 0.5f };
@@ -83,7 +80,6 @@ void window_controls::paint(std::shared_ptr<renderer> renderer) {
         renderer->draw_circle({x + xs[i] + iconHalf, y + h * 0.5f}, iconHalf, c);
     }
 #else
-    
     float startX = width - btn_size_ * 3.0f;
     float cx[3] = { x + startX + btn_size_ * 0.5f,
                     x + startX + btn_size_ * 1.5f,
@@ -93,17 +89,17 @@ void window_controls::paint(std::shared_ptr<renderer> renderer) {
     for (int i = 0; i < 3; ++i) {
         float bx = x + startX + static_cast<float>(i) * btn_size_;
         if (i == 2) {
-            color bg = hovers[i] ? theme::close_hover() : color::transparent();
+            color bg = hovers[i] ? theme::get(theme::CLOSE_HOVER) : color::transparent();
             renderer->draw_rectangle({bx, y, btn_size_, h}, bg);
         } else if (hovers[i]) {
-            renderer->draw_rectangle({bx, y, btn_size_, h}, theme::control_hover_bg());
+            renderer->draw_rectangle({bx, y, btn_size_, h}, theme::get(theme::CONTROL_HOVER_BG));
         }
     }
 
     float cy = y + h * 0.5f;
-    renderer->draw_line({cx[0] - 5.0f, cy}, {cx[0] + 5.0f, cy}, theme::control_icon(), 1.5f);
-    renderer->draw_rectangle_outline({cx[1] - 5.0f, cy - 4.0f, iconSize, iconSize - 1.0f}, theme::control_icon(), 1.5f);
-    color closeIcon = hover_close_ ? theme::control_icon_hover() : theme::control_icon();
+    renderer->draw_line({cx[0] - 5.0f, cy}, {cx[0] + 5.0f, cy}, theme::get(theme::CONTROL_ICON), 1.5f);
+    renderer->draw_rectangle_outline({cx[1] - 5.0f, cy - 4.0f, iconSize, iconSize - 1.0f}, theme::get(theme::CONTROL_ICON), 1.5f);
+    color closeIcon = hover_close_ ? theme::get(theme::CONTROL_ICON_HOVER) : theme::get(theme::CONTROL_ICON);
     renderer->draw_line({cx[2] - 5.0f, cy - 5.0f}, {cx[2] + 5.0f, cy + 5.0f}, closeIcon, 1.5f);
     renderer->draw_line({cx[2] + 5.0f, cy - 5.0f}, {cx[2] - 5.0f, cy + 5.0f}, closeIcon, 1.5f);
 #endif

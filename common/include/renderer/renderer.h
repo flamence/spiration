@@ -31,15 +31,6 @@ enum class vertical_alignment {
 
 /**
  * @brief 2D 渲染器抽象基类。
- *
- * 定义统一的 2D 图形绘制接口，支持：
- * - 基本图元（矩形、圆形、线条）
- * - 文本绘制（对齐、换行）
- * - 图像加载与绘制
- * - 坐标变换栈
- * - Alpha 混合控制
- *
- * 各平台提供具体实现（Direct2D、OpenGL、Metal、Vulkan）。
  */
 class renderer {
 public:
