@@ -106,14 +106,12 @@ direct2d_renderer& direct2d_renderer::operator=(direct2d_renderer&& other) noexc
     return *this;
 }
 
-
 bool direct2d_renderer::initialize(void* native_window_handle) {
     m_hWnd = static_cast<HWND>(native_window_handle);
     if (!m_hWnd || !IsWindow(m_hWnd)) {
         return false;
     }
-    
-    
+
     HRESULT hr = CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
     if (FAILED(hr) && hr != RPC_E_CHANGED_MODE && hr != S_FALSE) {
         return false;
