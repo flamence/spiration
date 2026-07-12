@@ -62,6 +62,8 @@ if(MINGW)
     )
 endif()
 
+file(COPY ${CMAKE_SOURCE_DIR}/common/lang DESTINATION ${CMAKE_BINARY_DIR}/bin)
+
 set_target_properties(spiration PROPERTIES
     OUTPUT_NAME "Spiration"
     RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin

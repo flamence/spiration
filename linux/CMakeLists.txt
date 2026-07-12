@@ -43,6 +43,7 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
     pthread
 )
 
+file(COPY ${CMAKE_SOURCE_DIR}/common/lang DESTINATION ${CMAKE_BINARY_DIR}/bin)
 file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/res/spiration.png DESTINATION ${CMAKE_BINARY_DIR}/bin/res)
 
 set_target_properties(${PROJECT_NAME} PROPERTIES
