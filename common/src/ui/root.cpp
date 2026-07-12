@@ -1,6 +1,5 @@
 #include <ui/root.h>
 #include <ui/appbar.h>
-#include <ui/edit_tab.h>
 #include <ui/layout.h>
 #include <ui/menu_bar.h>
 #include <ui/theme.h>
@@ -9,14 +8,12 @@ namespace spiration {
 
 root::root(std::shared_ptr<spiration::window> parent) {
     m_window = parent;
-    style.background_color = theme::window_bg();
+    widget_style.background_color = theme::get(theme::WINDOW_BG);
     init();
 }
 
 void root::paint(std::shared_ptr<renderer> renderer) {
-    
     container::paint(renderer);
-    
     if (m_popup) {
         m_popup->paint(renderer);
     }
@@ -27,20 +24,22 @@ void root::handle_event(const event_type& type, void* data) {
         layout();
     }
 
-    
     if (m_popup && type == event_type::mouse) {
         auto* md = static_cast<mouse_event_data*>(data);
-        
         point old = md->position;
         md->position.x = old.x - m_popup->x;
         md->position.y = old.y - m_popup->y;
         m_popup->handle_event(type, data);
         md->position = old;
-        
         if (md->consumed) return;
     }
 
     container::handle_event(type, data);
+}
+
+void root::tick(float dt_ms) {
+    container::tick(dt_ms);
+    if (m_popup) m_popup->tick(dt_ms);
 }
 
 void root::layout() {
@@ -49,7 +48,6 @@ void root::layout() {
     width = static_cast<float>(w);
     height = static_cast<float>(h);
 
-    
     for (auto& child : children()) {
         if (dynamic_cast<appbar*>(child.get())) {
             child->width = width; child->height = 34.0f;
@@ -66,7 +64,6 @@ void root::layout() {
 }
 
 void root::init() {
-    
     auto tb = std::make_unique<tab_bar>();
     tb->init();
     tb->set_repaint_callback(request_repaint_);
@@ -74,17 +71,29 @@ void root::init() {
     tab_bar_ = tb.get();
     add_child(std::move(tb));
 
-    
     auto appbar = std::make_unique<spiration::appbar>();
     appbar->init();
     for (auto& child : appbar->children()) {
         if (auto* mb = dynamic_cast<menu_bar*>(child.get())) {
+            menu_bar_ = mb;
             mb->set_show_popup_callback([this](float x, float y, std::unique_ptr<popup_menu> popup) {
                 show_popup(x, y, std::move(popup));
             });
         }
     }
     add_child(std::move(appbar));
+}
+
+bool root::add_menu_item(const std::string& menu_name,
+                          const std::string& label,
+                          std::function<void()> callback) {
+    if (!menu_bar_) return false;
+    return menu_bar_->add_sub_item(menu_name, label, std::move(callback));
+}
+
+void root::open_tab(std::unique_ptr<tab> t) {
+    if (!tab_bar_ || !t) return;
+    tab_bar_->add_tab(std::move(t));
 }
 
 void root::show_popup(float x, float y, std::unique_ptr<popup_menu> popup) {

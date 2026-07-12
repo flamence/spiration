@@ -19,14 +19,6 @@ namespace spiration {
 
 /**
  * @brief 所有 UI 控件的抽象基类。
- *
- * widget 是 UI 组件树的基本节点，提供：
- * - 子控件管理（添加/移除/遍历）
- * - 生命周期（init/dispose）
- * - 绘制、布局、事件处理的虚接口
- * - 位置和尺寸属性（x, y, width, height）
- *
- * 所有具体控件（按钮、容器等）均应继承此类。
  */
 class widget {
 private:
@@ -38,7 +30,7 @@ public:
     float x = 0.0f, y = 0.0f;
     float width = 0.0f, height = 0.0f;
 
-    style style;
+    style widget_style;
     
     widget() {
         init();
@@ -87,7 +79,6 @@ public:
     
     virtual void handle_event(const event_type& type, void* data) {
         if (type == event_type::mouse) {
-            
             auto* mouse_data = static_cast<mouse_event_data*>(data);
             point original = mouse_data->position;
             for (auto& child : children_) {
@@ -104,8 +95,8 @@ public:
     }
 
     /**
-     * @brief 检测当前 widget 自身是否「消耗」了指定坐标的鼠标点击。
-     * @return true 表示该 widget 在此位置是可交互的（如按钮），不应穿透触发窗口拖拽
+     * @brief 检测当前 widget 自身是否消耗了指定坐标的鼠标点击。
+     * @return true 表示该 widget 在此位置是可交互的，不应穿透触发窗口拖拽
      */
     virtual bool hit_test(float x, float y) const {
         return false;
@@ -158,8 +149,6 @@ public:
     /**
      * @brief 为当前 widget 及其所有子 widget 注册重绘回调。
      * @param cb 无参回调，调用时触发窗口重绘
-     *
-     * 递归设置整棵子树，子 widget 的状态变化可通过此回调通知窗口刷新。
      */
     void set_repaint_callback(std::function<void()> cb) {
         request_repaint_ = cb;

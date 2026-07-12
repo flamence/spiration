@@ -1,0 +1,46 @@
+file = File
+edit = Edit
+view = View
+help = Help
+new = New
+open = Open
+save = Save
+exit = Exit
+undo = Undo
+redo = Redo
+cut = Cut
+copy = Copy
+paste = Paste
+fullscreen = Fullscreen
+zoom_in = Zoom In
+zoom_out = Zoom Out
+about = About
+untitled = Untitled
+Spiration = Spiration
+
+line = Line
+column = Column
+char_count = Characters
+
+confirm_close = Confirm Close
+save_changes = Do you want to save changes?
+yes = Yes
+no = No
+cancel = Cancel
+
+file_not_found = File not found
+open_failed = Failed to open
+save_failed = Failed to save
+
+extensions = Extensions
+extensions_title = Extension Manager
+no_extensions = No extensions loaded.
+extensions_hint = Place extension files in the extensions directory to load them.
+ext_name = Name
+ext_version = Version
+ext_description = Description
+
+about_version = Version
+about_platform = Platform
+about_desc = Spiration is a lightweight, cross-platform code editor with extension support and a custom UI.
+about_copyright = Copyright (c) 2026 Flamence Technology

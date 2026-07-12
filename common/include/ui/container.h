@@ -14,12 +14,6 @@ namespace spiration {
 
 /**
  * @brief 容器控件，可包含子 widget 并绘制背景矩形。
- *
- * container 是最基础的组合控件，负责：
- * - 绘制背景颜色区域
- * - 作为子控件的布局容器，可设置 layout 管理器自动排列子 widget
- *
- * 若未设置 layout，子 widget 保持手动定位（兼容旧行为）。
  */
 class container : public widget {
 public:

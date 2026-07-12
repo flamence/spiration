@@ -23,9 +23,6 @@ enum class log_level {
 
 /**
  * @brief 控制台输出管理类。
- *
- * 提供统一的日志输出接口，支持分级控制。
- * 可通过 set_level() 过滤低于指定等级的日志。
  */
 class console {
 public:
@@ -40,7 +37,7 @@ public:
     static log_level get_level();
 
     /**
-     * @brief 输出调试日志（仅 Debug 构建有效）。
+     * @brief 输出调试日志。
      */
     static void debug(const char* format, ...);
 

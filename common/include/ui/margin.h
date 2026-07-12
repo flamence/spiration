@@ -1,6 +1,6 @@
 /**
  * @file margin.h
- * @brief 边距数据结构（上、右、下、左）。
+ * @brief 边距数据结构。
  * @author clk
  */
 
@@ -9,7 +9,7 @@
 namespace spiration {
 
 /**
- * @brief 四周边距，支持多种构造方式（统一值、垂直+水平、四边独立）。
+ * @brief 四周边距，支持多种构造方式。
  */
 class margin {
 public:

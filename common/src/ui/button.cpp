@@ -27,7 +27,6 @@ void button::handle_event(const event_type& type, void* data) {
         bool old_hover = hovering_;
         bool old_press = pressing_;
 
-        
         hovering_ = (mouse_data->position.x >= 0.0f && mouse_data->position.x <= width &&
                      mouse_data->position.y >= 0.0f && mouse_data->position.y <= height);
 
@@ -38,7 +37,6 @@ void button::handle_event(const event_type& type, void* data) {
             pressing_ = false;
         }
 
-        
         if (hovering_ != old_hover || pressing_ != old_press) {
             color target;
             if (hovering_ && pressing_)      target = press_color;
@@ -54,7 +52,7 @@ void button::handle_event(const event_type& type, void* data) {
 
 void button::paint(std::shared_ptr<renderer> renderer) {
     renderer->draw_rectangle({x, y, width, height}, bg_transition_.current());
-    renderer->draw_text_aligned(text, rectangle{ x, y, width, height }, theme::button_text(), 
+    renderer->draw_text_aligned(text, rectangle{ x, y, width, height }, theme::get(theme::BUTTON_TEXT), 
                                 text_alignment::center, vertical_alignment::center, 16.0f);
 }
 

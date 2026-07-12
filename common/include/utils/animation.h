@@ -13,9 +13,6 @@ namespace spiration {
 
 /**
  * @brief 颜色过渡动画。
- *
- * 在两个颜色之间平滑插值，适用于背景色、文字色等过渡效果。
- * 用法：目标颜色变化时调用 animate_to()，每帧调用 update() 驱动动画。
  */
 class color_transition {
 public:
@@ -42,7 +39,7 @@ public:
     }
 
     /**
-     * @brief 跳转到目标颜色（无动画）。
+     * @brief 跳转到目标颜色。
      */
     void snap_to(const color& target) {
         from_ = target;

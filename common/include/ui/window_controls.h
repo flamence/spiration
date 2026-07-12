@@ -1,6 +1,6 @@
 /**
  * @file window_controls.h
- * @brief 平台感知的窗口控制按钮（最小化/最大化/关闭）。
+ * @brief 平台感知的窗口控制按钮。
  * @author clk
  */
 
@@ -12,12 +12,6 @@ namespace spiration {
 
 /**
  * @brief 窗口控制按钮组。
- *
- * 自动检测平台：
- * - Windows/Linux：右侧排列 [—] [□] [×]
- * - macOS：左侧排列 [●] [●] [●]（红绿灯）
- *
- * 点击按钮通过 window_action_ 回调通知窗口执行对应操作。
  */
 class window_controls : public container {
 public:

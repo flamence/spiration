@@ -1,6 +1,6 @@
 /**
  * @file font.h
- * @brief 字体属性定义（字体族、大小、粗体/斜体）。
+ * @brief 字体属性定义。
  * @author clk
  */
 

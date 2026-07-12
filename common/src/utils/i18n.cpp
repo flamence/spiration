@@ -30,7 +30,6 @@ bool i18n::load(const std::string& locale, const std::string& filepath) {
     while (std::getline(file, line)) {
         ++lineNum;
 
-        
         auto trim = [](std::string& s) {
             s.erase(s.begin(), std::find_if(s.begin(), s.end(),
                 [](unsigned char c) { return !std::isspace(c); }));
@@ -39,10 +38,8 @@ bool i18n::load(const std::string& locale, const std::string& filepath) {
         };
         trim(line);
 
-        
         if (line.empty() || line[0] == '#') continue;
 
-        
         auto pos = line.find('=');
         if (pos == std::string::npos) {
             console::warning("i18n: invalid syntax at line %d in '%s'",
@@ -81,7 +78,6 @@ const std::string& i18n::get_locale() {
 }
 
 std::string i18n::tr(const std::string& key, const std::string& default_value) {
-    
     auto it = s_translations.find(s_current_locale);
     if (it != s_translations.end()) {
         auto strIt = it->second.strings.find(key);
@@ -90,9 +86,8 @@ std::string i18n::tr(const std::string& key, const std::string& default_value) {
         }
     }
 
-    
-    if (s_current_locale != "en-US") {
-        auto fallback = s_translations.find("en-US");
+    if (s_current_locale != "zh-CN") {
+        auto fallback = s_translations.find("zh-CN");
         if (fallback != s_translations.end()) {
             auto strIt = fallback->second.strings.find(key);
             if (strIt != fallback->second.strings.end()) {
@@ -101,7 +96,6 @@ std::string i18n::tr(const std::string& key, const std::string& default_value) {
         }
     }
 
-    
     return default_value.empty() ? key : default_value;
 }
 
@@ -116,6 +110,70 @@ std::vector<std::string> i18n::available_locales() {
         locales.push_back(pair.first);
     }
     return locales;
+}
+
+/**
+ * @brief 执行参数替换的内部辅助函数。
+ */
+static std::string format_string(const std::string& text,
+                                  const std::vector<std::string>& args) {
+    if (args.empty() || text.find('{') == std::string::npos) {
+        return text;
+    }
+
+    std::string result;
+    size_t pos = 0;
+    size_t len = text.length();
+
+    while (pos < len) {
+        size_t brace_start = text.find('{', pos);
+        if (brace_start == std::string::npos) {
+            result.append(text, pos, len - pos);
+            break;
+        }
+
+        result.append(text, pos, brace_start - pos);
+
+        size_t brace_end = text.find('}', brace_start);
+        if (brace_end == std::string::npos) {
+            result.append(text, brace_start, len - brace_start);
+            break;
+        }
+
+        std::string index_str = text.substr(brace_start + 1,
+                                            brace_end - brace_start - 1);
+
+        index_str.erase(std::remove_if(index_str.begin(), index_str.end(),
+                       [](unsigned char c) { return std::isspace(c); }),
+                       index_str.end());
+
+        bool is_number = !index_str.empty() &&
+                         std::all_of(index_str.begin(), index_str.end(),
+                         [](unsigned char c) { return std::isdigit(c); });
+
+        if (is_number) {
+            size_t idx = static_cast<size_t>(std::stoul(index_str));
+            if (idx < args.size()) {
+                result.append(args[idx]);
+            }
+        } else {
+            result.append(text, brace_start, brace_end - brace_start + 1);
+        }
+
+        pos = brace_end + 1;
+    }
+
+    return result;
+}
+
+std::string i18n::tr(const std::string& key,
+                     const std::vector<std::string>& args,
+                     const std::string& default_value) {
+    std::string translated = tr(key, default_value);
+    if (translated == key && default_value.empty()) {
+        return translated;
+    }
+    return format_string(translated, args);
 }
 
 } 

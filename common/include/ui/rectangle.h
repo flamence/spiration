@@ -12,7 +12,7 @@
 namespace spiration {
 
 /**
- * @brief 矩形区域，由左上角坐标 (x, y) 和宽高定义。
+ * @brief 矩形区域，由左上角坐标和宽高定义。
  */
 struct rectangle {
     float x, y;
