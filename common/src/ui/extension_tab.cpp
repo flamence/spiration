@@ -14,7 +14,7 @@
 namespace spiration {
 
 extension_tab::extension_tab() {
-    widget_style.background_color = theme::get(theme::EDITOR_BG);
+    widget_style.background_color = theme::get(theme::CONTENT_BG);
     title_ = i18n::tr("extensions");
     collect_extensions();
 }
@@ -56,7 +56,7 @@ void extension_tab::paint(std::shared_ptr<renderer> renderer) {
         renderer->draw_text_aligned(
             i18n::tr("no_extensions"),
             {x + left_margin, cur_y, width - left_margin * 2, empty_h},
-            theme::get(theme::EDITOR_LINE_NUM),
+            theme::get(theme::TEXT_MUTED),
             text_alignment::left, vertical_alignment::center, 14.0f);
 
         cur_y += empty_h + 4.0f;
@@ -65,7 +65,7 @@ void extension_tab::paint(std::shared_ptr<renderer> renderer) {
         renderer->draw_text_aligned(
             i18n::tr("extensions_hint"),
             {x + left_margin, cur_y, width - left_margin * 2, hint_h},
-            theme::get(theme::EDITOR_LINE_NUM),
+            theme::get(theme::TEXT_MUTED),
             text_alignment::left, vertical_alignment::center, 12.0f);
         return;
     }
@@ -138,7 +138,7 @@ void extension_tab::paint(std::shared_ptr<renderer> renderer) {
             renderer->draw_text_aligned(
                 ext.description,
                 {x + left_margin + name_col + ver_col, item_y, desc_col, item_h},
-                theme::get(theme::EDITOR_LINE_NUM),
+                theme::get(theme::TEXT_MUTED),
                 text_alignment::left, vertical_alignment::center, 13.0f);
         }
 
