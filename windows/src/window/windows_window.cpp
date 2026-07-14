@@ -555,7 +555,15 @@ void Window::set_fullscreen(bool fullscreen) {
 void Window::show() {
     if (m_hWnd) {
         ShowWindow(m_hWnd, SW_SHOW);
-        RedrawWindow(m_hWnd, nullptr, nullptr, RDW_INVALIDATE | RDW_UPDATENOW);
+
+        if (m_Widget && m_Renderer) {
+            m_Widget->layout();
+            m_Renderer->begin_frame();
+            m_Widget->paint(m_Renderer);
+            m_Renderer->end_frame();
+        }
+
+        m_NeedsRepaint = true;
     }
 }
 void Window::hide()   { if (m_hWnd) ShowWindow(m_hWnd, SW_HIDE); }
@@ -622,26 +630,35 @@ void* Window::native_handle() const { return m_hWnd; }
 
 void Window::loop() {
     MSG msg;
-    bool processed = false;
     while (!m_ShouldClose) {
+        bool processedInput = false;
         while (PeekMessage(&msg, nullptr, 0, 0, PM_REMOVE)) {
-            processed = true;
+            
+            if (msg.message != WM_PAINT) {
+                processedInput = true;
+            }
             TranslateMessage(&msg);
             DispatchMessage(&msg);
             if (msg.message == WM_QUIT) m_ShouldClose = true;
         }
+
         if (m_Widget) {
             m_Widget->layout();
-            
-            if (processed) {
+        }
+
+        
+        if (m_NeedsRepaint || processedInput) {
+            if (m_hWnd) {
                 InvalidateRect(m_hWnd, nullptr, FALSE);
+                m_NeedsRepaint = false;
             }
         }
-        if (!processed) {
-            
+
+        
+        if (!processedInput && !m_NeedsRepaint) {
             WaitMessage();
         }
-        
+
         if (m_Widget) {
             static DWORD lastTick = GetTickCount();
             DWORD now = GetTickCount();
@@ -649,7 +666,6 @@ void Window::loop() {
             lastTick = now;
             m_Widget->tick(dt_ms);
         }
-        processed = false;
     }
 }
 

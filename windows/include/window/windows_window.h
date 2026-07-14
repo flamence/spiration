@@ -90,6 +90,7 @@ private:
 
     bool m_ShouldClose = false;
     bool m_IsFullscreen = false;
+    bool m_NeedsRepaint = true;
 
     RECT m_WindowRectBeforeFullscreen = {0};
     DWORD m_WindowStyleBeforeFullscreen = 0;
