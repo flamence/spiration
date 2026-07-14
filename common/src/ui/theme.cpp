@@ -38,10 +38,9 @@ void theme::init_defaults(profile* dark) {
     d(CONTROL_ICON_HOVER, {1.00f, 1.00f, 1.00f});
     d(CONTROL_HOVER_BG,   {1.00f, 1.00f, 1.00f, 0.08f});
     d(SEPARATOR,          {0.35f, 0.35f, 0.35f});
-    d(EDITOR_BG,          {0.13f, 0.13f, 0.13f});
-    d(EDITOR_GUTTER_BG,   {0.10f, 0.10f, 0.10f});
-    d(EDITOR_LINE_NUM,    {0.55f, 0.55f, 0.55f});
-    d(EDITOR_CURSOR,      {0.85f, 0.85f, 0.85f});
+
+    d(CONTENT_BG,         {0.20f, 0.20f, 0.20f});
+    d(TEXT_MUTED,         {0.45f, 0.45f, 0.45f});
 
     d(TAB_BAR_BG,          {0.17f, 0.17f, 0.17f});
     d(TAB_ACTIVE_BG,       {0.13f, 0.13f, 0.13f});

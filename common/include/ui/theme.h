@@ -33,11 +33,9 @@ public:
     static constexpr const char* CONTROL_ICON       = "control_icon";
     static constexpr const char* CONTROL_ICON_HOVER = "control_icon_hover";
     static constexpr const char* CONTROL_HOVER_BG   = "control_hover_bg";
+    static constexpr const char* CONTENT_BG         = "content_bg";
     static constexpr const char* SEPARATOR          = "separator";
-    static constexpr const char* EDITOR_BG          = "editor_bg";
-    static constexpr const char* EDITOR_GUTTER_BG   = "editor_gutter_bg";
-    static constexpr const char* EDITOR_LINE_NUM    = "editor_line_num";
-    static constexpr const char* EDITOR_CURSOR      = "editor_cursor";
+    static constexpr const char* TEXT_MUTED         = "text_muted";
 
     static constexpr const char* TAB_BAR_BG          = "tab_bar_bg";
     static constexpr const char* TAB_ACTIVE_BG       = "tab_active_bg";

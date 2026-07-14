@@ -12,7 +12,6 @@
 namespace spiration {
 
 about_tab::about_tab() {
-    widget_style.background_color = theme::get(theme::EDITOR_BG);
     title_ = i18n::tr("about");
     app_name_ = "Spiration";
     app_version_ = "1.0.0";
@@ -64,7 +63,7 @@ void about_tab::paint(std::shared_ptr<renderer> renderer) {
     renderer->draw_text_aligned(
         i18n::tr("about_copyright"),
         {left, cur_y, content_w, 20.0f},
-        theme::get(theme::EDITOR_LINE_NUM),
+        theme::get(theme::TEXT_MUTED),
         text_alignment::left, vertical_alignment::center, 12.0f);
 }
 
