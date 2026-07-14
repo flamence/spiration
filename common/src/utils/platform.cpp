@@ -140,10 +140,6 @@ std::string platform::app_data_dir() {
     const char* home = getenv("HOME");
     if (home) return std::string(home) + "/Library/Application Support/Spiration";
 #elif defined(__OHOS__)
-    const char* home = getenv("HOME");
-    if (home) return std::string(home) + "/spiration";
-    const char* dataDir = getenv("DATA_DIR");
-    if (dataDir) return std::string(dataDir) + "/spiration";
     return "/data/storage/el2/base/haps/entry/files/spiration";
 #endif
     return join_path(executable_directory(), "spiration");
@@ -231,6 +227,15 @@ bool platform::create_directory(const std::string& path) {
     return CreateDirectoryW(wpath.c_str(), nullptr) != 0 ||
            GetLastError() == ERROR_ALREADY_EXISTS;
 #else
+    // 递归创建父目录
+    auto pos = path.rfind('/');
+    if (pos != std::string::npos && pos > 0) {
+        std::string parent = path.substr(0, pos);
+        struct stat st;
+        if (stat(parent.c_str(), &st) != 0) {
+            create_directory(parent);
+        }
+    }
     if (mkdir(path.c_str(), 0755) == 0) return true;
     return errno == EEXIST;
 #endif

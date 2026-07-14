@@ -17,7 +17,11 @@ private:
     std::unique_ptr<popup_menu> m_popup = nullptr;
 
 public:
-    explicit root(std::shared_ptr<spiration::window> parent);
+    /**
+     * @param parent 窗口对象
+     * @param create_appbar 是否创建 appbar
+     */
+    explicit root(std::shared_ptr<spiration::window> parent, bool create_appbar = true);
 
     void init() override;
     void layout() override;
@@ -48,6 +52,7 @@ public:
 private:
     tab_bar* tab_bar_ = nullptr;
     menu_bar* menu_bar_ = nullptr;
+    bool create_appbar_ = true;
 };
 
 } 

@@ -1,48 +1,90 @@
-import { AbilityConstant, ConfigurationConstant, UIAbility, Want } from '@kit.AbilityKit';
+/**
+ * @file EntryAbility.ets
+ * @brief Spiration 入口能力。
+ * @author clk
+ */
+
+import { AbilityConstant, Configuration, UIAbility, Want } from '@kit.AbilityKit';
 import { hilog } from '@kit.PerformanceAnalysisKit';
 import { window } from '@kit.ArkUI';
+import { GlobalContext } from '../utils/GlobalContext';
 
 const DOMAIN = 0x0000;
+const TAG = 'Spiration';
 
 export default class EntryAbility extends UIAbility {
+  private win: window.Window | null = null;
+
   onCreate(want: Want, launchParam: AbilityConstant.LaunchParam): void {
-    try {
-      this.context.getApplicationContext().setColorMode(ConfigurationConstant.ColorMode.COLOR_MODE_NOT_SET);
-    } catch (err) {
-      hilog.error(DOMAIN, 'testTag', 'Failed to set colorMode. Cause: %{public}s', JSON.stringify(err));
-    }
-    hilog.info(DOMAIN, 'testTag', '%{public}s', 'Ability onCreate');
+    hilog.info(DOMAIN, TAG, 'Spiration OHOS onCreate');
   }
 
   onDestroy(): void {
-    hilog.info(DOMAIN, 'testTag', '%{public}s', 'Ability onDestroy');
+    hilog.info(DOMAIN, TAG, 'Spiration OHOS onDestroy');
   }
 
   onWindowStageCreate(windowStage: window.WindowStage): void {
-    // Main window is created, set main page for this ability
-    hilog.info(DOMAIN, 'testTag', '%{public}s', 'Ability onWindowStageCreate');
+    hilog.info(DOMAIN, TAG, 'onWindowStageCreate');
 
+    try {
+      GlobalContext.getInstance().setValue('abilityContext', this.context);
+      this.win = windowStage.getMainWindowSync();
+      GlobalContext.getInstance().setValue('mainWindow', this.win);
+
+      // 注册窗口大小变化监听
+      this.win.on('windowSizeChange', (data: window.Size) => {
+        AppStorage.setOrCreate<number>('windowWidth', data.width);
+        AppStorage.setOrCreate<number>('windowHeight', data.height);
+        hilog.info(DOMAIN, TAG, 'Window resized: %{public}dx%{public}d', data.width, data.height);
+      });
+    } catch (err) {
+      hilog.error(DOMAIN, TAG, 'Failed to configure window: %{public}s', JSON.stringify(err));
+    }
+
+    // 加载主页面
     windowStage.loadContent('pages/Index', (err) => {
       if (err.code) {
-        hilog.error(DOMAIN, 'testTag', 'Failed to load the content. Cause: %{public}s', JSON.stringify(err));
+        hilog.error(DOMAIN, TAG, 'Failed to load content: %{public}s', JSON.stringify(err));
         return;
       }
-      hilog.info(DOMAIN, 'testTag', 'Succeeded in loading the content.');
+      hilog.info(DOMAIN, TAG, 'Succeeded in loading content');
+
+      // UI 内容加载完成后，隐藏所有系统窗口装饰（由 C++ appbar 接管）
+      if (this.win) {
+        try {
+          this.win.setWindowDecorVisible(false);           // 隐藏标题栏
+          this.win.setTitleAndDockHoverShown(false);       // 禁用悬浮标题栏
+          this.win.setWindowTitleMoveEnabled(false);       // 禁用标题栏拖拽移动
+          this.win.setWindowTitleButtonVisible(false, false, false); // 隐藏三键
+          hilog.info(DOMAIN, TAG, 'All window decorations hidden');
+        } catch (e) {
+          hilog.warn(DOMAIN, TAG, 'Hide decoration error: %{public}s', JSON.stringify(e));
+        }
+      }
     });
   }
 
   onWindowStageDestroy(): void {
-    // Main window is destroyed, release UI related resources
-    hilog.info(DOMAIN, 'testTag', '%{public}s', 'Ability onWindowStageDestroy');
+    // 移除窗口监听
+    if (this.win) {
+      try {
+        this.win.off('windowSizeChange');
+      } catch (err) {
+        // ignore
+      }
+    }
+    hilog.info(DOMAIN, TAG, 'onWindowStageDestroy');
   }
 
   onForeground(): void {
-    // Ability has brought to foreground
-    hilog.info(DOMAIN, 'testTag', '%{public}s', 'Ability onForeground');
+    hilog.info(DOMAIN, TAG, 'onForeground');
   }
 
   onBackground(): void {
-    // Ability has back to background
-    hilog.info(DOMAIN, 'testTag', '%{public}s', 'Ability onBackground');
+    hilog.info(DOMAIN, TAG, 'onBackground');
+  }
+
+  onConfigurationUpdate(config: Configuration): void {
+    hilog.info(DOMAIN, TAG, 'onConfigurationUpdate: %{public}s', JSON.stringify(config));
   }
 }
