@@ -63,7 +63,7 @@ void window_controls::paint(std::shared_ptr<renderer> renderer) {
     float h = btn_h_;
     constexpr float iconSize = 10.0f;
     float iconHalf = iconSize * 0.5f;
-
+    
 #ifdef __APPLE__
     float xs[3] = { (btn_size_ - iconSize) * 0.5f,
                     btn_size_ + (btn_size_ - iconSize) * 0.5f,

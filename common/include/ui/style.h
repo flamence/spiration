@@ -24,9 +24,9 @@ public:
     spiration::margin margin;
     spiration::margin padding;
     spiration::color border_color;
-    int borderWidth;
-    int width;
-    int height;
+    int borderWidth = 0;
+    int width = 0;
+    int height = 0;
     std::string display;
     std::string position;
 };
