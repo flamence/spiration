@@ -9,7 +9,7 @@
     "externalNativeOptions": {
       "path": "./src/main/cpp/CMakeLists.txt",
       "arguments": "-DCMAKE_CXX_STANDARD=20 -DCMAKE_CXX_STANDARD_REQUIRED=ON",
-      "cppFlags": "-frtti -fexceptions",
+      "cppFlags": "-frtti -fexceptions -Wno-unused-command-line-argument",
       "abiFilters": [
         "arm64-v8a",
         "x86_64"

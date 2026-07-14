@@ -239,6 +239,13 @@ void tab_bar::add_tab(std::unique_ptr<tab> t) {
     if (request_repaint_) raw_tab->set_repaint_callback(request_repaint_);
     if (window_action_) raw_tab->set_window_action_callback(window_action_);
 
+    if (request_repaint_ && header_row_) {
+        header_row_->set_repaint_callback(request_repaint_);
+    }
+    if (window_action_ && header_row_) {
+        header_row_->set_window_action_callback(window_action_);
+    }
+
     auto head = std::make_unique<tab_head_item>(raw_tab->title_);
     tab_head_item* raw_head = head.get();
     head->height = TAB_HEADER_H;
@@ -264,6 +271,8 @@ void tab_bar::add_tab(std::unique_ptr<tab> t) {
     }
 
     if (active_index_ < 0) activate_tab(0);
+
+    layout();
     if (request_repaint_) request_repaint_();
 }
 

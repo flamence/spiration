@@ -6,8 +6,9 @@
 
 namespace spiration {
 
-root::root(std::shared_ptr<spiration::window> parent) {
+root::root(std::shared_ptr<spiration::window> parent, bool create_appbar) {
     m_window = parent;
+    create_appbar_ = create_appbar;
     widget_style.background_color = theme::get(theme::WINDOW_BG);
     init();
 }
@@ -48,14 +49,25 @@ void root::layout() {
     width = static_cast<float>(w);
     height = static_cast<float>(h);
 
+    bool has_appbar = false;
     for (auto& child : children()) {
         if (dynamic_cast<appbar*>(child.get())) {
             child->width = width; child->height = 34.0f;
             child->x = 0; child->y = 0;
             child->layout();
-        } else if (auto* tb = dynamic_cast<tab_bar*>(child.get())) {
-            tb->width = width; tb->height = height - 34.0f;
-            tb->x = 0; tb->y = 34.0f;
+            has_appbar = true;
+        }
+    }
+
+    for (auto& child : children()) {
+        if (auto* tb = dynamic_cast<tab_bar*>(child.get())) {
+            if (has_appbar) {
+                tb->width = width; tb->height = height - 34.0f;
+                tb->x = 0; tb->y = 34.0f;
+            } else {
+                tb->width = width; tb->height = height;
+                tb->x = 0; tb->y = 0;
+            }
             tb->layout();
         }
     }
@@ -71,17 +83,19 @@ void root::init() {
     tab_bar_ = tb.get();
     add_child(std::move(tb));
 
-    auto appbar = std::make_unique<spiration::appbar>();
-    appbar->init();
-    for (auto& child : appbar->children()) {
-        if (auto* mb = dynamic_cast<menu_bar*>(child.get())) {
-            menu_bar_ = mb;
-            mb->set_show_popup_callback([this](float x, float y, std::unique_ptr<popup_menu> popup) {
-                show_popup(x, y, std::move(popup));
-            });
+    if (create_appbar_) {
+        auto appbar = std::make_unique<spiration::appbar>();
+        appbar->init();
+        for (auto& child : appbar->children()) {
+            if (auto* mb = dynamic_cast<menu_bar*>(child.get())) {
+                menu_bar_ = mb;
+                mb->set_show_popup_callback([this](float x, float y, std::unique_ptr<popup_menu> popup) {
+                    show_popup(x, y, std::move(popup));
+                });
+            }
         }
+        add_child(std::move(appbar));
     }
-    add_child(std::move(appbar));
 }
 
 bool root::add_menu_item(const std::string& menu_name,

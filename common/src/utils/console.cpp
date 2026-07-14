@@ -7,7 +7,9 @@
 #include <utils/console.h>
 #include <cstdio>
 #include <cstdarg>
-
+#ifdef __OHOS__
+#include <hilog/log.h>
+#endif
 #ifdef _WIN32
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
@@ -69,9 +71,16 @@ void console::error(const char* format, ...) {
 }
 
 void console::vprint(const char* prefix, const char* format, va_list args) {
+#ifdef __OHOS__
+    char buf[1024];
+    vsnprintf(buf, sizeof(buf), format, args);
+    OH_LOG_Print(LOG_APP, LOG_INFO, 0x0000, "Spiration", "%{public}s%{public}s",
+                 prefix, buf);
+#else
     printf("%s", prefix);
     vprintf(format, args);
     printf("\n");
+#endif
 }
 
 } 
