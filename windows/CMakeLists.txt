@@ -20,8 +20,8 @@ target_include_directories(${PROJECT_NAME} PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/include
     ${CMAKE_CURRENT_SOURCE_DIR}/src
     ${CMAKE_CURRENT_SOURCE_DIR}/res
-    ${CMAKE_SOURCE_DIR}/common/include
-    ${CMAKE_SOURCE_DIR}/common/src
+    ${CMAKE_CURRENT_SOURCE_DIR}/../common/include
+    ${CMAKE_CURRENT_SOURCE_DIR}/../common/src
 )
 
 target_link_libraries(${PROJECT_NAME} PRIVATE
@@ -62,10 +62,10 @@ if(MINGW)
     )
 endif()
 
-file(COPY ${CMAKE_SOURCE_DIR}/common/lang DESTINATION ${CMAKE_BINARY_DIR}/bin)
+file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/../common/lang DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/bin)
 
 set_target_properties(spiration PROPERTIES
     OUTPUT_NAME "Spiration"
-    RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin
+    RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/bin
     WIN32_EXECUTABLE $<IF:$<CONFIG:Debug>,FALSE,TRUE>
 )

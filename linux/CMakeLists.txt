@@ -22,8 +22,8 @@ add_executable(${PROJECT_NAME} ${LINUX_SOURCES} ${LINUX_HEADERS})
 target_include_directories(${PROJECT_NAME} PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/include
     ${CMAKE_CURRENT_SOURCE_DIR}/src
-    ${CMAKE_SOURCE_DIR}/common/include
-    ${CMAKE_SOURCE_DIR}/common/src
+    ${CMAKE_CURRENT_SOURCE_DIR}/../common/include
+    ${CMAKE_CURRENT_SOURCE_DIR}/../common/src
     ${X11_INCLUDE_DIR}
     ${FREETYPE_INCLUDE_DIRS}
     ${XCB_INCLUDE_DIRS}
@@ -43,10 +43,10 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
     pthread
 )
 
-file(COPY ${CMAKE_SOURCE_DIR}/common/lang DESTINATION ${CMAKE_BINARY_DIR}/bin)
-file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/res/spiration.png DESTINATION ${CMAKE_BINARY_DIR}/bin/res)
+file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/../common/lang DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/bin)
+file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/res/spiration.png DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/bin/res)
 
 set_target_properties(${PROJECT_NAME} PROPERTIES
     OUTPUT_NAME "spiration"
-    RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin
+    RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/bin
 )

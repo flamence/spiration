@@ -35,8 +35,8 @@ add_executable(${PROJECT_NAME} ${MACOS_SOURCES} ${MACOS_HEADERS})
 target_include_directories(${PROJECT_NAME} PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/include
     ${CMAKE_CURRENT_SOURCE_DIR}/src
-    ${CMAKE_SOURCE_DIR}/common/include
-    ${CMAKE_SOURCE_DIR}/common/src
+    ${CMAKE_CURRENT_SOURCE_DIR}/../common/include
+    ${CMAKE_CURRENT_SOURCE_DIR}/../common/src
 )
 
 target_link_libraries(${PROJECT_NAME} PRIVATE
@@ -59,13 +59,13 @@ add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
 
 add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_directory
-        ${CMAKE_SOURCE_DIR}/common/lang
+        ${CMAKE_CURRENT_SOURCE_DIR}/../common/lang
         $<TARGET_FILE_DIR:${PROJECT_NAME}>/lang
 )
 
 set_target_properties(${PROJECT_NAME} PROPERTIES
     OUTPUT_NAME "Spiration"
-    RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin
+    RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/bin
     MACOSX_BUNDLE TRUE
     MACOSX_BUNDLE_GUI_IDENTIFIER "com.flamence.spiration"
     MACOSX_BUNDLE_BUNDLE_VERSION ${PROJECT_VERSION}
