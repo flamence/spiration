@@ -20,6 +20,11 @@ void root::paint(std::shared_ptr<renderer> renderer) {
     }
 }
 
+void root::set_mouse_capture(widget* w) {
+    captured_ = w;
+    if (m_window) m_window->set_mouse_capture(w != nullptr);
+}
+
 void root::handle_event(const event_type& type, void* data) {
     if (type == event_type::window_resize) {
         layout();
@@ -33,6 +38,22 @@ void root::handle_event(const event_type& type, void* data) {
         m_popup->handle_event(type, data);
         md->position = old;
         if (md->consumed) return;
+    }
+
+    if (type == event_type::mouse && captured_) {
+        auto* md = static_cast<mouse_event_data*>(data);
+        point original = md->position;
+        float ox = 0.0f, oy = 0.0f;
+        for (widget* w = captured_->parent(); w; w = w->parent()) {
+            ox += w->x;
+            oy += w->y;
+            if (w == this) break;
+        }
+        md->position.x = original.x - ox;
+        md->position.y = original.y - oy;
+        captured_->handle_event(type, data);
+        md->position = original;
+        return;
     }
 
     container::handle_event(type, data);

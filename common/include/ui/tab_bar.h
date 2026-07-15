@@ -24,12 +24,18 @@ class tab_bar;
 class tab : public container {
     friend class tab_bar;
 public:
-    void set_title(const std::string& t) { title_ = t; }
+    void set_title(const std::string& t) { 
+        title_ = t; 
+        if (on_title_change_) on_title_change_(title_);
+    }
     const std::string& title() const { return title_; }
 
     bool is_active() const { return active_; }
 
-    
+    void set_on_title_change(std::function<void(const std::string&)> cb) {
+        on_title_change_ = std::move(cb);
+    }
+
     virtual void on_activate() {}
     virtual void on_deactivate() {}
 
@@ -38,6 +44,7 @@ public:
 protected:
     std::string title_;
     bool active_ = false;
+    std::function<void(const std::string&)> on_title_change_;
 };
 
 /**

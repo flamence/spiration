@@ -57,6 +57,7 @@ public:
     void set_on_resize(void_function callback) override { on_resize_ = callback; }
     void set_on_key(void_function callback) override { on_key_ = callback; }
     void set_on_mouse(void_function callback) override { on_mouse_ = callback; }
+    void set_mouse_capture(bool capture) override {}
     void set_on_maximize(void_function callback) { on_maximize_ = callback; }
     void set_on_minimize(void_function callback) { on_minimize_ = callback; }
     void set_on_start_move(void_function callback) { on_start_move_ = callback; }

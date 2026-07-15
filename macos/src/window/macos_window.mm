@@ -318,6 +318,10 @@ void Window::set_on_resize(void_function callback) { m_OnResize = callback; }
 void Window::set_on_key(void_function callback) { m_OnKey = callback; }
 void Window::set_on_mouse(void_function callback) { m_OnMouse = callback; }
 
+void Window::set_mouse_capture(bool capture) {
+    (void)capture;
+}
+
 void Window::set_widget(std::unique_ptr<widget> widget) {
     m_Widget = std::move(widget);
     notify_widget_resize();

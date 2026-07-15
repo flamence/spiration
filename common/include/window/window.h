@@ -90,6 +90,8 @@ public:
     virtual void set_on_key(void_function callback) = 0;
     virtual void set_on_mouse(void_function callback) = 0;
 
+    virtual void set_mouse_capture(bool capture) = 0;
+
     virtual void set_widget(std::unique_ptr<widget> widget) = 0;
     
 protected:

@@ -157,6 +157,12 @@ public:
         }
     }
 
+    void set_parent(widget* p) { parent_ = p; }
+
+    virtual void set_mouse_capture(widget* w) {
+        if (parent_) parent_->set_mouse_capture(w);
+    }
+
 protected:
     
     std::function<void()> request_repaint_ = nullptr;

@@ -375,6 +375,13 @@ LRESULT Window::HandleMessage(UINT uMsg, WPARAM wParam, LPARAM lParam) {
     return DefWindowProc(m_hWnd, uMsg, wParam, lParam);
 }
 
+void Window::set_mouse_capture(bool capture) {
+    if (capture) {
+        SetCapture(m_hWnd);
+    } else {
+        ReleaseCapture();
+    }
+}
 
 bool Window::initialize(const window_params& params) {
     m_hInstance = GetModuleHandle(nullptr);

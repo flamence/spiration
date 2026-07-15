@@ -66,6 +66,7 @@ public:
     void set_on_resize(void_function callback) override;
     void set_on_key(void_function callback) override;
     void set_on_mouse(void_function callback) override;
+    void set_mouse_capture(bool capture) override;
 
     void set_widget(std::unique_ptr<widget> widget) override;
 
