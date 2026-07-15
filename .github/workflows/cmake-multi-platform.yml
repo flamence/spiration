@@ -5,6 +5,8 @@ on:
     branches: [ "gui" ]
   pull_request:
     branches: [ "gui" ]
+  release:
+    types: [ published ]
 
 jobs:
   build:
@@ -28,7 +30,7 @@ jobs:
             cpp_compiler: clang++
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: 安装 Linux 依赖
         if: runner.os == 'Linux'
@@ -57,3 +59,42 @@ jobs:
       - name: 运行测试
         working-directory: ${{ steps.strings.outputs.build-output-dir }}
         run: ctest --build-config ${{ matrix.build_type }}
+
+      - name: 设置版本号
+        id: version
+        shell: bash
+        run: |
+          if [ "${{ github.event_name }}" == "release" ]; then
+            echo "version=${{ github.event.release.tag_name }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "version=$(git rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: 打包
+        shell: bash
+        run: |
+          BIN_DIR="${{ steps.strings.outputs.build-output-dir }}/bin"
+          ARCHIVE_NAME="spiration-${{ steps.version.outputs.version }}-${{ matrix.os }}.zip"
+          if [ "${{ runner.os }}" == "Windows" ]; then
+            cd "$BIN_DIR"
+            7z a -tzip "${{ github.workspace }}/$ARCHIVE_NAME" "*" -r
+            cd "${{ github.workspace }}"
+          else
+            cd "$BIN_DIR"
+            zip -r "${{ github.workspace }}/$ARCHIVE_NAME" . -r
+            cd "${{ github.workspace }}"
+          fi
+          echo "ARCHIVE_NAME=$ARCHIVE_NAME" >> $GITHUB_ENV
+
+      - name: 上传工件
+        uses: actions/upload-artifact@v4
+        with:
+          name: spiration-${{ matrix.os }}
+          path: ${{ env.ARCHIVE_NAME }}
+      
+      - name: 上传到 GitHub Release
+        if: github.event_name == 'release'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release upload ${{ github.event.release.tag_name }} "${{ env.ARCHIVE_NAME }}" --repo ${{ github.repository }}
