@@ -1243,7 +1243,7 @@ std::shared_ptr<window> window::create() {
 }
 
 std::shared_ptr<window> window::create(const window_params& params) {
-    auto win = std::make_shared<Window>();
+    auto win = std::make_shared<linux_window>();
     if (!win->initialize(params)) return nullptr;
     return win;
 }
