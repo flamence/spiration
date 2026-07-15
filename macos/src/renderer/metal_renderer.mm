@@ -13,6 +13,7 @@
 #import <CoreText/CoreText.h>
 #import <CoreImage/CoreImage.h>
 #import <simd/simd.h>
+#import <Cocoa/Cocoa.h>
 #import <cstring>
 #import <cmath>
 #import <algorithm>
@@ -315,11 +316,15 @@ void metal_renderer::draw_circle(const point& center, float radius, const color&
     struct CircleVertex {
         float x, y;
     };
+    // MTLPrimitiveTypeTriangleFan was removed in newer Metal SDKs,
+    // so generate triangle list vertices instead.
     std::vector<CircleVertex> verts;
-    verts.push_back({ 0.0f, 0.0f });
-    for (int i = 0; i <= segments; ++i) {
-        float angle = 2.0f * M_PI * static_cast<float>(i) / static_cast<float>(segments);
-        verts.push_back({ cosf(angle), sinf(angle) });
+    for (int i = 0; i < segments; ++i) {
+        float angle1 = 2.0f * M_PI * static_cast<float>(i) / static_cast<float>(segments);
+        float angle2 = 2.0f * M_PI * static_cast<float>(i + 1) / static_cast<float>(segments);
+        verts.push_back({ 0.0f, 0.0f });
+        verts.push_back({ cosf(angle1), sinf(angle1) });
+        verts.push_back({ cosf(angle2), sinf(angle2) });
     }
 
     @autoreleasepool {
@@ -351,7 +356,7 @@ void metal_renderer::draw_circle(const point& center, float radius, const color&
         [m_CommandEncoder setVertexBuffer:vertBuffer offset:0 atIndex:0];
         [m_CommandEncoder setVertexBuffer:uniformBuffer offset:0 atIndex:1];
         [m_CommandEncoder setFragmentBuffer:uniformBuffer offset:0 atIndex:0];
-        [m_CommandEncoder drawPrimitives:MTLPrimitiveTypeTriangleFan vertexStart:0 vertexCount:verts.size()];
+        [m_CommandEncoder drawPrimitives:MTLPrimitiveTypeTriangle vertexStart:0 vertexCount:verts.size()];
     }
 }
 
@@ -486,11 +491,12 @@ void metal_renderer::draw_text(const std::string& text, const point& position, c
             if (textWidth < 1.0f) textWidth = 1.0f;
             if (textHeight < 1.0f) textHeight = 1.0f;
 
+            CGBitmapInfo bitmapInfo = (CGBitmapInfo)kCGImageAlphaPremultipliedFirst | kCGBitmapByteOrder32Little;
             CGContextRef bitmapCtx = CGBitmapContextCreate(
                 nil, (size_t)textWidth, (size_t)textHeight,
                 8, (size_t)textWidth * 4,
                 CGColorSpaceCreateDeviceRGB(),
-                kCGImageAlphaPremultipliedFirst | kCGBitmapByteOrder32Little);
+                bitmapInfo);
 
             if (bitmapCtx) {
                 CGContextSetTextMatrix(bitmapCtx, CGAffineTransformMakeScale(1.0, -1.0));
@@ -564,11 +570,12 @@ void metal_renderer::draw_text(const std::string& text, const point& position, c
             textWidth = (CGFloat)lineWidth;
             textHeight = totalHeight;
 
+            CGBitmapInfo bitmapInfo = (CGBitmapInfo)kCGImageAlphaPremultipliedFirst | kCGBitmapByteOrder32Little;
             CGContextRef bitmapCtx = CGBitmapContextCreate(
                 nil, (size_t)lineWidth, (size_t)totalHeight,
                 8, (size_t)lineWidth * 4,
                 CGColorSpaceCreateDeviceRGB(),
-                kCGImageAlphaPremultipliedFirst | kCGBitmapByteOrder32Little);
+                bitmapInfo);
 
             if (bitmapCtx) {
                 CGContextSetTextPosition(bitmapCtx, 0, descent);
@@ -687,9 +694,10 @@ id<MTLTexture> metal_renderer::load_image_texture(const std::string& path) {
         texture = [m_Device newTextureWithDescriptor:texDesc];
 
         CGColorSpaceRef colorSpace = CGColorSpaceCreateDeviceRGB();
+        CGBitmapInfo bitmapInfo = (CGBitmapInfo)kCGImageAlphaPremultipliedFirst | kCGBitmapByteOrder32Little;
         CGContextRef bitmapCtx = CGBitmapContextCreate(
             nil, imgW, imgH, 8, imgW * 4, colorSpace,
-            kCGImageAlphaPremultipliedFirst | kCGBitmapByteOrder32Little);
+            bitmapInfo);
 
         if (bitmapCtx) {
             CGContextDrawImage(bitmapCtx, CGRectMake(0, 0, imgW, imgH), cgImage);
@@ -926,7 +934,8 @@ bool metal_renderer::init_pipeline_states() {
             libPath = @"./default.metallib";
         }
 
-        id<MTLLibrary> library = [m_Device newLibraryWithFile:libPath error:&error];
+        NSURL* libURL = [NSURL fileURLWithPath:libPath];
+        id<MTLLibrary> library = [m_Device newLibraryWithURL:libURL error:&error];
         if (!library) {
             library = [m_Device newDefaultLibrary];
         }

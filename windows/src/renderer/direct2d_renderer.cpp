@@ -331,10 +331,10 @@ void direct2d_renderer::draw_image_subregion(const std::string& image_path, cons
     if (!texture || !texture->bitmap) return;
     
     
-    float srcLeft   = std::max(source.x, 0.0f);
-    float srcTop    = std::max(source.y, 0.0f);
-    float srcRight  = std::min(source.x + source.width, static_cast<float>(texture->width));
-    float srcBottom = std::min(source.y + source.height, static_cast<float>(texture->height));
+    float srcLeft   = (std::max)(source.x, 0.0f);
+    float srcTop    = (std::max)(source.y, 0.0f);
+    float srcRight  = (std::min)(source.x + source.width, static_cast<float>(texture->width));
+    float srcBottom = (std::min)(source.y + source.height, static_cast<float>(texture->height));
     if (srcRight <= srcLeft || srcBottom <= srcTop) return;
     
     D2D1_RECT_F srcRect = D2D1::RectF(srcLeft, srcTop, srcRight, srcBottom);

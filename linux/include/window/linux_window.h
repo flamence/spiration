@@ -105,7 +105,7 @@ private:
     int hit_test_edge(float x, float y) const;
 
     Display* display_ = nullptr;
-    ::linux_window window_ = 0;
+    ::Window window_ = 0;
     Atom delete_atom_ = 0;
     Atom wm_state_atom_ = 0;
     Atom wm_state_fullscreen_atom_ = 0;
