@@ -91,7 +91,7 @@ private:
     bool create_x11_window(const window_params& params);
     bool create_gl_context();
     bool create_renderer();
-    void process_events();
+    bool process_events();
     void handle_expose();
     void handle_resize(uint32_t width, uint32_t height);
     void handle_key_press(XKeyEvent* event);

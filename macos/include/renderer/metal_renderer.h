@@ -108,6 +108,10 @@ private:
     bool m_BlendEnabled = true;
     bool m_Initialized = false;
 
+    id<MTLTexture> load_image_texture(const std::string& path);
+    void draw_text_impl(const std::string& text, const point& position, const color& text_color,
+                        float font_size, const std::string& font_family, bool word_wrap);
+
     struct Vertex2D {
         float x, y;
     };
@@ -119,6 +123,8 @@ private:
         float x, y;
         float u, v;
     };
+
+    std::unordered_map<std::string, id<MTLTexture>> m_ImageCache;
 };
 
 } // namespace spiration

@@ -18,6 +18,331 @@ namespace spiration {
 
 uint32_t Window::s_NextWindowId = 1;
 
+static constexpr float DRAG_AREA_HEIGHT = 34.0f;
+static constexpr float RESIZE_MARGIN = 6.0f;
+
+static int cocoa_key_to_vk(unsigned short keyCode) {
+    switch (keyCode) {
+        case 0x33: return 0x08; // VK_BACK
+        case 0x30: return 0x09; // VK_TAB
+        case 0x24: return 0x0D; // VK_RETURN
+        case 0x1B: return 0x1B; // VK_ESCAPE
+        case 0x75: return 0x2E; // VK_DELETE
+        case 0x73: return 0x24; // VK_HOME
+        case 0x7B: return 0x25; // VK_LEFT
+        case 0x7E: return 0x26; // VK_UP
+        case 0x7C: return 0x27; // VK_RIGHT
+        case 0x7D: return 0x28; // VK_DOWN
+        case 0x74: return 0x21; // VK_PRIOR
+        case 0x79: return 0x22; // VK_NEXT
+        case 0x77: return 0x23; // VK_END
+        case 0x7A: return 0x70; // VK_F1
+        case 0x78: return 0x71; // VK_F2
+        case 0x63: return 0x72; // VK_F3
+        case 0x76: return 0x73; // VK_F4
+        case 0x60: return 0x74; // VK_F5
+        case 0x61: return 0x75; // VK_F6
+        case 0x62: return 0x76; // VK_F7
+        case 0x64: return 0x77; // VK_F8
+        case 0x65: return 0x78; // VK_F9
+        case 0x6D: return 0x79; // VK_F10
+        case 0x67: return 0x7A; // VK_F11
+        case 0x6F: return 0x7B; // VK_F12
+        default: return static_cast<int>(keyCode);
+    }
+}
+
+@interface SpirationContentView : NSView
+@property (nonatomic, assign) spiration::Window* spirationWindow;
+@end
+
+@implementation SpirationContentView
+
+- (BOOL)acceptsFirstResponder {
+    return YES;
+}
+
+- (BOOL)canBecomeKeyView {
+    return YES;
+}
+
+- (void)updateTrackingAreas {
+    [super updateTrackingAreas];
+    for (NSTrackingArea* area in self.trackingAreas) {
+        [self removeTrackingArea:area];
+    }
+    NSTrackingArea* area = [[NSTrackingArea alloc] initWithRect:self.bounds
+                                                         options:NSTrackingMouseMoved | NSTrackingActiveInActiveApp | NSTrackingInVisibleRect
+                                                           owner:self userInfo:nil];
+    [self addTrackingArea:area];
+}
+
+- (int)hitTestEdge:(NSPoint)loc {
+    spiration::Window* win = self.spirationWindow;
+    if (!win) return 0;
+    int32_t w, h;
+    win->get_size(w, h);
+    int flags = 0;
+    if (loc.x < RESIZE_MARGIN)                flags |= 1; // 左
+    if (loc.x > w - RESIZE_MARGIN)            flags |= 2; // 右
+    if (loc.y < RESIZE_MARGIN)                flags |= 4; // 上
+    if (loc.y > h - RESIZE_MARGIN)            flags |= 8; // 下
+    return flags;
+}
+
+- (void)updateResizeCursor:(int)edge {
+    if (edge == 0) {
+        [[NSCursor arrowCursor] set];
+        return;
+    }
+    if ((edge & 1) || (edge & 2)) [[NSCursor resizeLeftRightCursor] set];
+    if ((edge & 4) || (edge & 8)) [[NSCursor resizeUpDownCursor] set];
+}
+
+- (void)mouseDown:(NSEvent*)event {
+    if (!self.spirationWindow) return;
+    spiration::Window* win = self.spirationWindow;
+
+    NSPoint loc = [self convertPoint:event.locationInWindow fromView:nil];
+
+    int edge = [self hitTestEdge:loc];
+    if (edge != 0) {
+        win->m_IsResizing = true;
+        win->m_ResizeEdge = edge;
+        win->m_DragStartMouseX = event.locationInWindow.x;
+        win->m_DragStartMouseY = event.locationInWindow.y;
+        NSRect frame = win->m_NSWindow.frame;
+        win->m_DragStartX = frame.origin.x;
+        win->m_DragStartY = frame.origin.y;
+        win->m_DragStartW = frame.size.width;
+        win->m_DragStartH = frame.size.height;
+        return;
+    }
+
+    int32_t h;
+    win->get_size(h, h);
+    if (loc.y > h - DRAG_AREA_HEIGHT) {
+        if (event.clickCount == 2) {
+            if (win->is_maximized()) {
+                win->restore();
+            } else {
+                win->maximize();
+            }
+            return;
+        }
+        win->m_IsDragging = true;
+        win->m_DragStartMouseX = event.locationInWindow.x;
+        win->m_DragStartMouseY = event.locationInWindow.y;
+        NSRect frame = win->m_NSWindow.frame;
+        win->m_DragStartX = frame.origin.x;
+        win->m_DragStartY = frame.origin.y;
+        return;
+    }
+
+    mouse_event_data data;
+    data.position = { static_cast<float>(loc.x), static_cast<float>(loc.y) };
+    data.button = mouse_button::left;
+    data.action = mouse_action::down;
+    if (win->get_widget()) {
+        win->get_widget()->handle_event(event_type::mouse, &data);
+    }
+    if (win->on_mouse()) win->on_mouse()(win);
+
+    if (!data.consumed && loc.y > h - DRAG_AREA_HEIGHT) {
+    }
+}
+
+- (void)mouseUp:(NSEvent*)event {
+    if (!self.spirationWindow) return;
+    spiration::Window* win = self.spirationWindow;
+    win->m_IsDragging = false;
+    win->m_IsResizing = false;
+
+    NSPoint loc = [self convertPoint:event.locationInWindow fromView:nil];
+    mouse_event_data data;
+    data.position = { static_cast<float>(loc.x), static_cast<float>(loc.y) };
+    data.button = mouse_button::left;
+    data.action = mouse_action::up;
+    if (win->get_widget()) {
+        win->get_widget()->handle_event(event_type::mouse, &data);
+    }
+    if (win->on_mouse()) win->on_mouse()(win);
+}
+
+- (void)rightMouseDown:(NSEvent*)event {
+    if (!self.spirationWindow) return;
+    spiration::Window* win = self.spirationWindow;
+    NSPoint loc = [self convertPoint:event.locationInWindow fromView:nil];
+    mouse_event_data data;
+    data.position = { static_cast<float>(loc.x), static_cast<float>(loc.y) };
+    data.button = mouse_button::right;
+    data.action = mouse_action::down;
+    if (win->get_widget()) {
+        win->get_widget()->handle_event(event_type::mouse, &data);
+    }
+    if (win->on_mouse()) win->on_mouse()(win);
+}
+
+- (void)rightMouseUp:(NSEvent*)event {
+    if (!self.spirationWindow) return;
+    spiration::Window* win = self.spirationWindow;
+    NSPoint loc = [self convertPoint:event.locationInWindow fromView:nil];
+    mouse_event_data data;
+    data.position = { static_cast<float>(loc.x), static_cast<float>(loc.y) };
+    data.button = mouse_button::right;
+    data.action = mouse_action::up;
+    if (win->get_widget()) {
+        win->get_widget()->handle_event(event_type::mouse, &data);
+    }
+    if (win->on_mouse()) win->on_mouse()(win);
+}
+
+- (void)mouseMoved:(NSEvent*)event {
+    if (!self.spirationWindow) return;
+    spiration::Window* win = self.spirationWindow;
+    NSPoint loc = [self convertPoint:event.locationInWindow fromView:nil];
+
+    if (!win->m_IsResizing) {
+        int edge = [self hitTestEdge:loc];
+        [self updateResizeCursor:edge];
+    }
+
+    mouse_event_data data;
+    data.position = { static_cast<float>(loc.x), static_cast<float>(loc.y) };
+    data.action = mouse_action::move;
+    if (win->get_widget()) {
+        win->get_widget()->handle_event(event_type::mouse, &data);
+    }
+    if (win->on_mouse()) win->on_mouse()(win);
+}
+
+- (void)mouseDragged:(NSEvent*)event {
+    if (!self.spirationWindow) return;
+    spiration::Window* win = self.spirationWindow;
+
+    if (win->m_IsResizing) {
+        NSRect frame = NSMakeRect(win->m_DragStartX, win->m_DragStartY,
+                                   win->m_DragStartW, win->m_DragStartH);
+        CGFloat dx = event.locationInWindow.x - win->m_DragStartMouseX;
+        CGFloat dy = event.locationInWindow.y - win->m_DragStartMouseY;
+
+        if (win->m_ResizeEdge & 1) { // 左
+            frame.origin.x += dx;
+            frame.size.width -= dx;
+            if (frame.size.width < 400) frame.size.width = 400;
+        }
+        if (win->m_ResizeEdge & 2) { // 右
+            frame.size.width += dx;
+            if (frame.size.width < 400) frame.size.width = 400;
+        }
+        if (win->m_ResizeEdge & 4) { // 下（macOS 坐标原点在左下）
+            frame.origin.y += dy;
+            frame.size.height -= dy;
+            if (frame.size.height < 300) frame.size.height = 300;
+        }
+        if (win->m_ResizeEdge & 8) { // 上
+            frame.size.height += dy;
+            if (frame.size.height < 300) frame.size.height = 300;
+        }
+
+        [win->m_NSWindow setFrame:frame display:YES animate:NO];
+        return;
+    }
+
+    if (win->m_IsDragging) {
+        NSRect frame = win->m_NSWindow.frame;
+        NSPoint origin = frame.origin;
+        origin.x += event.locationInWindow.x - win->m_DragStartMouseX;
+        origin.y += event.locationInWindow.y - win->m_DragStartMouseY;
+        [win->m_NSWindow setFrameOrigin:origin];
+        return;
+    }
+
+    NSPoint loc = [self convertPoint:event.locationInWindow fromView:nil];
+    mouse_event_data data;
+    data.position = { static_cast<float>(loc.x), static_cast<float>(loc.y) };
+    data.action = mouse_action::move;
+    if (win->get_widget()) {
+        win->get_widget()->handle_event(event_type::mouse, &data);
+    }
+    if (win->on_mouse()) win->on_mouse()(win);
+}
+
+- (void)scrollWheel:(NSEvent*)event {
+    if (!self.spirationWindow) return;
+    spiration::Window* win = self.spirationWindow;
+    NSPoint loc = [self convertPoint:event.locationInWindow fromView:nil];
+    mouse_event_data data;
+    data.position = { static_cast<float>(loc.x), static_cast<float>(loc.y) };
+    data.action = mouse_action::wheel;
+    data.wheel_delta = static_cast<int>([event scrollingDeltaY] * 10);
+    if (win->get_widget()) {
+        win->get_widget()->handle_event(event_type::mouse, &data);
+    }
+    if (win->on_mouse()) win->on_mouse()(win);
+}
+
+- (void)keyDown:(NSEvent*)event {
+    if (!self.spirationWindow) return;
+    spiration::Window* win = self.spirationWindow;
+
+    unsigned short keyCode = [event keyCode];
+    int vk = cocoa_key_to_vk(keyCode);
+
+    if (vk == 0x7A) {
+        win->set_fullscreen(!win->is_fullscreen());
+        return;
+    }
+    if (vk == 0x1B && win->is_fullscreen()) {
+        win->set_fullscreen(false);
+        return;
+    }
+
+    key_event_data ked;
+    ked.key_code = vk;
+    ked.codepoint = 0;
+    NSEventModifierFlags mods = [event modifierFlags];
+    ked.ctrl = (mods & NSEventModifierFlagControl) != 0;
+    ked.shift = (mods & NSEventModifierFlagShift) != 0;
+    ked.alt = (mods & NSEventModifierFlagOption) != 0;
+
+    if (win->get_widget()) {
+        win->get_widget()->handle_event(event_type::keyboard, &ked);
+    }
+    if (win->on_key()) win->on_key()(win);
+
+    NSString* chars = [event characters];
+    if ([chars length] > 0) {
+        key_event_data ced;
+        ced.codepoint = static_cast<unsigned int>([chars characterAtIndex:0]);
+        ced.ctrl = ked.ctrl;
+        ced.shift = ked.shift;
+        ced.alt = ked.alt;
+        if (win->get_widget()) {
+            win->get_widget()->handle_event(event_type::keyboard, &ced);
+        }
+    }
+}
+
+- (void)keyUp:(NSEvent*)event {
+    if (!self.spirationWindow) return;
+    spiration::Window* win = self.spirationWindow;
+
+    key_event_data ked;
+    ked.key_code = cocoa_key_to_vk([event keyCode]);
+    NSEventModifierFlags mods = [event modifierFlags];
+    ked.ctrl = (mods & NSEventModifierFlagControl) != 0;
+    ked.shift = (mods & NSEventModifierFlagShift) != 0;
+    ked.alt = (mods & NSEventModifierFlagOption) != 0;
+
+    if (win->get_widget()) {
+        win->get_widget()->handle_event(event_type::keyboard, &ked);
+    }
+    if (win->on_key()) win->on_key()(win);
+}
+
+@end
+
 @interface SpirationWindowDelegate : NSObject <NSWindowDelegate>
 @property (nonatomic, assign) spiration::Window* spirationWindow;
 @end
@@ -66,9 +391,10 @@ uint32_t Window::s_NextWindowId = 1;
 }
 
 - (void)windowDidBecomeKey:(NSNotification*)notification {
-}
-
-- (void)windowDidResignKey:(NSNotification*)notification {
+    if (self.spirationWindow && self.spirationWindow->m_NSView) {
+        NSView* view = (__bridge NSView*)self.spirationWindow->m_NSView;
+        [view.window makeFirstResponder:view];
+    }
 }
 
 - (BOOL)windowShouldClose:(NSWindow*)sender {
@@ -319,7 +645,13 @@ void Window::set_on_key(void_function callback) { m_OnKey = callback; }
 void Window::set_on_mouse(void_function callback) { m_OnMouse = callback; }
 
 void Window::set_mouse_capture(bool capture) {
-    (void)capture;
+    if (capture) {
+        [NSCursor hide];
+        CGAssociateMouseAndMouseCursorPosition(false);
+    } else {
+        CGAssociateMouseAndMouseCursorPosition(true);
+        [NSCursor unhide];
+    }
 }
 
 void Window::set_widget(std::unique_ptr<widget> widget) {
@@ -411,8 +743,10 @@ bool Window::create_cocoa_window(const window_params& params) {
         [m_NSWindow setDelegate:delegate];
 
         NSRect viewRect = NSMakeRect(0, 0, params.width, params.height);
-        m_NSView = [[NSView alloc] initWithFrame:viewRect];
-        [m_NSView setWantsLayer:YES];
+        SpirationContentView* contentView = [[SpirationContentView alloc] initWithFrame:viewRect];
+        contentView.spirationWindow = this;
+        contentView.wantsLayer = YES;
+        m_NSView = contentView;
 
         m_MetalLayer = [CAMetalLayer layer];
         m_MetalLayer.device = MTLCreateSystemDefaultDevice();
@@ -427,6 +761,7 @@ bool Window::create_cocoa_window(const window_params& params) {
 
         [m_NSView setLayer:m_MetalLayer];
         [m_NSWindow setContentView:m_NSView];
+        [m_NSWindow makeFirstResponder:m_NSView];
 
         [m_NSWindow center];
 
