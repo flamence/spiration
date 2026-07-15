@@ -32,4 +32,5 @@ install(TARGETS spiration-common
 
 install(TARGETS spiration
     RUNTIME DESTINATION bin
+    BUNDLE DESTINATION bin
 )
