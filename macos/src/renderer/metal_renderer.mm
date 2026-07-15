@@ -69,13 +69,11 @@ metal_renderer::metal_renderer(metal_renderer&& other) noexcept
     , m_CommandBuffer(other.m_CommandBuffer)
     , m_CommandEncoder(other.m_CommandEncoder)
     , m_BasicPipeline(other.m_BasicPipeline)
-    , m_TextPipeline(other.m_TextPipeline)
     , m_TexturePipeline(other.m_TexturePipeline)
     , m_LinearSampler(other.m_LinearSampler)
     , m_NearestSampler(other.m_NearestSampler)
     , m_QuadBuffer(other.m_QuadBuffer)
-    , m_CircleBuffer(other.m_CircleBuffer)
-    , m_DepthState(other.m_DepthState)
+    , m_TextureQuadBuffer(other.m_TextureQuadBuffer)
     , m_CurrentDrawableTexture(other.m_CurrentDrawableTexture)
     , m_TransformStack(std::move(other.m_TransformStack))
     , m_CurrentTransform(other.m_CurrentTransform)
@@ -93,13 +91,11 @@ metal_renderer::metal_renderer(metal_renderer&& other) noexcept
     other.m_CommandBuffer = nil;
     other.m_CommandEncoder = nil;
     other.m_BasicPipeline = nil;
-    other.m_TextPipeline = nil;
     other.m_TexturePipeline = nil;
     other.m_LinearSampler = nil;
     other.m_NearestSampler = nil;
     other.m_QuadBuffer = nil;
-    other.m_CircleBuffer = nil;
-    other.m_DepthState = nil;
+    other.m_TextureQuadBuffer = nil;
     other.m_CurrentDrawableTexture = nil;
     other.m_Width = 0;
     other.m_Height = 0;
@@ -119,13 +115,11 @@ metal_renderer& metal_renderer::operator=(metal_renderer&& other) noexcept {
         m_CommandBuffer = other.m_CommandBuffer;
         m_CommandEncoder = other.m_CommandEncoder;
         m_BasicPipeline = other.m_BasicPipeline;
-        m_TextPipeline = other.m_TextPipeline;
         m_TexturePipeline = other.m_TexturePipeline;
         m_LinearSampler = other.m_LinearSampler;
         m_NearestSampler = other.m_NearestSampler;
         m_QuadBuffer = other.m_QuadBuffer;
-        m_CircleBuffer = other.m_CircleBuffer;
-        m_DepthState = other.m_DepthState;
+        m_TextureQuadBuffer = other.m_TextureQuadBuffer;
         m_CurrentDrawableTexture = other.m_CurrentDrawableTexture;
         m_TransformStack = std::move(other.m_TransformStack);
         m_CurrentTransform = other.m_CurrentTransform;
@@ -143,13 +137,11 @@ metal_renderer& metal_renderer::operator=(metal_renderer&& other) noexcept {
         other.m_CommandBuffer = nil;
         other.m_CommandEncoder = nil;
         other.m_BasicPipeline = nil;
-        other.m_TextPipeline = nil;
         other.m_TexturePipeline = nil;
         other.m_LinearSampler = nil;
         other.m_NearestSampler = nil;
         other.m_QuadBuffer = nil;
-        other.m_CircleBuffer = nil;
-        other.m_DepthState = nil;
+        other.m_TextureQuadBuffer = nil;
         other.m_CurrentDrawableTexture = nil;
         other.m_Width = 0;
         other.m_Height = 0;
@@ -316,8 +308,6 @@ void metal_renderer::draw_circle(const point& center, float radius, const color&
     struct CircleVertex {
         float x, y;
     };
-    // MTLPrimitiveTypeTriangleFan was removed in newer Metal SDKs,
-    // so generate triangle list vertices instead.
     std::vector<CircleVertex> verts;
     for (int i = 0; i < segments; ++i) {
         float angle1 = 2.0f * M_PI * static_cast<float>(i) / static_cast<float>(segments);
@@ -540,19 +530,18 @@ void metal_renderer::draw_text(const std::string& text, const point& position, c
                     std::memcpy(&proj, m_Projection.m, sizeof(proj));
                     matrix_float4x4 mvp = matrix_multiply(matrix_multiply(proj, view), model);
 
-                    struct Uniforms {
-                        matrix_float4x4 mvp;
-                        simd_float4 color;
-                        float alpha;
-                    };
-                    Uniforms uniforms = { mvp, { text_color.r, text_color.g, text_color.b, text_color.a }, m_Alpha };
-                    id<MTLBuffer> uniformBuffer = [m_Device newBufferWithBytes:&uniforms
-                                                                         length:sizeof(Uniforms)
-                                                                        options:MTLResourceStorageModeShared];
+                    id<MTLBuffer> mvpBuffer = [m_Device newBufferWithBytes:&mvp
+                                                                     length:sizeof(mvp)
+                                                                    options:MTLResourceStorageModeShared];
 
-                    [m_CommandEncoder setVertexBuffer:m_QuadBuffer offset:0 atIndex:0];
-                    [m_CommandEncoder setVertexBuffer:uniformBuffer offset:0 atIndex:1];
-                    [m_CommandEncoder setFragmentBuffer:uniformBuffer offset:0 atIndex:1];
+                    struct { simd_float4 color; float alpha; } fragData = { { text_color.r, text_color.g, text_color.b, text_color.a }, m_Alpha };
+                    id<MTLBuffer> fragBuffer = [m_Device newBufferWithBytes:&fragData
+                                                                      length:sizeof(fragData)
+                                                                     options:MTLResourceStorageModeShared];
+
+                    [m_CommandEncoder setVertexBuffer:m_TextureQuadBuffer offset:0 atIndex:0];
+                    [m_CommandEncoder setVertexBuffer:mvpBuffer offset:0 atIndex:1];
+                    [m_CommandEncoder setFragmentBuffer:fragBuffer offset:0 atIndex:0];
                     [m_CommandEncoder drawPrimitives:MTLPrimitiveTypeTriangleStrip vertexStart:0 vertexCount:4];
 
                     CGImageRelease(cgImage);
@@ -614,19 +603,18 @@ void metal_renderer::draw_text(const std::string& text, const point& position, c
                     std::memcpy(&proj, m_Projection.m, sizeof(proj));
                     matrix_float4x4 mvp = matrix_multiply(matrix_multiply(proj, view), model);
 
-                    struct Uniforms {
-                        matrix_float4x4 mvp;
-                        simd_float4 color;
-                        float alpha;
-                    };
-                    Uniforms uniforms = { mvp, { text_color.r, text_color.g, text_color.b, text_color.a }, m_Alpha };
-                    id<MTLBuffer> uniformBuffer = [m_Device newBufferWithBytes:&uniforms
-                                                                         length:sizeof(Uniforms)
-                                                                        options:MTLResourceStorageModeShared];
+                    id<MTLBuffer> mvpBuffer = [m_Device newBufferWithBytes:&mvp
+                                                                     length:sizeof(mvp)
+                                                                    options:MTLResourceStorageModeShared];
 
-                    [m_CommandEncoder setVertexBuffer:m_QuadBuffer offset:0 atIndex:0];
-                    [m_CommandEncoder setVertexBuffer:uniformBuffer offset:0 atIndex:1];
-                    [m_CommandEncoder setFragmentBuffer:uniformBuffer offset:0 atIndex:1];
+                    struct { simd_float4 color; float alpha; } fragData = { { text_color.r, text_color.g, text_color.b, text_color.a }, m_Alpha };
+                    id<MTLBuffer> fragBuffer = [m_Device newBufferWithBytes:&fragData
+                                                                      length:sizeof(fragData)
+                                                                     options:MTLResourceStorageModeShared];
+
+                    [m_CommandEncoder setVertexBuffer:m_TextureQuadBuffer offset:0 atIndex:0];
+                    [m_CommandEncoder setVertexBuffer:mvpBuffer offset:0 atIndex:1];
+                    [m_CommandEncoder setFragmentBuffer:fragBuffer offset:0 atIndex:0];
                     [m_CommandEncoder drawPrimitives:MTLPrimitiveTypeTriangleStrip vertexStart:0 vertexCount:4];
 
                     CGImageRelease(cgImage);
@@ -728,10 +716,6 @@ void metal_renderer::draw_image(const std::string& image_path, const rectangle& 
         [m_CommandEncoder setFragmentTexture:texture atIndex:0];
         [m_CommandEncoder setFragmentSamplerState:m_LinearSampler atIndex:0];
 
-        [m_CommandEncoder setRenderPipelineState:m_TexturePipeline];
-        [m_CommandEncoder setFragmentTexture:texture atIndex:0];
-        [m_CommandEncoder setFragmentSamplerState:m_LinearSampler atIndex:0];
-
         matrix_float4x4 model = mat4_identity();
         model = mat4_translate(model, destination.x, destination.y);
         model = mat4_scale(model, destination.width, destination.height);
@@ -742,19 +726,18 @@ void metal_renderer::draw_image(const std::string& image_path, const rectangle& 
         std::memcpy(&proj, m_Projection.m, sizeof(proj));
         matrix_float4x4 mvp = matrix_multiply(matrix_multiply(proj, view), model);
 
-        struct Uniforms {
-            matrix_float4x4 mvp;
-            simd_float4 color;
-            float alpha;
-        };
-        Uniforms uniforms = { mvp, { 1.0f, 1.0f, 1.0f, 1.0f }, m_Alpha };
-        id<MTLBuffer> uniformBuffer = [m_Device newBufferWithBytes:&uniforms
-                                                             length:sizeof(Uniforms)
-                                                            options:MTLResourceStorageModeShared];
+        id<MTLBuffer> mvpBuffer = [m_Device newBufferWithBytes:&mvp
+                                                         length:sizeof(mvp)
+                                                        options:MTLResourceStorageModeShared];
 
-        [m_CommandEncoder setVertexBuffer:m_QuadBuffer offset:0 atIndex:0];
-        [m_CommandEncoder setVertexBuffer:uniformBuffer offset:0 atIndex:1];
-        [m_CommandEncoder setFragmentBuffer:uniformBuffer offset:0 atIndex:1];
+        struct { simd_float4 color; float alpha; } fragData = { { 1.0f, 1.0f, 1.0f, 1.0f }, m_Alpha };
+        id<MTLBuffer> fragBuffer = [m_Device newBufferWithBytes:&fragData
+                                                          length:sizeof(fragData)
+                                                         options:MTLResourceStorageModeShared];
+
+        [m_CommandEncoder setVertexBuffer:m_TextureQuadBuffer offset:0 atIndex:0];
+        [m_CommandEncoder setVertexBuffer:mvpBuffer offset:0 atIndex:1];
+        [m_CommandEncoder setFragmentBuffer:fragBuffer offset:0 atIndex:0];
         [m_CommandEncoder drawPrimitives:MTLPrimitiveTypeTriangleStrip vertexStart:0 vertexCount:4];
     }
 }
@@ -798,19 +781,18 @@ void metal_renderer::draw_image_subregion(const std::string& image_path, const r
         std::memcpy(&proj, m_Projection.m, sizeof(proj));
         matrix_float4x4 mvp = matrix_multiply(proj, view);
 
-        struct Uniforms {
-            matrix_float4x4 mvp;
-            simd_float4 color;
-            float alpha;
-        };
-        Uniforms uniforms = { mvp, { 1.0f, 1.0f, 1.0f, 1.0f }, m_Alpha };
-        id<MTLBuffer> uniformBuffer = [m_Device newBufferWithBytes:&uniforms
-                                                             length:sizeof(Uniforms)
-                                                            options:MTLResourceStorageModeShared];
+        id<MTLBuffer> mvpBuffer = [m_Device newBufferWithBytes:&mvp
+                                                         length:sizeof(mvp)
+                                                        options:MTLResourceStorageModeShared];
+
+        struct { simd_float4 color; float alpha; } fragData = { { 1.0f, 1.0f, 1.0f, 1.0f }, m_Alpha };
+        id<MTLBuffer> fragBuffer = [m_Device newBufferWithBytes:&fragData
+                                                          length:sizeof(fragData)
+                                                         options:MTLResourceStorageModeShared];
 
         [m_CommandEncoder setVertexBuffer:vertBuffer offset:0 atIndex:0];
-        [m_CommandEncoder setVertexBuffer:uniformBuffer offset:0 atIndex:1];
-        [m_CommandEncoder setFragmentBuffer:uniformBuffer offset:0 atIndex:1];
+        [m_CommandEncoder setVertexBuffer:mvpBuffer offset:0 atIndex:1];
+        [m_CommandEncoder setFragmentBuffer:fragBuffer offset:0 atIndex:0];
         [m_CommandEncoder drawPrimitives:MTLPrimitiveTypeTriangleStrip vertexStart:0 vertexCount:4];
     }
 }
@@ -909,18 +891,17 @@ bool metal_renderer::init_buffers() {
                                              options:MTLResourceStorageModeShared];
         if (!m_QuadBuffer) return false;
 
-        const int segments = 64;
-        struct Vec2 { float x, y; };
-        std::vector<Vec2> circleVerts;
-        circleVerts.push_back({0, 0});
-        for (int i = 0; i <= segments; ++i) {
-            float angle = 2.0f * M_PI * i / segments;
-            circleVerts.push_back({cosf(angle), sinf(angle)});
-        }
-        m_CircleBuffer = [m_Device newBufferWithBytes:circleVerts.data()
-                                                length:circleVerts.size() * sizeof(Vec2)
-                                               options:MTLResourceStorageModeShared];
-        if (!m_CircleBuffer) return false;
+        const float texQuadVerts[] = {
+            // x,    y,    u,   v
+            0.0f, 0.0f, 0.0f, 0.0f,
+            1.0f, 0.0f, 1.0f, 0.0f,
+            0.0f, 1.0f, 0.0f, 1.0f,
+            1.0f, 1.0f, 1.0f, 1.0f,
+        };
+        m_TextureQuadBuffer = [m_Device newBufferWithBytes:texQuadVerts
+                                                     length:sizeof(texQuadVerts)
+                                                    options:MTLResourceStorageModeShared];
+        if (!m_TextureQuadBuffer) return false;
 
         return true;
     }
@@ -1014,19 +995,14 @@ bool metal_renderer::init_sampler_states() {
 
 void metal_renderer::release_metal_resources() {
     @autoreleasepool {
-        for (auto& pair : m_ImageCache) {
-            pair.second = nil;
-        }
         m_ImageCache.clear();
 
         m_BasicPipeline = nil;
-        m_TextPipeline = nil;
         m_TexturePipeline = nil;
         m_LinearSampler = nil;
         m_NearestSampler = nil;
         m_QuadBuffer = nil;
-        m_CircleBuffer = nil;
-        m_DepthState = nil;
+        m_TextureQuadBuffer = nil;
         m_CurrentDrawableTexture = nil;
         m_Drawable = nil;
         m_CommandBuffer = nil;

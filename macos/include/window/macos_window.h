@@ -15,6 +15,7 @@
 
 #ifdef __OBJC__
 #import <Cocoa/Cocoa.h>
+#import <QuartzCore/CAMetalLayer.h>
 #else
 typedef struct objc_object NSWindow;
 typedef struct objc_object NSView;
@@ -84,8 +85,31 @@ public:
     float backing_scale() const { return m_BackingScale; }
     void set_backing_scale(float s) { m_BackingScale = s; }
 
-private:
+    void set_should_close(bool v) { m_ShouldClose = v; }
+    void set_fullscreen_state(bool v) { m_IsFullscreen = v; }
+    void set_minimized_state(bool v) { m_IsMinimized = v; }
+
+    NSWindow* get_ns_window() const { return m_NSWindow; }
+    NSView* get_ns_view() const { return m_NSView; }
+    CAMetalLayer* get_metal_layer() const { return m_MetalLayer; }
+    std::shared_ptr<renderer> get_renderer() const { return m_Renderer; }
+    void_function on_resize() const { return m_OnResize; }
+    void notify_widget_resize_public() { notify_widget_resize(); }
+
+    bool m_IsDragging = false;
+    bool m_IsResizing = false;
+    int m_ResizeEdge = 0;
+    double m_DragStartX = 0, m_DragStartY = 0;
+    double m_DragStartMouseX = 0, m_DragStartMouseY = 0;
+    double m_DragStartW = 0, m_DragStartH = 0;
+
+    int32_t m_Width = 800;
+    int32_t m_Height = 600;
+    float m_BackingScale = 2.0f;
+
     bool initialize(const window_params& params) override;
+
+private:
     void shutdown() override;
 
     bool create_cocoa_window(const window_params& params);
@@ -97,11 +121,8 @@ private:
     CAMetalLayer* m_MetalLayer = nullptr;
 
     std::string m_Title;
-    int32_t m_Width = 800;
-    int32_t m_Height = 600;
     int32_t m_X = 0;
     int32_t m_Y = 0;
-    float m_BackingScale = 2.0f;
 
     bool m_ShouldClose = false;
     bool m_IsMaximized = false;
@@ -109,11 +130,6 @@ private:
     bool m_IsFullscreen = false;
     bool m_IsVisible = false;
     bool m_Initialized = false;
-
-    double m_PrevFrameX = 0;
-    double m_PrevFrameY = 0;
-    double m_PrevFrameW = 0;
-    double m_PrevFrameH = 0;
 
     void_function m_OnClose = nullptr;
     void_function m_OnResize = nullptr;
@@ -126,14 +142,6 @@ private:
     uint32_t m_WindowId = 0;
 
     static uint32_t s_NextWindowId;
-
-    friend class SpirationContentView;
-    bool m_IsDragging = false;
-    bool m_IsResizing = false;
-    int m_ResizeEdge = 0;
-    double m_DragStartX = 0, m_DragStartY = 0;
-    double m_DragStartMouseX = 0, m_DragStartMouseY = 0;
-    double m_DragStartW = 0, m_DragStartH = 0;
 };
 
 } // namespace spiration

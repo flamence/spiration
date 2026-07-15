@@ -26,7 +26,7 @@ int main(int argc, const char* argv[]) {
 
         NSMenu* appMenu = [[NSMenu alloc] init];
         NSString* appName = @"Spiration";
-        NSMenuItem* quitItem = [[NSMenuItem alloc] initWithTitle:[NSString stringWithFormat:@"%@", appName]
+        NSMenuItem* quitItem = [[NSMenuItem alloc] initWithTitle:@"Quit Spiration"
                                                           action:@selector(terminate:)
                                                    keyEquivalent:@"q"];
         [appMenu addItem:quitItem];

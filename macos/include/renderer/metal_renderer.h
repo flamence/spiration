@@ -82,16 +82,13 @@ private:
     id<MTLRenderCommandEncoder> m_CommandEncoder = nil;
 
     id<MTLRenderPipelineState> m_BasicPipeline = nil;
-    id<MTLRenderPipelineState> m_TextPipeline = nil;
     id<MTLRenderPipelineState> m_TexturePipeline = nil;
 
     id<MTLSamplerState> m_LinearSampler = nil;
     id<MTLSamplerState> m_NearestSampler = nil;
 
     id<MTLBuffer> m_QuadBuffer = nil;
-    id<MTLBuffer> m_CircleBuffer = nil;
-
-    id<MTLDepthStencilState> m_DepthState = nil;
+    id<MTLBuffer> m_TextureQuadBuffer = nil;
 
     id<MTLTexture> m_CurrentDrawableTexture = nil;
 
