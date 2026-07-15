@@ -70,8 +70,9 @@ public:
 
     void set_widget(std::unique_ptr<widget> widget) override;
 
-private:
     bool initialize(const window_params& params) override;
+
+private:
     void shutdown() override;
 
     static LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam);

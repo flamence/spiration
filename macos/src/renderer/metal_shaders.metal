@@ -45,13 +45,17 @@ vertex TextureVertexOut texture_vertex(
     return out;
 }
 
+struct FragUniforms {
+    float4 color;
+    float alpha;
+};
+
 fragment float4 texture_fragment(
     TextureVertexOut in [[stage_in]],
     texture2d<float> uTexture [[texture(0)]],
     sampler uSampler [[sampler(0)]],
-    constant float4& uColor [[buffer(0)]],
-    constant float& uAlpha [[buffer(1)]]
+    constant FragUniforms& uFrag [[buffer(0)]]
 ) {
     float4 texColor = uTexture.sample(uSampler, in.texCoord);
-    return float4(texColor.rgb * uColor.rgb, texColor.a * uColor.a * uAlpha);
+    return float4(texColor.rgb * uFrag.color.rgb, texColor.a * uFrag.color.a * uFrag.alpha);
 }

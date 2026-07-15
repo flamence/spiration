@@ -30,7 +30,11 @@ add_custom_command(
     DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/src/renderer/metal_shaders.metal
 )
 
+add_custom_target(compile_metallib DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/default.metallib)
+
 add_executable(${PROJECT_NAME} ${MACOS_SOURCES} ${MACOS_HEADERS})
+
+add_dependencies(${PROJECT_NAME} compile_metallib)
 
 target_compile_definitions(${PROJECT_NAME} PRIVATE
     $<$<CONFIG:Debug>:_DEBUG>

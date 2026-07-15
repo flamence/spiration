@@ -14,12 +14,12 @@
 #import <string>
 #import <cmath>
 
-namespace spiration {
-
-uint32_t Window::s_NextWindowId = 1;
+using namespace spiration;
 
 static constexpr float DRAG_AREA_HEIGHT = 34.0f;
 static constexpr float RESIZE_MARGIN = 6.0f;
+static constexpr float MIN_WINDOW_WIDTH = 400.0f;
+static constexpr float MIN_WINDOW_HEIGHT = 300.0f;
 
 static int cocoa_key_to_vk(unsigned short keyCode) {
     switch (keyCode) {
@@ -85,8 +85,8 @@ static int cocoa_key_to_vk(unsigned short keyCode) {
     int flags = 0;
     if (loc.x < RESIZE_MARGIN)                flags |= 1; // 左
     if (loc.x > w - RESIZE_MARGIN)            flags |= 2; // 右
-    if (loc.y < RESIZE_MARGIN)                flags |= 4; // 上
-    if (loc.y > h - RESIZE_MARGIN)            flags |= 8; // 下
+    if (loc.y < RESIZE_MARGIN)                flags |= 4; // 下
+    if (loc.y > h - RESIZE_MARGIN)            flags |= 8; // 上
     return flags;
 }
 
@@ -95,8 +95,13 @@ static int cocoa_key_to_vk(unsigned short keyCode) {
         [[NSCursor arrowCursor] set];
         return;
     }
-    if ((edge & 1) || (edge & 2)) [[NSCursor resizeLeftRightCursor] set];
-    if ((edge & 4) || (edge & 8)) [[NSCursor resizeUpDownCursor] set];
+    BOOL left   = (edge & 1) != 0;
+    BOOL right  = (edge & 2) != 0;
+    BOOL bottom = (edge & 4) != 0;
+    BOOL top    = (edge & 8) != 0;
+
+    if (left || right) { [[NSCursor resizeLeftRightCursor] set]; return; }
+    if (bottom || top) { [[NSCursor resizeUpDownCursor] set]; return; }
 }
 
 - (void)mouseDown:(NSEvent*)event {
@@ -111,7 +116,7 @@ static int cocoa_key_to_vk(unsigned short keyCode) {
         win->m_ResizeEdge = edge;
         win->m_DragStartMouseX = event.locationInWindow.x;
         win->m_DragStartMouseY = event.locationInWindow.y;
-        NSRect frame = win->m_NSWindow.frame;
+        NSRect frame = [win->get_ns_window() frame];
         win->m_DragStartX = frame.origin.x;
         win->m_DragStartY = frame.origin.y;
         win->m_DragStartW = frame.size.width;
@@ -119,8 +124,8 @@ static int cocoa_key_to_vk(unsigned short keyCode) {
         return;
     }
 
-    int32_t h;
-    win->get_size(h, h);
+    int32_t w, h;
+    win->get_size(w, h);
     if (loc.y > h - DRAG_AREA_HEIGHT) {
         if (event.clickCount == 2) {
             if (win->is_maximized()) {
@@ -133,7 +138,7 @@ static int cocoa_key_to_vk(unsigned short keyCode) {
         win->m_IsDragging = true;
         win->m_DragStartMouseX = event.locationInWindow.x;
         win->m_DragStartMouseY = event.locationInWindow.y;
-        NSRect frame = win->m_NSWindow.frame;
+        NSRect frame = [win->get_ns_window() frame];
         win->m_DragStartX = frame.origin.x;
         win->m_DragStartY = frame.origin.y;
         return;
@@ -147,9 +152,6 @@ static int cocoa_key_to_vk(unsigned short keyCode) {
         win->get_widget()->handle_event(event_type::mouse, &data);
     }
     if (win->on_mouse()) win->on_mouse()(win);
-
-    if (!data.consumed && loc.y > h - DRAG_AREA_HEIGHT) {
-    }
 }
 
 - (void)mouseUp:(NSEvent*)event {
@@ -229,32 +231,32 @@ static int cocoa_key_to_vk(unsigned short keyCode) {
         if (win->m_ResizeEdge & 1) { // 左
             frame.origin.x += dx;
             frame.size.width -= dx;
-            if (frame.size.width < 400) frame.size.width = 400;
+            if (frame.size.width < MIN_WINDOW_WIDTH) frame.size.width = MIN_WINDOW_WIDTH;
         }
         if (win->m_ResizeEdge & 2) { // 右
             frame.size.width += dx;
-            if (frame.size.width < 400) frame.size.width = 400;
+            if (frame.size.width < MIN_WINDOW_WIDTH) frame.size.width = MIN_WINDOW_WIDTH;
         }
-        if (win->m_ResizeEdge & 4) { // 下（macOS 坐标原点在左下）
+        if (win->m_ResizeEdge & 4) { // 下
             frame.origin.y += dy;
             frame.size.height -= dy;
-            if (frame.size.height < 300) frame.size.height = 300;
+            if (frame.size.height < MIN_WINDOW_HEIGHT) frame.size.height = MIN_WINDOW_HEIGHT;
         }
         if (win->m_ResizeEdge & 8) { // 上
             frame.size.height += dy;
-            if (frame.size.height < 300) frame.size.height = 300;
+            if (frame.size.height < MIN_WINDOW_HEIGHT) frame.size.height = MIN_WINDOW_HEIGHT;
         }
 
-        [win->m_NSWindow setFrame:frame display:YES animate:NO];
+        [win->get_ns_window() setFrame:frame display:YES animate:NO];
         return;
     }
 
     if (win->m_IsDragging) {
-        NSRect frame = win->m_NSWindow.frame;
+        NSRect frame = [win->get_ns_window() frame];
         NSPoint origin = frame.origin;
         origin.x += event.locationInWindow.x - win->m_DragStartMouseX;
         origin.y += event.locationInWindow.y - win->m_DragStartMouseY;
-        [win->m_NSWindow setFrameOrigin:origin];
+        [win->get_ns_window() setFrameOrigin:origin];
         return;
     }
 
@@ -351,7 +353,7 @@ static int cocoa_key_to_vk(unsigned short keyCode) {
 
 - (void)windowWillClose:(NSNotification*)notification {
     if (self.spirationWindow) {
-        self.spirationWindow->close();
+        self.spirationWindow->set_should_close(true);
     }
 }
 
@@ -376,23 +378,23 @@ static int cocoa_key_to_vk(unsigned short keyCode) {
             self.spirationWindow->m_Height = h;
             self.spirationWindow->m_BackingScale = static_cast<float>(scale);
 
-            if (self.spirationWindow->m_Renderer) {
-                self.spirationWindow->m_Renderer->resize(
+            if (self.spirationWindow->get_renderer()) {
+                self.spirationWindow->get_renderer()->resize(
                     static_cast<uint32_t>(w * scale),
                     static_cast<uint32_t>(h * scale));
             }
 
-            self.spirationWindow->notify_widget_resize();
-            if (self.spirationWindow->m_OnResize) {
-                self.spirationWindow->m_OnResize(self.spirationWindow);
+            self.spirationWindow->notify_widget_resize_public();
+            if (self.spirationWindow->on_resize()) {
+                self.spirationWindow->on_resize()(self.spirationWindow);
             }
         }
     }
 }
 
 - (void)windowDidBecomeKey:(NSNotification*)notification {
-    if (self.spirationWindow && self.spirationWindow->m_NSView) {
-        NSView* view = (__bridge NSView*)self.spirationWindow->m_NSView;
+    if (self.spirationWindow && self.spirationWindow->get_ns_view()) {
+        NSView* view = self.spirationWindow->get_ns_view();
         [view.window makeFirstResponder:view];
     }
 }
@@ -401,7 +403,35 @@ static int cocoa_key_to_vk(unsigned short keyCode) {
     return YES;
 }
 
+- (void)windowDidEnterFullScreen:(NSNotification*)notification {
+    if (self.spirationWindow) {
+        self.spirationWindow->set_fullscreen_state(true);
+    }
+}
+
+- (void)windowDidExitFullScreen:(NSNotification*)notification {
+    if (self.spirationWindow) {
+        self.spirationWindow->set_fullscreen_state(false);
+    }
+}
+
+- (void)windowDidMiniaturize:(NSNotification*)notification {
+    if (self.spirationWindow) {
+        self.spirationWindow->set_minimized_state(true);
+    }
+}
+
+- (void)windowDidDeminiaturize:(NSNotification*)notification {
+    if (self.spirationWindow) {
+        self.spirationWindow->set_minimized_state(false);
+    }
+}
+
 @end
+
+namespace spiration {
+
+uint32_t Window::s_NextWindowId = 1;
 
 Window::~Window() {
     shutdown();
@@ -488,7 +518,7 @@ void Window::show() {
     @autoreleasepool {
         [m_NSWindow makeKeyAndOrderFront:nil];
         [NSApp activateIgnoringOtherApps:YES];
-        m_IsVisible = YES;
+        m_IsVisible = true;
     }
 }
 
@@ -527,10 +557,8 @@ void Window::restore() {
 }
 
 void Window::close() {
+    if (m_ShouldClose) return;
     m_ShouldClose = YES;
-    @autoreleasepool {
-        [m_NSWindow close];
-    }
     if (m_OnClose) m_OnClose(this);
 }
 
@@ -614,7 +642,7 @@ void* Window::native_handle() const {
 void Window::loop() {
     @autoreleasepool {
         NSEvent* event = [NSApp nextEventMatchingMask:NSEventMaskAny
-                                            untilDate:[NSDate distantPast]
+                                            untilDate:[NSDate dateWithTimeIntervalSinceNow:0.016]
                                                inMode:NSDefaultRunLoopMode
                                               dequeue:YES];
         if (event) {
@@ -623,7 +651,7 @@ void Window::loop() {
 
         if (!m_ShouldClose && m_Widget && m_Renderer) {
             m_Renderer->begin_frame();
-            m_Widget->paint(m_Renderer.get());
+            m_Widget->paint(m_Renderer);
             m_Renderer->end_frame();
         }
     }
@@ -637,6 +665,19 @@ void* Window::user_data() const { return m_UserData; }
 void Window::set_user_data(void* data) { m_UserData = data; }
 
 void Window::request_repaint() {
+    @autoreleasepool {
+        // 发送一个自定义事件唤醒 run loop，触发下一帧的绘制
+        NSEvent* dummy = [NSEvent otherEventWithType:NSEventTypeApplicationDefined
+                                            location:NSZeroPoint
+                                       modifierFlags:0
+                                           timestamp:0
+                                        windowNumber:[m_NSWindow windowNumber]
+                                             context:nil
+                                             subtype:0
+                                               data1:0
+                                               data2:0];
+        [NSApp postEvent:dummy atStart:NO];
+    }
 }
 
 void Window::set_on_close(void_function callback) { m_OnClose = callback; }
