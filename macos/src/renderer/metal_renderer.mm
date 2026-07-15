@@ -658,18 +658,24 @@ void metal_renderer::draw_text_aligned(const std::string& text, const rectangle&
     draw_text(text, { x, y }, text_color, font_size, font_family);
 }
 
-void metal_renderer::draw_image(const std::string& image_path, const rectangle& destination) {
+id<MTLTexture> metal_renderer::load_image_texture(const std::string& path) {
+    auto it = m_ImageCache.find(path);
+    if (it != m_ImageCache.end()) {
+        return it->second;
+    }
+
+    __block id<MTLTexture> texture = nil;
     @autoreleasepool {
-        NSString* nsPath = [NSString stringWithUTF8String:image_path.c_str()];
+        NSString* nsPath = [NSString stringWithUTF8String:path.c_str()];
         NSURL* url = [NSURL fileURLWithPath:nsPath];
-        if (!url) return;
+        if (!url) return nil;
 
-        CIImage* ciImage = [CIImage imageWithContentsOfURL:url];
-        if (!ciImage) return;
+        CGImageSourceRef source = CGImageSourceCreateWithURL((__bridge CFURLRef)url, nil);
+        if (!source) return nil;
 
-        CIContext* ciContext = [CIContext contextWithOptions:nil];
-        CGImageRef cgImage = [ciContext createCGImage:ciImage fromRect:ciImage.extent];
-        if (!cgImage) return;
+        CGImageRef cgImage = CGImageSourceCreateImageAtIndex(source, 0, nil);
+        CFRelease(source);
+        if (!cgImage) return nil;
 
         size_t imgW = CGImageGetWidth(cgImage);
         size_t imgH = CGImageGetHeight(cgImage);
@@ -678,7 +684,7 @@ void metal_renderer::draw_image(const std::string& image_path, const rectangle& 
                                                                                             width:imgW
                                                                                            height:imgH
                                                                                         mipmapped:NO];
-        id<MTLTexture> texture = [m_Device newTextureWithDescriptor:texDesc];
+        texture = [m_Device newTextureWithDescriptor:texDesc];
 
         CGColorSpaceRef colorSpace = CGColorSpaceCreateDeviceRGB();
         CGContextRef bitmapCtx = CGBitmapContextCreate(
@@ -697,6 +703,22 @@ void metal_renderer::draw_image(const std::string& image_path, const rectangle& 
         }
         CGColorSpaceRelease(colorSpace);
         CGImageRelease(cgImage);
+    }
+
+    if (texture) {
+        m_ImageCache[path] = texture;
+    }
+    return texture;
+}
+
+void metal_renderer::draw_image(const std::string& image_path, const rectangle& destination) {
+    id<MTLTexture> texture = load_image_texture(image_path);
+    if (!texture || !m_CommandEncoder) return;
+
+    @autoreleasepool {
+        [m_CommandEncoder setRenderPipelineState:m_TexturePipeline];
+        [m_CommandEncoder setFragmentTexture:texture atIndex:0];
+        [m_CommandEncoder setFragmentSamplerState:m_LinearSampler atIndex:0];
 
         [m_CommandEncoder setRenderPipelineState:m_TexturePipeline];
         [m_CommandEncoder setFragmentTexture:texture atIndex:0];
@@ -730,7 +752,59 @@ void metal_renderer::draw_image(const std::string& image_path, const rectangle& 
 }
 
 void metal_renderer::draw_image_subregion(const std::string& image_path, const rectangle& source, const rectangle& destination) {
-    draw_image(image_path, destination);
+    id<MTLTexture> texture = load_image_texture(image_path);
+    if (!texture || !m_CommandEncoder) return;
+
+    @autoreleasepool {
+        NSUInteger texW = texture.width;
+        NSUInteger texH = texture.height;
+        if (texW == 0 || texH == 0) return;
+
+        float u0 = source.x / texW;
+        float v0 = source.y / texH;
+        float u1 = (source.x + source.width) / texW;
+        float v1 = (source.y + source.height) / texH;
+
+        struct UVVertex {
+            float x, y;
+            float u, v;
+        };
+        UVVertex verts[4] = {
+            { destination.x,                destination.y,                 u0, v0 },
+            { destination.x + destination.width, destination.y,                 u1, v0 },
+            { destination.x,                destination.y + destination.height, u0, v1 },
+            { destination.x + destination.width, destination.y + destination.height, u1, v1 },
+        };
+
+        id<MTLBuffer> vertBuffer = [m_Device newBufferWithBytes:verts
+                                                          length:sizeof(verts)
+                                                         options:MTLResourceStorageModeShared];
+
+        [m_CommandEncoder setRenderPipelineState:m_TexturePipeline];
+        [m_CommandEncoder setFragmentTexture:texture atIndex:0];
+        [m_CommandEncoder setFragmentSamplerState:m_LinearSampler atIndex:0];
+
+        matrix_float4x4 view = {};
+        std::memcpy(&view, m_CurrentTransform.m, sizeof(view));
+        matrix_float4x4 proj = {};
+        std::memcpy(&proj, m_Projection.m, sizeof(proj));
+        matrix_float4x4 mvp = matrix_multiply(proj, view);
+
+        struct Uniforms {
+            matrix_float4x4 mvp;
+            simd_float4 color;
+            float alpha;
+        };
+        Uniforms uniforms = { mvp, { 1.0f, 1.0f, 1.0f, 1.0f }, m_Alpha };
+        id<MTLBuffer> uniformBuffer = [m_Device newBufferWithBytes:&uniforms
+                                                             length:sizeof(Uniforms)
+                                                            options:MTLResourceStorageModeShared];
+
+        [m_CommandEncoder setVertexBuffer:vertBuffer offset:0 atIndex:0];
+        [m_CommandEncoder setVertexBuffer:uniformBuffer offset:0 atIndex:1];
+        [m_CommandEncoder setFragmentBuffer:uniformBuffer offset:0 atIndex:1];
+        [m_CommandEncoder drawPrimitives:MTLPrimitiveTypeTriangleStrip vertexStart:0 vertexCount:4];
+    }
 }
 
 void metal_renderer::push_transform(float x, float y, float rotation, float scale_x, float scale_y) {
@@ -931,6 +1005,11 @@ bool metal_renderer::init_sampler_states() {
 
 void metal_renderer::release_metal_resources() {
     @autoreleasepool {
+        for (auto& pair : m_ImageCache) {
+            pair.second = nil;
+        }
+        m_ImageCache.clear();
+
         m_BasicPipeline = nil;
         m_TextPipeline = nil;
         m_TexturePipeline = nil;

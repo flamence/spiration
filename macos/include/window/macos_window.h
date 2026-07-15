@@ -77,6 +77,12 @@ public:
     void set_mouse_capture(bool capture) override;
 
     void set_widget(std::unique_ptr<widget> widget) override;
+    widget* get_widget() const { return m_Widget.get(); }
+
+    void_function on_mouse() const { return m_OnMouse; }
+    void_function on_key() const { return m_OnKey; }
+    float backing_scale() const { return m_BackingScale; }
+    void set_backing_scale(float s) { m_BackingScale = s; }
 
 private:
     bool initialize(const window_params& params) override;
@@ -120,6 +126,14 @@ private:
     uint32_t m_WindowId = 0;
 
     static uint32_t s_NextWindowId;
+
+    friend class SpirationContentView;
+    bool m_IsDragging = false;
+    bool m_IsResizing = false;
+    int m_ResizeEdge = 0;
+    double m_DragStartX = 0, m_DragStartY = 0;
+    double m_DragStartMouseX = 0, m_DragStartMouseY = 0;
+    double m_DragStartW = 0, m_DragStartH = 0;
 };
 
 } // namespace spiration

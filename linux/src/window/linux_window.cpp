@@ -12,6 +12,7 @@
 #include <stb_image.h>
 #include <cmath>
 #include <chrono>
+#include <thread>
 #include <vector>
 #include <X11/cursorfont.h>
 
@@ -350,7 +351,8 @@ void* linux_window::native_handle() const {
 
 void linux_window::loop() {
     if (!display_) return;
-    process_events();
+
+    bool had_events = process_events();
 
     if (should_close_) return;
 
@@ -369,6 +371,8 @@ void linux_window::loop() {
         renderer_->end_frame();
 
         glXSwapBuffers(display_, window_);
+    } else if (!had_events) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(16));
     }
 }
 
@@ -726,11 +730,13 @@ bool linux_window::create_renderer() {
 }
 
 
-void linux_window::process_events() {
+bool linux_window::process_events() {
     auto* display = display_;
-    if (!display) return;
+    if (!display) return false;
 
+    bool handled = false;
     while (XPending(display) > 0) {
+        handled = true;
         XEvent event;
         XNextEvent(display, &event);
 
@@ -836,6 +842,7 @@ void linux_window::process_events() {
             }
         }
     }
+    return handled;
 }
 
 void linux_window::handle_expose() {
@@ -900,6 +907,15 @@ void linux_window::handle_key_press(XKeyEvent* event) {
     KeySym keysym = XLookupKeysym(event, 0);
     key_state_[keysym] = true;
 
+    if (keysym == XK_F11) {
+        set_fullscreen(!is_fullscreen_);
+        return;
+    }
+    if (keysym == XK_Escape && is_fullscreen_) {
+        set_fullscreen(false);
+        return;
+    }
+
     if (widget_) {
         key_event_data ked;
         ked.key_code = keysym_to_vk(keysym);
@@ -909,20 +925,19 @@ void linux_window::handle_key_press(XKeyEvent* event) {
         ked.alt = (event->state & Mod1Mask) != 0;
 
         static XIM xim = nullptr;
+        static XIC xic = nullptr;
         if (!xim) {
-            auto* display = display_;
-            xim = XOpenIM(display, nullptr, nullptr, nullptr);
+            xim = XOpenIM(display_, nullptr, nullptr, nullptr);
         }
-        if (xim) {
+        if (xim && !xic) {
+            xic = XCreateIC(xim, XNInputStyle, XIMPreeditNothing | XIMStatusNothing, nullptr);
+        }
+        if (xic) {
             Status status;
-            XIC xic = XCreateIC(xim, XNInputStyle, XIMPreeditNothing | XIMStatusNothing, nullptr);
-            if (xic) {
-                wchar_t buf[8] = {};
-                int len = XwcLookupString(xic, event, buf, 8, &keysym, &status);
-                if (len > 0 && status == XLookupChars) {
-                    ked.codepoint = static_cast<unsigned int>(buf[0]);
-                }
-                XDestroyIC(xic);
+            wchar_t buf[8] = {};
+            int len = XwcLookupString(xic, event, buf, 8, &keysym, &status);
+            if (len > 0 && status == XLookupChars) {
+                ked.codepoint = static_cast<unsigned int>(buf[0]);
             }
         }
 
