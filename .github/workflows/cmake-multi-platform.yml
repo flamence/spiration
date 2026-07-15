@@ -2,9 +2,9 @@ name: CMake 跨平台构建
 
 on:
   push:
-    branches: [ "main" ]
+    branches: [ "gui" ]
   pull_request:
-    branches: [ "main" ]
+    branches: [ "gui" ]
 
 jobs:
   build:
