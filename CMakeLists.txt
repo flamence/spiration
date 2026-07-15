@@ -23,7 +23,7 @@ elseif(UNIX)
     add_subdirectory(linux)
 endif()
 
-install(TARGETS common
+install(TARGETS spiration-common
     ARCHIVE DESTINATION lib
     LIBRARY DESTINATION lib
     RUNTIME DESTINATION bin

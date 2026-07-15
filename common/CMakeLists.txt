@@ -7,13 +7,13 @@ file(GLOB_RECURSE COMMON_HEADERS
     "include/*.hpp"
 )
 
-add_library(common STATIC ${COMMON_SOURCES} ${COMMON_HEADERS})
+add_library(spiration-common STATIC ${COMMON_SOURCES} ${COMMON_HEADERS})
 
-set_target_properties(common PROPERTIES
+set_target_properties(spiration-common PROPERTIES
     POSITION_INDEPENDENT_CODE ON
 )
 
-target_include_directories(common
+target_include_directories(spiration-common
     PUBLIC 
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
         $<INSTALL_INTERFACE:include>
@@ -21,7 +21,7 @@ target_include_directories(common
         ${CMAKE_CURRENT_SOURCE_DIR}/src
 )
 
-set_target_properties(common PROPERTIES
+set_target_properties(spiration-common PROPERTIES
     VERSION ${PROJECT_VERSION}
     SOVERSION ${PROJECT_VERSION_MAJOR}
     PUBLIC_HEADER "${COMMON_HEADERS}"

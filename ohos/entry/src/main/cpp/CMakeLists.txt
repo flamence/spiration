@@ -17,15 +17,12 @@ file(GLOB_RECURSE OHOS_SOURCES
     "${NATIVERENDER_ROOT_PATH}/src/*.cpp"
 )
 
-include_directories(
+add_library(entry SHARED ${COMMON_SOURCES} ${OHOS_SOURCES})
+
+target_include_directories(entry PRIVATE
     ${NATIVERENDER_ROOT_PATH}/include
     ${SPIRATION_ROOT_PATH}/common/include
     ${SPIRATION_ROOT_PATH}/linux/deps/stb
-)
-
-add_library(entry SHARED
-    ${COMMON_SOURCES}
-    ${OHOS_SOURCES}
 )
 
 add_custom_command(TARGET entry PRE_BUILD COMMAND
@@ -33,6 +30,8 @@ add_custom_command(TARGET entry PRE_BUILD COMMAND
     ${SPIRATION_ROOT_PATH}/common/lang/
     ${NATIVERENDER_ROOT_PATH}/../resources/rawfile/lang/
 )
+
+target_link_libraries(entry PRIVATE spiration-common)
 
 target_link_libraries(entry PUBLIC libace_napi.z.so
                                    libEGL.so

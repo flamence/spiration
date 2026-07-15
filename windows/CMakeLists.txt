@@ -25,7 +25,7 @@ target_include_directories(${PROJECT_NAME} PRIVATE
 )
 
 target_link_libraries(${PROJECT_NAME} PRIVATE
-    common
+    spiration-common
     d2d1
     dwrite
     windowscodecs
@@ -62,7 +62,11 @@ if(MINGW)
     )
 endif()
 
-file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/../common/lang DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/bin)
+add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+        ${CMAKE_CURRENT_SOURCE_DIR}/../common/lang
+        $<TARGET_FILE_DIR:${PROJECT_NAME}>/lang
+)
 
 set_target_properties(spiration PROPERTIES
     OUTPUT_NAME "Spiration"
