@@ -158,19 +158,17 @@ void linux_window::maximize() {
     if (!display_ || !window_) return;
     if (is_maximized_) return;
 
-    // 保存当前尺寸用于还原
     prev_width_ = width_;
     prev_height_ = height_;
     prev_x_ = x_;
     prev_y_ = y_;
 
-    // 使用 EWMH _NET_WM_STATE 让窗口管理器处理最大化
     XEvent xev = {};
     xev.type = ClientMessage;
     xev.xclient.window = window_;
     xev.xclient.message_type = wm_state_atom_;
     xev.xclient.format = 32;
-    xev.xclient.data.l[0] = 1; // _NET_WM_STATE_ADD
+    xev.xclient.data.l[0] = 1;
     xev.xclient.data.l[1] = wm_state_max_h_atom_;
     xev.xclient.data.l[2] = wm_state_max_v_atom_;
     XSendEvent(display_, DefaultRootWindow(display_), False,
@@ -213,7 +211,6 @@ void linux_window::restore() {
         return;
     }
 
-    // 普通还原：从最小化还原
     if (prev_width_ > 0 && prev_height_ > 0) {
         width_ = prev_width_;
         height_ = prev_height_;
@@ -243,7 +240,6 @@ void linux_window::set_title(const std::string& title) {
     if (display_ && window_) {
         auto* display = display_;
         XStoreName(display, window_, title.c_str());
-        // 设置 UTF-8 _NET_WM_NAME，现代 WM 依赖此属性显示标题
         XChangeProperty(display, window_, net_wm_name_atom_, utf8_string_atom_,
                         8, PropModeReplace,
                         reinterpret_cast<const unsigned char*>(title.c_str()),
@@ -302,7 +298,6 @@ void linux_window::set_fullscreen(bool fullscreen) {
     auto* display = display_;
 
     if (fullscreen) {
-        // 保存窗口状�?
         if (!is_maximized_) {
             prev_width_ = width_;
             prev_height_ = height_;
@@ -312,7 +307,6 @@ void linux_window::set_fullscreen(bool fullscreen) {
             prev_y_ = static_cast<int32_t>(attrs.y / dpi_scale_);
         }
 
-        // 使用 _NET_WM_STATE_FULLSCREEN
         XEvent xev = {};
         xev.type = ClientMessage;
         xev.xclient.window = window_;
@@ -324,7 +318,6 @@ void linux_window::set_fullscreen(bool fullscreen) {
         XSendEvent(display, DefaultRootWindow(display), False,
                    SubstructureNotifyMask, &xev);
     } else {
-        // 退出全�?
         XEvent xev = {};
         xev.type = ClientMessage;
         xev.xclient.window = window_;
@@ -336,7 +329,6 @@ void linux_window::set_fullscreen(bool fullscreen) {
         XSendEvent(display, DefaultRootWindow(display), False,
                    SubstructureNotifyMask, &xev);
 
-        // 恢复尺寸
         if (prev_width_ > 0 && prev_height_ > 0) {
             width_ = prev_width_;
             height_ = prev_height_;
@@ -363,23 +355,19 @@ void linux_window::loop() {
     if (should_close_) return;
 
     if (widget_ && renderer_) {
-        // 帧计时（驱动动画）
         static auto last_tick = std::chrono::steady_clock::now();
         auto now = std::chrono::steady_clock::now();
         float dt_ms = std::chrono::duration<float, std::milli>(now - last_tick).count();
         last_tick = now;
-        if (dt_ms > 100.0f) dt_ms = 16.0f; // 限制最大间隔，避免跳帧
+        if (dt_ms > 100.0f) dt_ms = 16.0f;
 
-        // 更新布局和动画
         widget_->layout();
         widget_->tick(dt_ms);
 
-        // 触发重绘
         renderer_->begin_frame();
         widget_->paint(renderer_);
         renderer_->end_frame();
 
-        // 交换 OpenGL 前后缓冲
         glXSwapBuffers(display_, window_);
     }
 }
@@ -392,7 +380,6 @@ void* linux_window::user_data() const { return user_data_; }
 void linux_window::set_user_data(void* data) { user_data_ = data; }
 
 void linux_window::request_repaint() {
-    // 不需要手动触发，loop 中自动绘�?
 }
 
 void linux_window::set_on_close(void_function callback) { on_close_ = callback; }
@@ -413,7 +400,6 @@ void linux_window::set_mouse_capture(bool capture) {
 void linux_window::set_widget(std::unique_ptr<widget> widget) {
     widget_ = std::move(widget);
     widget_->set_repaint_callback([this]() {
-        // loop 中自动每帧重绘，无需额外操作
     });
     widget_->set_window_action_callback([this](int action) {
         switch (action) {
@@ -425,8 +411,6 @@ void linux_window::set_widget(std::unique_ptr<widget> widget) {
     });
     notify_widget_resize();
 }
-
-// ==================== 初始�?====================
 
 bool linux_window::initialize(const window_params& params) {
     window_id_ = next_window_id_++;
@@ -443,7 +427,6 @@ bool linux_window::initialize(const window_params& params) {
     if (!create_gl_context()) return false;
     if (!create_renderer()) return false;
 
-    // 设置事件掩码
     auto* display = display_;
     XSelectInput(display, window_,
                  ExposureMask | StructureNotifyMask |
@@ -452,11 +435,9 @@ bool linux_window::initialize(const window_params& params) {
                  PointerMotionMask |
                  FocusChangeMask | VisibilityChangeMask);
 
-    // 设置 WM_DELETE_WINDOW 协议
     delete_atom_ = XInternAtom(display, "WM_DELETE_WINDOW", False);
     XSetWMProtocols(display_, window_, &delete_atom_, 1);
 
-    // 获取 EWMH atoms
     wm_state_atom_ = XInternAtom(display, "_NET_WM_STATE", False);
     wm_state_fullscreen_atom_ = XInternAtom(display, "_NET_WM_STATE_FULLSCREEN", False);
     wm_state_max_v_atom_ = XInternAtom(display, "_NET_WM_STATE_MAXIMIZED_VERT", False);
@@ -473,14 +454,11 @@ bool linux_window::initialize(const window_params& params) {
 
     update_dpi();
 
-    // 设置窗口图标（从 res/spiration.png 加载）
     {
         std::string iconPath = platform::executable_directory() + "/res/spiration.png";
         int w = 0, h = 0, channels = 0;
         unsigned char* rgba = stbi_load(iconPath.c_str(), &w, &h, &channels, 4);
         if (rgba) {
-            // _NET_WM_ICON 需要 32-bit CARDINAL 数组: [width, height, pixels...]
-            // 每个像素为 0xAABBGGRR (little-endian ARGB)
             std::vector<unsigned long> icon_data(2 + static_cast<size_t>(w) * h, 0);
             icon_data[0] = static_cast<unsigned long>(w);
             icon_data[1] = static_cast<unsigned long>(h);
@@ -578,7 +556,6 @@ bool linux_window::create_x11_window(const window_params& params) {
     int width_px = static_cast<int>(params.width * dpi_scale_);
     int height_px = static_cast<int>(params.height * dpi_scale_);
 
-    // 使用与 GLX FBConfig 匹配的 Visual 创建窗口
     XSetWindowAttributes swa = {};
     swa.background_pixel = 0;
     swa.border_pixel = 0;
@@ -597,7 +574,6 @@ bool linux_window::create_x11_window(const window_params& params) {
         return false;
     }
 
-    // 设置窗口标题 (WM_NAME + _NET_WM_NAME UTF-8)
     if (!params.title.empty()) {
         XStoreName(display_, window_, params.title.c_str());
         XChangeProperty(display_, window_, net_wm_name_atom_, utf8_string_atom_,
@@ -606,14 +582,12 @@ bool linux_window::create_x11_window(const window_params& params) {
                         static_cast<int>(params.title.size()));
     }
 
-    // 设置最小尺寸提�?
     XSizeHints hints = {};
     hints.flags = PMinSize;
     hints.min_width = static_cast<int>(400 * dpi_scale_);
     hints.min_height = static_cast<int>(300 * dpi_scale_);
     XSetWMNormalHints(display_, window_, &hints);
 
-    // 如果不带装饰：隐藏标题栏但保留关闭/最小化/最大化功能
     if (!params.decorated) {
         Atom motif_hints = XInternAtom(display_, "_MOTIF_WM_HINTS", False);
         if (motif_hints) {
@@ -694,7 +668,6 @@ bool linux_window::create_gl_context() {
     GLXContext shared = nullptr;
     bool direct = True;
 
-    // 尝试创建核心配置文件
     int context_attrs[] = {
         GLX_CONTEXT_MAJOR_VERSION_ARB, 3,
         GLX_CONTEXT_MINOR_VERSION_ARB, 3,
@@ -702,7 +675,6 @@ bool linux_window::create_gl_context() {
         None
     };
 
-    // glXCreateContextAttribsARB 需要动态获�?
     using glXCreateContextAttribsARBProc =
         GLXContext (*)(Display*, GLXFBConfig, GLXContext, Bool, const int*);
     glXCreateContextAttribsARBProc glXCreateContextAttribsARB =
@@ -716,7 +688,6 @@ bool linux_window::create_gl_context() {
     }
 
     if (!gl_context_) {
-        // 回退到旧版上下文
         XVisualInfo* vi = glXGetVisualFromFBConfig(display,
                                                      static_cast<GLXFBConfig>(glx_fb_config_));
         if (!vi) {
@@ -731,7 +702,6 @@ bool linux_window::create_gl_context() {
         return false;
     }
 
-    // 绑定上下�?
     if (!glXMakeCurrent(display, window_, static_cast<GLXContext>(gl_context_))) {
         console::error("Failed to make GLX context current");
         return false;
