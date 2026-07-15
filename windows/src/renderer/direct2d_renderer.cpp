@@ -242,7 +242,8 @@ void direct2d_renderer::draw_line(const point& start, const point& end, const co
 
 
 void direct2d_renderer::draw_text(const std::string& text, const point& position, const color& text_color,
-                                  float font_size, const std::string& font_family) {
+                                  float font_size, const std::string& font_family,
+                                  bool word_wrap) {
     if (!m_RenderTarget || !m_DWriteFactory) return;
     
     font_resource* font = get_font(font_family.empty() ? "Arial" : font_family, font_size);
@@ -255,11 +256,22 @@ void direct2d_renderer::draw_text(const std::string& text, const point& position
     
     std::wstring wtext = string_to_wstring(text);
     
-    D2D1_RECT_F layout_rect = D2D1::RectF(position.x, position.y,
-                                          position.x + static_cast<float>(m_Width),
-                                          position.y + static_cast<float>(m_Height));
-    m_RenderTarget->DrawTextW(wtext.c_str(), static_cast<UINT32>(wtext.length()),
-                              font->format.Get(), layout_rect, m_Brush.Get());
+    if (word_wrap) {
+        D2D1_RECT_F layout_rect = D2D1::RectF(position.x, position.y,
+                                              position.x + static_cast<float>(m_Width),
+                                              position.y + static_cast<float>(m_Height));
+        m_RenderTarget->DrawTextW(wtext.c_str(), static_cast<UINT32>(wtext.length()),
+                                  font->format.Get(), layout_rect, m_Brush.Get());
+    } else {
+        ComPtr<IDWriteTextLayout> layout;
+        if (SUCCEEDED(m_DWriteFactory->CreateTextLayout(
+                wtext.c_str(), static_cast<UINT32>(wtext.length()),
+                font->format.Get(), 10000.0f, 100.0f, &layout))) {
+            layout->SetWordWrapping(DWRITE_WORD_WRAPPING_NO_WRAP);
+            m_RenderTarget->DrawTextLayout(D2D1::Point2F(position.x, position.y),
+                                           layout.Get(), m_Brush.Get());
+        }
+    }
 }
 
 void direct2d_renderer::draw_text_aligned(const std::string& text, const rectangle& bounds, const color& text_color,

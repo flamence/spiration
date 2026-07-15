@@ -51,7 +51,8 @@ public:
     virtual void draw_line(const point& start, const point& end, const color& stroke_color, float stroke_width = 1.0f) = 0;
     
     virtual void draw_text(const std::string& text, const point& position, const color& text_color, 
-                          float font_size = 16.0f, const std::string& font_family = "Arial") = 0;
+                          float font_size = 16.0f, const std::string& font_family = "Arial",
+                          bool word_wrap = true) = 0;
     virtual void draw_text_aligned(const std::string& text, const rectangle& bounds, const color& text_color,
                                   text_alignment h_align = text_alignment::left,
                                   vertical_alignment v_align = vertical_alignment::top,
