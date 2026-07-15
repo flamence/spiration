@@ -446,7 +446,8 @@ void opengl_renderer::draw_line(const point& start, const point& end, const colo
 }
 
 void opengl_renderer::draw_text(const std::string& text, const point& position, const color& text_color,
-                                 float font_size, const std::string& font_family) {
+                                 float font_size, const std::string& font_family,
+                                 bool word_wrap) {
     if (!ft_library_ || text.empty()) return;
 
     font_face* fface = get_font_face(font_family.empty() ? "DejaVuSans" : font_family, font_size);
@@ -461,6 +462,7 @@ void opengl_renderer::draw_text(const std::string& text, const point& position, 
     float cursor_x = position.x;
     float cursor_y = position.y;
     transform_point(cursor_x, cursor_y);
+    float line_start_x = cursor_x;
 
     size_t i = 0;
     while (i < text.size()) {
@@ -491,11 +493,21 @@ void opengl_renderer::draw_text(const std::string& text, const point& position, 
         if (codepoint == '\n') {
             cursor_x = position.x;
             cursor_y += font_size * 1.4f;
+            transform_point(cursor_x, cursor_y);
+            line_start_x = cursor_x;
             continue;
         }
 
         glyph_info* gi = get_glyph(fface, codepoint);
         if (!gi) continue;
+
+        if (word_wrap && cursor_x + gi->advance_x > line_start_x + static_cast<float>(width_) &&
+            cursor_x > line_start_x) {
+            cursor_x = position.x;
+            cursor_y += font_size * 1.4f;
+            transform_point(cursor_x, cursor_y);
+            line_start_x = cursor_x;
+        }
 
         float x0 = cursor_x + gi->bearing_x;
         float y0 = cursor_y - gi->bearing_y;

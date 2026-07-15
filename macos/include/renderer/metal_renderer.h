@@ -46,7 +46,8 @@ public:
     void draw_line(const point& start, const point& end, const color& stroke_color, float stroke_width = 1.0f) override;
 
     void draw_text(const std::string& text, const point& position, const color& text_color,
-                   float font_size = 16.0f, const std::string& font_family = "Arial") override;
+                   float font_size = 16.0f, const std::string& font_family = "Arial",
+                   bool word_wrap = true) override;
     void draw_text_aligned(const std::string& text, const rectangle& bounds, const color& text_color,
                            text_alignment h_align = text_alignment::left,
                            vertical_alignment v_align = vertical_alignment::top,

@@ -490,7 +490,8 @@ void ohos_renderer::draw_line(const point& start, const point& end, const color&
 
 void ohos_renderer::draw_text(const std::string& text, const point& position,
                               const color& text_color, float font_size,
-                              const std::string& font_family) {
+                              const std::string& font_family,
+                              bool word_wrap) {
     if (text.empty()) return;
 
     float dpi = density_ > 0.0f ? density_ : 1.0f;
@@ -506,7 +507,15 @@ void ohos_renderer::draw_text(const std::string& text, const point& position,
     OH_Drawing_TypographyHandlerPushTextStyle(handler, tStyle);
     OH_Drawing_TypographyHandlerAddText(handler, text.c_str());
     OH_Drawing_Typography* typo = OH_Drawing_CreateTypography(handler);
-    OH_Drawing_TypographyLayout(typo, 2000.0 * dpi);
+    if (word_wrap) {
+        double wrap_width = static_cast<double>(viewport_width_ * dpi);
+        if (position.x < static_cast<float>(viewport_width_)) {
+            wrap_width = static_cast<double>((viewport_width_ - position.x) * dpi);
+        }
+        OH_Drawing_TypographyLayout(typo, wrap_width);
+    } else {
+        OH_Drawing_TypographyLayout(typo, 2000.0 * dpi);
+    }
 
     float tw_logical = static_cast<float>(OH_Drawing_TypographyGetLongestLine(typo)) / dpi + 4.0f;
     float th_logical = static_cast<float>(OH_Drawing_TypographyGetHeight(typo)) / dpi + 4.0f;

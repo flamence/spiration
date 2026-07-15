@@ -444,7 +444,8 @@ void metal_renderer::draw_line(const point& start, const point& end, const color
 }
 
 void metal_renderer::draw_text(const std::string& text, const point& position, const color& text_color,
-                               float font_size, const std::string& font_family) {
+                               float font_size, const std::string& font_family,
+                               bool word_wrap) {
     if (text.empty()) return;
 
     @autoreleasepool {
@@ -468,76 +469,167 @@ void metal_renderer::draw_text(const std::string& text, const point& position, c
         NSAttributedString* attrStr = [[NSAttributedString alloc] initWithString:nsText
                                                                       attributes:attrs];
 
-        CTLineRef line = CTLineCreateWithAttributedString((__bridge CFAttributedStringRef)attrStr);
+        CGFloat ascent = 0, descent = 0, leading = 0;
+        CGFloat textWidth = 0, textHeight = 0;
 
-        CGFloat ascent, descent, leading;
-        double lineWidth = CTLineGetTypographicBounds(line, &ascent, &descent, &leading);
+        if (word_wrap) {
+            CTFramesetterRef framesetter = CTFramesetterCreateWithAttributedString((__bridge CFAttributedStringRef)attrStr);
 
-        CGContextRef bitmapCtx = CGBitmapContextCreate(
-            nil, (size_t)lineWidth, (size_t)(ascent + descent + leading),
-            8, (size_t)lineWidth * 4,
-            CGColorSpaceCreateDeviceRGB(),
-            kCGImageAlphaPremultipliedFirst | kCGBitmapByteOrder32Little);
+            CGFloat wrapWidth = m_Width - position.x;
+            if (wrapWidth < 10.0f) wrapWidth = m_Width;
+            CGSize constraints = CGSizeMake(wrapWidth, CGFLOAT_MAX);
+            CGSize suggestedSize = CTFramesetterSuggestFrameSizeWithConstraints(
+                framesetter, CFRangeMake(0, 0), nullptr, constraints, nullptr);
 
-        if (bitmapCtx) {
-            CGContextSetTextPosition(bitmapCtx, 0, descent);
-            CTLineDraw(line, bitmapCtx);
+            textWidth = suggestedSize.width;
+            textHeight = suggestedSize.height;
+            if (textWidth < 1.0f) textWidth = 1.0f;
+            if (textHeight < 1.0f) textHeight = 1.0f;
 
-            CGImageRef cgImage = CGBitmapContextCreateImage(bitmapCtx);
+            CGContextRef bitmapCtx = CGBitmapContextCreate(
+                nil, (size_t)textWidth, (size_t)textHeight,
+                8, (size_t)textWidth * 4,
+                CGColorSpaceCreateDeviceRGB(),
+                kCGImageAlphaPremultipliedFirst | kCGBitmapByteOrder32Little);
 
-            if (cgImage) {
-                MTLTextureDescriptor* texDesc = [MTLTextureDescriptor texture2DDescriptorWithPixelFormat:MTLPixelFormatBGRA8Unorm
-                                                                                                    width:(NSUInteger)lineWidth
-                                                                                                   height:(NSUInteger)(ascent + descent + leading)
-                                                                                                mipmapped:NO];
-                id<MTLTexture> textTexture = [m_Device newTextureWithDescriptor:texDesc];
+            if (bitmapCtx) {
+                CGContextSetTextMatrix(bitmapCtx, CGAffineTransformMakeScale(1.0, -1.0));
 
-                void* pixelData = CGBitmapContextGetData(bitmapCtx);
-                if (pixelData) {
-                    MTLRegion region = MTLRegionMake2D(0, 0, (NSUInteger)lineWidth, (NSUInteger)(ascent + descent + leading));
-                    NSUInteger bytesPerRow = CGBitmapContextGetBytesPerRow(bitmapCtx);
-                    [textTexture replaceRegion:region
-                                   mipmapLevel:0
-                                     withBytes:pixelData
-                                   bytesPerRow:bytesPerRow];
+                CGMutablePathRef path = CGPathCreateMutable();
+                CGPathAddRect(path, nullptr, CGRectMake(0, 0, textWidth, textHeight));
+                CTFrameRef frame = CTFramesetterCreateFrame(framesetter, CFRangeMake(0, 0), path, nullptr);
+                CTFrameDraw(frame, bitmapCtx);
+                CFRelease(path);
+                CFRelease(frame);
+
+                CGImageRef cgImage = CGBitmapContextCreateImage(bitmapCtx);
+                if (cgImage) {
+                    MTLTextureDescriptor* texDesc = [MTLTextureDescriptor texture2DDescriptorWithPixelFormat:MTLPixelFormatBGRA8Unorm
+                                                                                                        width:(NSUInteger)textWidth
+                                                                                                       height:(NSUInteger)textHeight
+                                                                                                    mipmapped:NO];
+                    id<MTLTexture> textTexture = [m_Device newTextureWithDescriptor:texDesc];
+
+                    void* pixelData = CGBitmapContextGetData(bitmapCtx);
+                    if (pixelData) {
+                        MTLRegion region = MTLRegionMake2D(0, 0, (NSUInteger)textWidth, (NSUInteger)textHeight);
+                        NSUInteger bytesPerRow = CGBitmapContextGetBytesPerRow(bitmapCtx);
+                        [textTexture replaceRegion:region
+                                       mipmapLevel:0
+                                         withBytes:pixelData
+                                       bytesPerRow:bytesPerRow];
+                    }
+
+                    [m_CommandEncoder setRenderPipelineState:m_TexturePipeline];
+                    [m_CommandEncoder setFragmentTexture:textTexture atIndex:0];
+                    [m_CommandEncoder setFragmentSamplerState:m_LinearSampler atIndex:0];
+
+                    matrix_float4x4 model = mat4_identity();
+                    model = mat4_translate(model, position.x, position.y);
+                    model = mat4_scale(model, textWidth, textHeight);
+
+                    matrix_float4x4 view = {};
+                    std::memcpy(&view, m_CurrentTransform.m, sizeof(view));
+                    matrix_float4x4 proj = {};
+                    std::memcpy(&proj, m_Projection.m, sizeof(proj));
+                    matrix_float4x4 mvp = matrix_multiply(matrix_multiply(proj, view), model);
+
+                    struct Uniforms {
+                        matrix_float4x4 mvp;
+                        simd_float4 color;
+                        float alpha;
+                    };
+                    Uniforms uniforms = { mvp, { text_color.r, text_color.g, text_color.b, text_color.a }, m_Alpha };
+                    id<MTLBuffer> uniformBuffer = [m_Device newBufferWithBytes:&uniforms
+                                                                         length:sizeof(Uniforms)
+                                                                        options:MTLResourceStorageModeShared];
+
+                    [m_CommandEncoder setVertexBuffer:m_QuadBuffer offset:0 atIndex:0];
+                    [m_CommandEncoder setVertexBuffer:uniformBuffer offset:0 atIndex:1];
+                    [m_CommandEncoder setFragmentBuffer:uniformBuffer offset:0 atIndex:1];
+                    [m_CommandEncoder drawPrimitives:MTLPrimitiveTypeTriangleStrip vertexStart:0 vertexCount:4];
+
+                    CGImageRelease(cgImage);
+                }
+                CGContextRelease(bitmapCtx);
+            }
+            CFRelease(framesetter);
+        } else {
+            CTLineRef line = CTLineCreateWithAttributedString((__bridge CFAttributedStringRef)attrStr);
+
+            double lineWidth = CTLineGetTypographicBounds(line, &ascent, &descent, &leading);
+            CGFloat totalHeight = ascent + descent + leading;
+            if (totalHeight < 1.0f) totalHeight = 1.0f;
+
+            textWidth = (CGFloat)lineWidth;
+            textHeight = totalHeight;
+
+            CGContextRef bitmapCtx = CGBitmapContextCreate(
+                nil, (size_t)lineWidth, (size_t)totalHeight,
+                8, (size_t)lineWidth * 4,
+                CGColorSpaceCreateDeviceRGB(),
+                kCGImageAlphaPremultipliedFirst | kCGBitmapByteOrder32Little);
+
+            if (bitmapCtx) {
+                CGContextSetTextPosition(bitmapCtx, 0, descent);
+                CTLineDraw(line, bitmapCtx);
+
+                CGImageRef cgImage = CGBitmapContextCreateImage(bitmapCtx);
+
+                if (cgImage) {
+                    MTLTextureDescriptor* texDesc = [MTLTextureDescriptor texture2DDescriptorWithPixelFormat:MTLPixelFormatBGRA8Unorm
+                                                                                                        width:(NSUInteger)lineWidth
+                                                                                                       height:(NSUInteger)totalHeight
+                                                                                                    mipmapped:NO];
+                    id<MTLTexture> textTexture = [m_Device newTextureWithDescriptor:texDesc];
+
+                    void* pixelData = CGBitmapContextGetData(bitmapCtx);
+                    if (pixelData) {
+                        MTLRegion region = MTLRegionMake2D(0, 0, (NSUInteger)lineWidth, (NSUInteger)totalHeight);
+                        NSUInteger bytesPerRow = CGBitmapContextGetBytesPerRow(bitmapCtx);
+                        [textTexture replaceRegion:region
+                                       mipmapLevel:0
+                                         withBytes:pixelData
+                                       bytesPerRow:bytesPerRow];
+                    }
+
+                    [m_CommandEncoder setRenderPipelineState:m_TexturePipeline];
+                    [m_CommandEncoder setFragmentTexture:textTexture atIndex:0];
+                    [m_CommandEncoder setFragmentSamplerState:m_LinearSampler atIndex:0];
+
+                    matrix_float4x4 model = mat4_identity();
+                    model = mat4_translate(model, position.x, position.y - descent);
+                    model = mat4_scale(model, lineWidth, totalHeight);
+
+                    matrix_float4x4 view = {};
+                    std::memcpy(&view, m_CurrentTransform.m, sizeof(view));
+                    matrix_float4x4 proj = {};
+                    std::memcpy(&proj, m_Projection.m, sizeof(proj));
+                    matrix_float4x4 mvp = matrix_multiply(matrix_multiply(proj, view), model);
+
+                    struct Uniforms {
+                        matrix_float4x4 mvp;
+                        simd_float4 color;
+                        float alpha;
+                    };
+                    Uniforms uniforms = { mvp, { text_color.r, text_color.g, text_color.b, text_color.a }, m_Alpha };
+                    id<MTLBuffer> uniformBuffer = [m_Device newBufferWithBytes:&uniforms
+                                                                         length:sizeof(Uniforms)
+                                                                        options:MTLResourceStorageModeShared];
+
+                    [m_CommandEncoder setVertexBuffer:m_QuadBuffer offset:0 atIndex:0];
+                    [m_CommandEncoder setVertexBuffer:uniformBuffer offset:0 atIndex:1];
+                    [m_CommandEncoder setFragmentBuffer:uniformBuffer offset:0 atIndex:1];
+                    [m_CommandEncoder drawPrimitives:MTLPrimitiveTypeTriangleStrip vertexStart:0 vertexCount:4];
+
+                    CGImageRelease(cgImage);
                 }
 
-                [m_CommandEncoder setRenderPipelineState:m_TexturePipeline];
-                [m_CommandEncoder setFragmentTexture:textTexture atIndex:0];
-                [m_CommandEncoder setFragmentSamplerState:m_LinearSampler atIndex:0];
-
-                matrix_float4x4 model = mat4_identity();
-                model = mat4_translate(model, position.x, position.y - descent);
-                model = mat4_scale(model, lineWidth, ascent + descent + leading);
-
-                matrix_float4x4 view = {};
-                std::memcpy(&view, m_CurrentTransform.m, sizeof(view));
-                matrix_float4x4 proj = {};
-                std::memcpy(&proj, m_Projection.m, sizeof(proj));
-                matrix_float4x4 mvp = matrix_multiply(matrix_multiply(proj, view), model);
-
-                struct Uniforms {
-                    matrix_float4x4 mvp;
-                    simd_float4 color;
-                    float alpha;
-                };
-                Uniforms uniforms = { mvp, { text_color.r, text_color.g, text_color.b, text_color.a }, m_Alpha };
-                id<MTLBuffer> uniformBuffer = [m_Device newBufferWithBytes:&uniforms
-                                                                     length:sizeof(Uniforms)
-                                                                    options:MTLResourceStorageModeShared];
-
-                [m_CommandEncoder setVertexBuffer:m_QuadBuffer offset:0 atIndex:0];
-                [m_CommandEncoder setVertexBuffer:uniformBuffer offset:0 atIndex:1];
-                [m_CommandEncoder setFragmentBuffer:uniformBuffer offset:0 atIndex:1];
-                [m_CommandEncoder drawPrimitives:MTLPrimitiveTypeTriangleStrip vertexStart:0 vertexCount:4];
-
-                CGImageRelease(cgImage);
+                CGContextRelease(bitmapCtx);
             }
 
-            CGContextRelease(bitmapCtx);
+            CFRelease(line);
         }
-
-        CFRelease(line);
     }
 }
 
