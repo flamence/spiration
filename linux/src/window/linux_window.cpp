@@ -400,6 +400,16 @@ void linux_window::set_on_resize(void_function callback) { on_resize_ = callback
 void linux_window::set_on_key(void_function callback) { on_key_ = callback; }
 void linux_window::set_on_mouse(void_function callback) { on_mouse_ = callback; }
 
+void linux_window::set_mouse_capture(bool capture) {
+    if (capture) {
+        XGrabPointer(display_, window_, True,
+                     ButtonPressMask | ButtonReleaseMask | PointerMotionMask,
+                     GrabModeAsync, GrabModeAsync, None, None, CurrentTime);
+    } else {
+        XUngrabPointer(display_, CurrentTime);
+    }
+}
+
 void linux_window::set_widget(std::unique_ptr<widget> widget) {
     widget_ = std::move(widget);
     widget_->set_repaint_callback([this]() {

@@ -33,6 +33,8 @@ public:
     void dismiss_popup();
     bool has_popup() const { return m_popup != nullptr; }
 
+    void set_mouse_capture(widget* w) override;
+
     tab_bar* get_tab_bar() const { return tab_bar_; }
     menu_bar* get_menu_bar() const { return menu_bar_; }
     std::shared_ptr<spiration::window> window() const { return m_window; }
@@ -53,6 +55,7 @@ private:
     tab_bar* tab_bar_ = nullptr;
     menu_bar* menu_bar_ = nullptr;
     bool create_appbar_ = true;
+    widget* captured_ = nullptr;
 };
 
 } 
