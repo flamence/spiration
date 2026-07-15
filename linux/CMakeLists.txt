@@ -19,6 +19,11 @@ file(GLOB_RECURSE LINUX_HEADERS
 
 add_executable(${PROJECT_NAME} ${LINUX_SOURCES} ${LINUX_HEADERS})
 
+target_compile_definitions(${PROJECT_NAME} PRIVATE
+    $<$<CONFIG:Debug>:_DEBUG>
+    $<$<CONFIG:Release>:NDEBUG>
+)
+
 target_include_directories(${PROJECT_NAME} PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/include
     ${CMAKE_CURRENT_SOURCE_DIR}/src
@@ -32,7 +37,7 @@ target_include_directories(${PROJECT_NAME} PRIVATE
 )
 
 target_link_libraries(${PROJECT_NAME} PRIVATE
-    common
+    spiration-common
     ${X11_LIBRARIES}
     ${XCB_LIBRARIES}
     ${XCB_RANDR_LIBRARIES}
@@ -43,7 +48,12 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
     pthread
 )
 
-file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/../common/lang DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/bin)
+add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+        ${CMAKE_CURRENT_SOURCE_DIR}/../common/lang
+        $<TARGET_FILE_DIR:${PROJECT_NAME}>/lang
+)
+
 file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/res/spiration.png DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/bin/res)
 
 set_target_properties(${PROJECT_NAME} PROPERTIES
