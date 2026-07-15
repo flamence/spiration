@@ -85,8 +85,21 @@ void tab_head_item::handle_event(const event_type& type, void* data) {
 void tab_head_item::paint(std::shared_ptr<renderer> renderer) {
     renderer->draw_rectangle({x, y, width, height}, bg_.current());
 
-    renderer->draw_text_aligned(title_,
-                                {x + 10.0f, y, width - CLOSE_BTN_W - 14.0f, height},
+    float avail_w = width - CLOSE_BTN_W - 14.0f;
+    std::string display = title_;
+    float text_w = renderer->measure_text_width(display, 13.0f);
+    if (text_w > avail_w && !display.empty()) {
+        std::string dots = "...";
+        float dots_w = renderer->measure_text_width(dots, 13.0f);
+        float max_w = avail_w - dots_w;
+        while (!display.empty() && renderer->measure_text_width(display, 13.0f) > max_w) {
+            display.pop_back();
+        }
+        display += dots;
+    }
+
+    renderer->draw_text_aligned(display,
+                                {x + 10.0f, y, avail_w, height},
                                 text_.current(),
                                 text_alignment::left, vertical_alignment::center, 13.0f);
 
@@ -232,6 +245,7 @@ void tab_bar::start_indicator_fade(float new_pos, float new_width) {
 void tab_bar::add_tab(std::unique_ptr<tab> t) {
     if (!t) return;
     t->height = 0.0f;
+    t->set_parent(this);
     tabs_.push_back(std::move(t));
 
     auto* raw_tab = tabs_.back().get();
@@ -262,6 +276,10 @@ void tab_bar::add_tab(std::unique_ptr<tab> t) {
         for (int i = 0; i < static_cast<int>(tab_heads_.size()); ++i) {
             if (tab_heads_[i] == raw_head) { close_tab(i); return; }
         }
+    });
+
+    raw_tab->set_on_title_change([raw_head](const std::string& t) {
+        raw_head->set_title(t);
     });
 
     if (tab_heads_.size() == 1) {
