@@ -2,12 +2,11 @@ cmake_minimum_required(VERSION 3.5.0)
 project(spiration)
 
 set(NATIVERENDER_ROOT_PATH ${CMAKE_CURRENT_SOURCE_DIR})
+set(SPIRATION_ROOT_PATH ${CMAKE_CURRENT_SOURCE_DIR}/../../../../..)
 
 if(DEFINED PACKAGE_FIND_FILE)
     include(${PACKAGE_FIND_FILE})
 endif()
-
-set(SPIRATION_ROOT_PATH ${CMAKE_CURRENT_SOURCE_DIR}/../../../../..)
 
 file(GLOB_RECURSE COMMON_SOURCES
     "${SPIRATION_ROOT_PATH}/common/src/*.c"
