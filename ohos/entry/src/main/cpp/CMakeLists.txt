@@ -31,8 +31,6 @@ add_custom_command(TARGET entry PRE_BUILD COMMAND
     ${NATIVERENDER_ROOT_PATH}/../resources/rawfile/lang/
 )
 
-target_link_libraries(entry PRIVATE spiration-common)
-
 target_link_libraries(entry PUBLIC libace_napi.z.so
                                    libEGL.so
                                    libGLESv3.so
