@@ -31,7 +31,7 @@ jobs:
           echo "build-output-hap=${{ github.workspace }}/ohos/entry/build/default/outputs/default/entry-default-unsigned.hap"
       
       - name: 编译项目
-        uses: CoolCLK/build-haps@v1
+        uses: CoolCLK/build-hap@v1
         with:
           folder: ${{ github.workspace }}/ohos
 
