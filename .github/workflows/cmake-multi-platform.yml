@@ -61,6 +61,11 @@ jobs:
         shell: bash
         run: |
           echo "build-output-dir=${{ github.workspace }}/build" >> "$GITHUB_OUTPUT"
+          if [ "${{ matrix.os }}" == "windows-latest" ]; then
+            echo "build-bin-dir=${{ github.workspace }}/build/bin/${{ matrix.build_type }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "build-bin-dir=${{ github.workspace }}/build/bin" >> "$GITHUB_OUTPUT"
+          fi
           if [ "${{ github.event_name }}" == "release" ]; then
             VERSION="${{ github.event.release.tag_name }}"
           else
@@ -89,13 +94,13 @@ jobs:
         uses: actions/upload-artifact@v6
         with:
           name: ${{ steps.strings.outputs.archive-name }}
-          path: ${{ steps.strings.outputs.build-output-dir }}/bin
+          path: ${{ steps.strings.outputs.build-bin-dir }}
 
       - name: 上传到 GitHub Release
         if: github.event_name == 'release'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          cd "${{ steps.strings.outputs.build-output-dir }}/bin"
+          cd "${{ steps.strings.outputs.build-bin-dir }}"
           tar -czf "${{ steps.strings.outputs.archive-name }}" *
           gh release upload ${{ github.event.release.tag_name }} "${{ steps.strings.outputs.archive-name }}" --repo ${{ github.repository }}
