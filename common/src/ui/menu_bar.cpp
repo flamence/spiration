@@ -48,8 +48,8 @@ void menu_bar::show_menu_popup(int index) {
     auto popup = std::make_unique<popup_menu>();
     auto& menu = menus_[index];
     for (auto& sub : menu.sub_items) {
-        if (sub.text == "---") {
-            popup->add_item("---", nullptr);
+        if (sub.separator) {
+            popup->add_separator();
         } else {
             popup->add_item(sub.text, sub.callback);
         }

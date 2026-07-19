@@ -17,12 +17,12 @@ namespace spiration {
  */
 class button : public container {
 private:
-    bool hovering_ = false;
     bool pressing_ = false;
 
 protected:
     
     color_transition bg_transition_{color::transparent()};
+    void on_hover_change(bool hovered) override;
 
 public:
     std::string text;

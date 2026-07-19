@@ -160,19 +160,18 @@ void tab_bar::handle_event(const event_type& type, void* data) {
     if (type == event_type::mouse) {
         auto* md = static_cast<mouse_event_data*>(data);
 
-        bool header = (md->position.y >= 0.0f && md->position.y < TAB_HEADER_H);
-        if (header) {
-            point old = md->position;
-            md->position.x = old.x - header_row_->x;
-            md->position.y = old.y - header_row_->y;
-            header_row_->handle_event(type, data);
-            md->position = old;
-            if (md->consumed) return;
-        }
+        point old = md->position;
+        md->position.x = old.x - header_row_->x;
+        md->position.y = old.y - header_row_->y;
+        header_row_->handle_event(type, data);
+        md->position = old;
+
+        bool header = (old.y >= 0.0f && old.y < TAB_HEADER_H);
+        if (header && md->consumed) return;
 
         if (active_index_ >= 0 && active_index_ < static_cast<int>(tabs_.size())) {
             auto* t = tabs_[active_index_].get();
-            if (md->position.y >= TAB_HEADER_H) {
+            if (old.y >= TAB_HEADER_H) {
                 point old = md->position;
                 md->position.x = old.x - t->x;
                 md->position.y = old.y - t->y;
@@ -225,7 +224,9 @@ void tab_bar::paint(std::shared_ptr<renderer> renderer) {
     if (active_index_ >= 0 && active_index_ < tab_count()) {
         auto* t = tabs_[active_index_].get();
         renderer->push_transform(x, y);
+        renderer->push_clip({0.0f, TAB_HEADER_H, width, height - TAB_HEADER_H});
         t->paint(renderer);
+        renderer->pop_clip();
         renderer->pop_transform();
     }
 }

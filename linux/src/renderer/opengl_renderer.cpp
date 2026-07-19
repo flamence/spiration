@@ -651,6 +651,105 @@ void opengl_renderer::pop_transform() {
     transform_stack_.pop_back();
 }
 
+void opengl_renderer::push_clip(const rectangle& rect) {
+    if (!batch_.empty()) flush_batch();
+
+    float x1 = rect.x, y1 = rect.y, x2 = rect.x + rect.width, y2 = rect.y + rect.height;
+    transform_point(x1, y1);
+    transform_point(x2, y2);
+    if (x1 > x2) std::swap(x1, x2);
+    if (y1 > y2) std::swap(y1, y2);
+
+    int ix = static_cast<int>(x1);
+    int iy = static_cast<int>(y1);
+    int iw = static_cast<int>(x2 - x1);
+    int ih = static_cast<int>(y2 - y1);
+    if (iw < 0) iw = 0;
+    if (ih < 0) ih = 0;
+
+    rectangle prev = clip_stack_.empty()
+        ? rectangle{0.0f, 0.0f, static_cast<float>(width_), static_cast<float>(height_)}
+        : clip_stack_.back();
+
+    int px = static_cast<int>(prev.x), py = static_cast<int>(prev.y);
+    int pw = static_cast<int>(prev.width), ph = static_cast<int>(prev.height);
+
+    int cx = std::max(ix, px);
+    int cy = std::max(iy, py);
+    int cw = std::min(ix + iw, px + pw) - cx;
+    int ch = std::min(iy + ih, py + ph) - cy;
+    if (cw < 0) cw = 0;
+    if (ch < 0) ch = 0;
+
+    clip_stack_.push_back({static_cast<float>(cx), static_cast<float>(cy),
+                           static_cast<float>(cw), static_cast<float>(ch)});
+    apply_clip();
+}
+
+void opengl_renderer::pop_clip() {
+    if (!batch_.empty()) flush_batch();
+    if (clip_stack_.empty()) return;
+    clip_stack_.pop_back();
+    apply_clip();
+}
+
+void opengl_renderer::apply_clip() {
+    if (clip_stack_.empty()) {
+        glDisable(GL_SCISSOR_TEST);
+        return;
+    }
+    auto& c = clip_stack_.back();
+    glEnable(GL_SCISSOR_TEST);
+    glScissor(static_cast<GLint>(c.x), static_cast<GLint>(static_cast<float>(height_) - c.y - c.height),
+              static_cast<GLsizei>(c.width), static_cast<GLsizei>(c.height));
+}
+
+void opengl_renderer::draw_rounded_rectangle(const rectangle& rect, const color& fill_color, float radius) {
+    if (radius < 2.0f) { draw_rectangle(rect, fill_color); return; }
+    float r2 = std::min(radius, std::min(rect.width, rect.height) * 0.5f);
+    if (r2 < 2.0f) { draw_rectangle(rect, fill_color); return; }
+
+    float rc = fill_color.r, gc = fill_color.g, bc = fill_color.b, ac = fill_color.a * alpha_;
+    float x = rect.x, y = rect.y, w = rect.width, h = rect.height;
+    constexpr int SEGS = 8;
+
+    if (batch_has_texture_) flush_batch();
+
+    draw_rect_impl(x + r2, y, w - r2 * 2.0f, h, fill_color);
+    draw_rect_impl(x, y + r2, r2, h - r2 * 2.0f, fill_color);
+    draw_rect_impl(x + w - r2, y + r2, r2, h - r2 * 2.0f, fill_color);
+
+    float cxs[4] = {x + r2, x + w - r2, x + w - r2, x + r2};
+    float cys[4] = {y + r2, y + r2, y + h - r2, y + h - r2};
+    float sa[4] = {3.14159f, 0.0f, 1.5708f, 4.7124f};
+    for (int q = 0; q < 4; ++q) {
+        float cx = cxs[q], cy = cys[q];
+        transform_point(cx, cy);
+        for (int i = 1; i <= SEGS; ++i) {
+            float a0 = sa[q] + 1.5708f * (i - 1) / SEGS;
+            float a1 = sa[q] + 1.5708f * i / SEGS;
+            push_vertex(batch_, cx, cy, 0, 0, rc, gc, bc, ac);
+            push_vertex(batch_, cx + r2 * std::cos(a0), cy + r2 * std::sin(a0), 0, 0, rc, gc, bc, ac);
+            push_vertex(batch_, cx + r2 * std::cos(a1), cy + r2 * std::sin(a1), 0, 0, rc, gc, bc, ac);
+        }
+    }
+    if (batch_.size() >= MAX_BATCH_VERTICES) flush_batch();
+}
+
+void opengl_renderer::draw_rounded_rectangle_outline(const rectangle& rect, const color& stroke_color, float radius, float stroke_width) {
+    if (radius < 2.0f) { draw_rectangle_outline(rect, stroke_color, stroke_width); return; }
+    float r2 = std::min(radius, std::min(rect.width, rect.height) * 0.5f);
+    if (r2 < 2.0f) { draw_rectangle_outline(rect, stroke_color, stroke_width); return; }
+
+    float x = rect.x, y = rect.y, w = rect.width, h = rect.height;
+    float hw = stroke_width * 0.5f;
+
+    draw_rect_outline_impl(x + r2, y - hw, w - r2 * 2.0f, stroke_width, stroke_color, stroke_width);
+    draw_rect_outline_impl(x + r2, y + h - hw, w - r2 * 2.0f, stroke_width, stroke_color, stroke_width);
+    draw_rect_outline_impl(x - hw, y + r2, stroke_width, h - r2 * 2.0f, stroke_color, stroke_width);
+    draw_rect_outline_impl(x + w - hw, y + r2, stroke_width, h - r2 * 2.0f, stroke_color, stroke_width);
+}
+
 void opengl_renderer::set_blend_mode(bool enabled) {
     blend_enabled_ = enabled;
     if (enabled) {

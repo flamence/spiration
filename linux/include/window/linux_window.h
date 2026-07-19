@@ -73,6 +73,7 @@ public:
     void set_user_data(void* data) override;
 
     void request_repaint() override;
+    void request_layout() override;
 
     void set_on_close(void_function callback) override;
     void set_on_resize(void_function callback) override;
@@ -103,6 +104,8 @@ private:
     void update_dpi();
     void notify_widget_resize();
     int hit_test_edge(float x, float y) const;
+
+    bool needs_layout_ = true;
 
     Display* display_ = nullptr;
     ::Window window_ = 0;

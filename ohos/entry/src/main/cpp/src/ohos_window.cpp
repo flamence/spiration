@@ -80,6 +80,10 @@ void ohos_window::request_repaint() {
     }
 }
 
+void ohos_window::request_layout() {
+    needs_layout_ = true;
+}
+
 void ohos_window::set_widget(std::unique_ptr<widget> w) {
     root_widget_ = std::move(w);
     if (root_widget_) {

@@ -52,6 +52,7 @@ public:
     void set_user_data(void* data) override { user_data_ = data; }
 
     void request_repaint() override;
+    void request_layout() override;
 
     void set_on_close(void_function callback) override { on_close_ = callback; }
     void set_on_resize(void_function callback) override { on_resize_ = callback; }
@@ -88,6 +89,7 @@ private:
     void* native_window_ = nullptr;
     void* user_data_ = nullptr;
     bool visible_ = false;
+    bool needs_layout_ = true;
 
     void_function on_close_ = nullptr;
     void_function on_resize_ = nullptr;

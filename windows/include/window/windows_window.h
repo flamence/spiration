@@ -61,6 +61,7 @@ public:
     void set_user_data(void* data) override;
 
     void request_repaint() override;
+    void request_layout() override;
 
     void set_on_close(void_function callback) override;
     void set_on_resize(void_function callback) override;
@@ -93,6 +94,7 @@ private:
     bool m_ShouldClose = false;
     bool m_IsFullscreen = false;
     bool m_NeedsRepaint = true;
+    bool m_NeedsLayout = true;
 
     RECT m_WindowRectBeforeFullscreen = {0};
     DWORD m_WindowStyleBeforeFullscreen = 0;

@@ -30,6 +30,9 @@ public:
     float x = 0.0f, y = 0.0f;
     float width = 0.0f, height = 0.0f;
 
+    bool enabled = true;
+    bool focusable = false;
+
     style widget_style;
     
     widget() {
@@ -58,7 +61,7 @@ public:
      *        布局管理器会参考此值来决定 widget 的分配空间。
      */
     virtual size layout_preferred_size() const {
-        return {width, height};
+        return {0.0f, 0.0f};
     }
 
     /**
@@ -78,21 +81,38 @@ public:
     }
     
     virtual void handle_event(const event_type& type, void* data) {
+        if (!enabled) return;
         if (type == event_type::mouse) {
             auto* mouse_data = static_cast<mouse_event_data*>(data);
             point original = mouse_data->position;
+
+            bool was_hover = hovered_;
+            hovered_ = (original.x >= 0.0f && original.x <= width &&
+                         original.y >= 0.0f && original.y <= height);
+            if (hovered_ != was_hover) on_hover_change(hovered_);
+
             for (auto& child : children_) {
                 mouse_data->position.x = original.x - child->x;
                 mouse_data->position.y = original.y - child->y;
                 child->handle_event(type, data);
+                if (mouse_data->consumed) break;
             }
             mouse_data->position = original;
+        } else if (type == event_type::keyboard) {
+            for (auto& child : children_) {
+                child->handle_event(type, data);
+                if (static_cast<key_event_data*>(data)->consumed) break;
+            }
         } else {
             for (auto& child : children_) {
                 child->handle_event(type, data);
             }
         }
     }
+
+    virtual void on_hover_change(bool hovered) {}
+
+    bool is_hovered() const { return hovered_; }
 
     /**
      * @brief 检测当前 widget 自身是否消耗了指定坐标的鼠标点击。
@@ -163,9 +183,24 @@ public:
         if (parent_) parent_->set_mouse_capture(w);
     }
 
+    virtual void on_focus() {}
+    virtual void on_blur() {}
+
+    virtual bool is_focusable() const { return focusable && enabled; }
+
+    void set_focused(bool f) {
+        if (f == focused_) return;
+        focused_ = f;
+        if (f) on_focus(); else on_blur();
+    }
+    bool is_focused() const { return focused_; }
+
 protected:
     
     std::function<void()> request_repaint_ = nullptr;
+
+    bool focused_ = false;
+    bool hovered_ = false;
 
     
     std::function<void(int action)> window_action_ = nullptr;

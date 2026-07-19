@@ -48,6 +48,42 @@ public:
     static constexpr const char* TAB_CLOSE_FG        = "tab_close_fg";
     static constexpr const char* TAB_CLOSE_HOVER_FG  = "tab_close_hover_fg";
 
+    static constexpr const char* LABEL_TEXT            = "label_text";
+    static constexpr const char* CHECKBOX_BORDER        = "checkbox_border";
+    static constexpr const char* CHECKBOX_CHECK_BG      = "checkbox_check_bg";
+    static constexpr const char* CHECKBOX_CHECK_FG      = "checkbox_check_fg";
+    static constexpr const char* TOGGLE_BG              = "toggle_bg";
+    static constexpr const char* TOGGLE_BG_ACTIVE       = "toggle_bg_active";
+    static constexpr const char* TOGGLE_KNOB            = "toggle_knob";
+    static constexpr const char* SLIDER_TRACK           = "slider_track";
+    static constexpr const char* SLIDER_FILL            = "slider_fill";
+    static constexpr const char* SLIDER_THUMB           = "slider_thumb";
+    static constexpr const char* SLIDER_THUMB_HOVER     = "slider_thumb_hover";
+    static constexpr const char* INPUT_BG               = "input_bg";
+    static constexpr const char* INPUT_BORDER           = "input_border";
+    static constexpr const char* INPUT_FOCUS_BORDER     = "input_focus_border";
+    static constexpr const char* INPUT_TEXT             = "input_text";
+    static constexpr const char* INPUT_PLACEHOLDER      = "input_placeholder";
+    static constexpr const char* INPUT_CURSOR           = "input_cursor";
+    static constexpr const char* PROGRESS_BG            = "progress_bg";
+    static constexpr const char* PROGRESS_FILL          = "progress_fill";
+
+    static constexpr const char* TOOLTIP_BG             = "tooltip_bg";
+    static constexpr const char* TOOLTIP_TEXT           = "tooltip_text";
+    static constexpr const char* COMBO_BG               = "combo_bg";
+    static constexpr const char* COMBO_BORDER           = "combo_border";
+    static constexpr const char* COMBO_ARROW            = "combo_arrow";
+    static constexpr const char* SPLIT_HANDLE           = "split_handle";
+    static constexpr const char* SPLIT_HANDLE_HOVER     = "split_handle_hover";
+    static constexpr const char* DIALOG_BG              = "dialog_bg";
+    static constexpr const char* DIALOG_OVERLAY         = "dialog_overlay";
+    static constexpr const char* LIST_BG                = "list_bg";
+    static constexpr const char* LIST_ITEM_HOVER        = "list_item_hover";
+    static constexpr const char* LIST_ITEM_SELECTED     = "list_item_selected";
+    static constexpr const char* SCROLL_BAR_BG          = "scroll_bar_bg";
+    static constexpr const char* SCROLL_BAR_THUMB       = "scroll_bar_thumb";
+    static constexpr const char* SCROLL_BAR_THUMB_HOVER = "scroll_bar_thumb_hover";
+
     static void set_active(const std::string& name);
     static std::string active();
     static std::vector<std::string> profiles();

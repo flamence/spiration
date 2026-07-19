@@ -38,8 +38,11 @@ struct menu_desc {
     struct item {
         std::string text;
         std::function<void()> callback;
+        bool separator = false;
     };
     std::vector<item> sub_items;
+
+    void add_separator() { sub_items.push_back({"", nullptr, true}); }
 };
 
 /**

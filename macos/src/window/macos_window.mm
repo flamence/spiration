@@ -650,6 +650,10 @@ void Window::loop() {
         }
 
         if (!m_ShouldClose && m_Widget && m_Renderer) {
+            if (m_NeedsLayout) {
+                m_Widget->layout();
+                m_NeedsLayout = false;
+            }
             m_Renderer->begin_frame();
             m_Widget->paint(m_Renderer);
             m_Renderer->end_frame();
@@ -666,7 +670,6 @@ void Window::set_user_data(void* data) { m_UserData = data; }
 
 void Window::request_repaint() {
     @autoreleasepool {
-        // 发送一个自定义事件唤醒 run loop，触发下一帧的绘制
         NSEvent* dummy = [NSEvent otherEventWithType:NSEventTypeApplicationDefined
                                             location:NSZeroPoint
                                        modifierFlags:0
@@ -678,6 +681,10 @@ void Window::request_repaint() {
                                                data2:0];
         [NSApp postEvent:dummy atStart:NO];
     }
+}
+
+void Window::request_layout() {
+    m_NeedsLayout = true;
 }
 
 void Window::set_on_close(void_function callback) { m_OnClose = callback; }
@@ -836,6 +843,7 @@ void Window::notify_widget_resize() {
     if (!m_Widget) return;
     size sizeData = { static_cast<float>(m_Width), static_cast<float>(m_Height) };
     m_Widget->handle_event(event_type::window_resize, &sizeData);
+    m_NeedsLayout = true;
 }
 
 std::shared_ptr<window> window::create() {

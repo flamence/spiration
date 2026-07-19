@@ -44,10 +44,9 @@ void root::handle_event(const event_type& type, void* data) {
         auto* md = static_cast<mouse_event_data*>(data);
         point original = md->position;
         float ox = 0.0f, oy = 0.0f;
-        for (widget* w = captured_->parent(); w; w = w->parent()) {
+        for (widget* w = captured_; w && w != this; w = w->parent()) {
             ox += w->x;
             oy += w->y;
-            if (w == this) break;
         }
         md->position.x = original.x - ox;
         md->position.y = original.y - oy;
