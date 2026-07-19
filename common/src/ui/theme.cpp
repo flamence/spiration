@@ -52,6 +52,42 @@ void theme::init_defaults(profile* dark) {
     d(TAB_INDICATOR,       {0.29f, 0.55f, 0.97f});
     d(TAB_CLOSE_FG,        {0.50f, 0.50f, 0.50f});
     d(TAB_CLOSE_HOVER_FG,  {0.85f, 0.20f, 0.20f});
+
+    d(LABEL_TEXT,           {0.85f, 0.85f, 0.85f});
+    d(CHECKBOX_BORDER,      {0.45f, 0.45f, 0.45f});
+    d(CHECKBOX_CHECK_BG,    {0.29f, 0.55f, 0.97f});
+    d(CHECKBOX_CHECK_FG,    {1.00f, 1.00f, 1.00f});
+    d(TOGGLE_BG,            {0.35f, 0.35f, 0.35f});
+    d(TOGGLE_BG_ACTIVE,     {0.29f, 0.55f, 0.97f});
+    d(TOGGLE_KNOB,          {1.00f, 1.00f, 1.00f});
+    d(SLIDER_TRACK,         {0.30f, 0.30f, 0.30f});
+    d(SLIDER_FILL,          {0.29f, 0.55f, 0.97f});
+    d(SLIDER_THUMB,         {0.85f, 0.85f, 0.85f});
+    d(SLIDER_THUMB_HOVER,   {1.00f, 1.00f, 1.00f});
+    d(INPUT_BG,             {0.12f, 0.12f, 0.12f});
+    d(INPUT_BORDER,         {0.35f, 0.35f, 0.35f});
+    d(INPUT_FOCUS_BORDER,   {0.29f, 0.55f, 0.97f});
+    d(INPUT_TEXT,           {0.85f, 0.85f, 0.85f});
+    d(INPUT_PLACEHOLDER,    {0.45f, 0.45f, 0.45f});
+    d(INPUT_CURSOR,         {0.85f, 0.85f, 0.85f});
+    d(PROGRESS_BG,          {0.25f, 0.25f, 0.25f});
+    d(PROGRESS_FILL,        {0.29f, 0.55f, 0.97f});
+
+    d(TOOLTIP_BG,             {0.15f, 0.15f, 0.15f});
+    d(TOOLTIP_TEXT,           {0.90f, 0.90f, 0.90f});
+    d(COMBO_BG,               {0.12f, 0.12f, 0.12f});
+    d(COMBO_BORDER,           {0.35f, 0.35f, 0.35f});
+    d(COMBO_ARROW,            {0.60f, 0.60f, 0.60f});
+    d(SPLIT_HANDLE,           {0.25f, 0.25f, 0.25f});
+    d(SPLIT_HANDLE_HOVER,     {0.29f, 0.55f, 0.97f});
+    d(DIALOG_BG,              {0.18f, 0.18f, 0.20f});
+    d(DIALOG_OVERLAY,         {0.00f, 0.00f, 0.00f, 0.40f});
+    d(LIST_BG,                {0.14f, 0.14f, 0.16f});
+    d(LIST_ITEM_HOVER,        {0.22f, 0.22f, 0.26f});
+    d(LIST_ITEM_SELECTED,     {0.25f, 0.45f, 0.80f, 0.40f});
+    d(SCROLL_BAR_BG,          {0.10f, 0.10f, 0.12f});
+    d(SCROLL_BAR_THUMB,       {0.30f, 0.30f, 0.35f});
+    d(SCROLL_BAR_THUMB_HOVER, {0.45f, 0.45f, 0.50f});
 }
 
 void theme::set_active(const std::string& name) {

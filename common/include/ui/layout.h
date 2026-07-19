@@ -18,14 +18,6 @@ namespace spiration {
 class widget;
 
 /**
- * @brief 布局方向枚举。
- */
-enum class layout_direction {
-    horizontal, 
-    vertical,   
-};
-
-/**
  * @brief 布局管理器基类。
  */
 class layout_manager {
@@ -45,8 +37,6 @@ public:
      */
     virtual size preferred_size(const std::vector<std::unique_ptr<widget>>& children) const = 0;
 };
-
-
 
 /**
  * @brief 水平布局：子 widget 从左到右依次排列。

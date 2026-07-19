@@ -692,6 +692,100 @@ void ohos_renderer::pop_transform() {
     transform_stack_.pop_back();
 }
 
+void ohos_renderer::push_clip(const rectangle& rect) {
+    if (!batch_.empty()) flush_batch();
+
+    float x1 = rect.x, y1 = rect.y, x2 = rect.x + rect.width, y2 = rect.y + rect.height;
+    transform_point(x1, y1);
+    transform_point(x2, y2);
+    if (x1 > x2) std::swap(x1, x2);
+    if (y1 > y2) std::swap(y1, y2);
+
+    int ix = static_cast<int>(x1), iy = static_cast<int>(y1);
+    int iw = static_cast<int>(x2 - x1), ih = static_cast<int>(y2 - y1);
+    if (iw < 0) iw = 0;
+    if (ih < 0) ih = 0;
+
+    rectangle prev = clip_stack_.empty()
+        ? rectangle{0.0f, 0.0f, static_cast<float>(viewport_width_), static_cast<float>(viewport_height_)}
+        : clip_stack_.back();
+    int px = static_cast<int>(prev.x), py = static_cast<int>(prev.y);
+    int pw = static_cast<int>(prev.width), ph = static_cast<int>(prev.height);
+
+    int cx = std::max(ix, px), cy = std::max(iy, py);
+    int cw = std::min(ix + iw, px + pw) - cx;
+    int ch = std::min(iy + ih, py + ph) - cy;
+    if (cw < 0) cw = 0; if (ch < 0) ch = 0;
+
+    clip_stack_.push_back({static_cast<float>(cx), static_cast<float>(cy),
+                           static_cast<float>(cw), static_cast<float>(ch)});
+    if (clip_stack_.size() == 1) glEnable(GL_SCISSOR_TEST);
+    auto& c = clip_stack_.back();
+    glScissor(static_cast<GLint>(c.x),
+              static_cast<GLint>(static_cast<float>(viewport_height_) - c.y - c.height),
+              static_cast<GLsizei>(c.width), static_cast<GLsizei>(c.height));
+}
+
+void ohos_renderer::pop_clip() {
+    if (!batch_.empty()) flush_batch();
+    if (clip_stack_.empty()) return;
+    clip_stack_.pop_back();
+    if (clip_stack_.empty()) {
+        glDisable(GL_SCISSOR_TEST);
+    } else {
+        auto& c = clip_stack_.back();
+        glScissor(static_cast<GLint>(c.x),
+                  static_cast<GLint>(static_cast<float>(viewport_height_) - c.y - c.height),
+                  static_cast<GLsizei>(c.width), static_cast<GLsizei>(c.height));
+    }
+}
+
+void ohos_renderer::draw_rounded_rectangle(const rectangle& rect, const color& fill_color, float radius) {
+    if (radius < 2.0f) { draw_rectangle(rect, fill_color); return; }
+    float r2 = std::min(radius, std::min(rect.width, rect.height) * 0.5f);
+    if (r2 < 2.0f) { draw_rectangle(rect, fill_color); return; }
+
+    float x = rect.x, y = rect.y, w = rect.width, h = rect.height;
+    float rc = fill_color.r, gc = fill_color.g, bc = fill_color.b, ac = fill_color.a * current_alpha_;
+    if (batch_has_texture_) flush_batch();
+
+    push_rect_verts(x + r2, y, w - r2 * 2.0f, h, rc, gc, bc, ac);
+    push_rect_verts(x, y + r2, r2, h - r2 * 2.0f, rc, gc, bc, ac);
+    push_rect_verts(x + w - r2, y + r2, r2, h - r2 * 2.0f, rc, gc, bc, ac);
+
+    constexpr int SEGS = 8;
+    float cxs[4] = {x + r2, x + w - r2, x + w - r2, x + r2};
+    float cys[4] = {y + r2, y + r2, y + h - r2, y + h - r2};
+    float sa[4] = {3.14159f, 0.0f, 1.5708f, 4.7124f};
+    for (int q = 0; q < 4; ++q) {
+        float cx = cxs[q], cy = cys[q];
+        transform_point(cx, cy);
+        for (int i = 1; i <= SEGS; ++i) {
+            float a0 = sa[q] + 1.5708f * (i - 1) / SEGS;
+            float a1 = sa[q] + 1.5708f * i / SEGS;
+            batch_.push_back({cx, cy, 0, 0, rc, gc, bc, ac});
+            batch_.push_back({cx + r2 * std::cos(a0), cy + r2 * std::sin(a0), 0, 0, rc, gc, bc, ac});
+            batch_.push_back({cx + r2 * std::cos(a1), cy + r2 * std::sin(a1), 0, 0, rc, gc, bc, ac});
+        }
+    }
+    if (batch_.size() >= MAX_BATCH_VERTS) flush_batch();
+}
+
+void ohos_renderer::draw_rounded_rectangle_outline(const rectangle& rect, const color& stroke_color, float radius, float stroke_width) {
+    if (radius < 2.0f) { draw_rectangle_outline(rect, stroke_color, stroke_width); return; }
+    float r2 = std::min(radius, std::min(rect.width, rect.height) * 0.5f);
+    if (r2 < 2.0f) { draw_rectangle_outline(rect, stroke_color, stroke_width); return; }
+
+    float x = rect.x, y = rect.y, w = rect.width, h = rect.height;
+    float hw = stroke_width * 0.5f;
+    float rc = stroke_color.r, gc = stroke_color.g, bc = stroke_color.b, ac = stroke_color.a * current_alpha_;
+
+    push_rect_verts(x + r2, y - hw, w - r2 * 2.0f, stroke_width, rc, gc, bc, ac);
+    push_rect_verts(x + r2, y + h - hw, w - r2 * 2.0f, stroke_width, rc, gc, bc, ac);
+    push_rect_verts(x - hw, y + r2, stroke_width, h - r2 * 2.0f, rc, gc, bc, ac);
+    push_rect_verts(x + w - hw, y + r2, stroke_width, h - r2 * 2.0f, rc, gc, bc, ac);
+}
+
 void ohos_renderer::set_blend_mode(bool enabled) {
     blend_enabled_ = enabled;
     if (enabled) glEnable(GL_BLEND);

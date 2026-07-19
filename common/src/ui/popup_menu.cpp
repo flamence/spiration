@@ -13,14 +13,19 @@ namespace spiration {
 
 void popup_menu::init() {
     widget_style.background_color = theme::get(theme::POPUP_BG);
-    auto vlayout = std::make_unique<vertical_layout>(0.0f);
-    set_layout_manager(std::move(vlayout));
 }
 
 void popup_menu::add_item(const std::string& text, std::function<void()> callback) {
     popup_item item;
     item.text = text;
     item.callback = std::move(callback);
+    items_.push_back(std::move(item));
+    layout_items();
+}
+
+void popup_menu::add_separator() {
+    popup_item item;
+    item.separator = true;
     items_.push_back(std::move(item));
     layout_items();
 }
@@ -33,7 +38,7 @@ void popup_menu::layout_items() {
     width = maxW;
     height = 0.0f;
     for (auto& item : items_) {
-        height += (item.text == "---") ? 8.0f : item_height_;
+        height += item.separator ? 8.0f : item_height_;
     }
 }
 
@@ -48,7 +53,7 @@ void popup_menu::handle_event(const event_type& type, void* data) {
         if (mx >= 0.0f && mx <= width && my >= 0.0f && my <= height) {
             float curY = 0.0f;
             for (size_t i = 0; i < items_.size(); ++i) {
-                float h = (items_[i].text == "---") ? 8.0f : item_height_;
+                float h = items_[i].separator ? 8.0f : item_height_;
                 if (my >= curY && my < curY + h) {
                     idx = static_cast<int>(i);
                     break;
@@ -69,7 +74,7 @@ void popup_menu::handle_event(const event_type& type, void* data) {
 
         if (md->action == mouse_action::down && idx >= 0) {
             md->consumed = true;
-            if (items_[idx].text == "---") return;
+            if (items_[idx].separator) return;
             auto cb = items_[idx].callback;
             if (on_dismiss_) on_dismiss_();
             if (cb) cb();
@@ -94,8 +99,8 @@ void popup_menu::paint(std::shared_ptr<renderer> renderer) {
 
     float iy = y;
     for (size_t i = 0; i < items_.size(); ++i) {
-        float h = (items_[i].text == "---") ? 8.0f : item_height_;
-        if (items_[i].text == "---") {
+        float h = items_[i].separator ? 8.0f : item_height_;
+        if (items_[i].separator) {
             float cy = iy + h * 0.5f;
             renderer->draw_line({x + 8.0f, cy}, {x + width - 8.0f, cy}, theme::get(theme::SEPARATOR), 1.0f);
         } else {

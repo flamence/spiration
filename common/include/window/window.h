@@ -84,6 +84,11 @@ public:
     virtual void set_user_data(void* data) = 0;
     
     virtual void request_repaint() = 0;
+
+    /**
+     * @brief 请求在下一帧重新布局。
+     */
+    virtual void request_layout() {}
     
     virtual void set_on_close(void_function callback) = 0;
     virtual void set_on_resize(void_function callback) = 0;

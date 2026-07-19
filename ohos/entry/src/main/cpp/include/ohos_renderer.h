@@ -51,6 +51,10 @@ private:
     void draw_rectangle(const rectangle& rect, const color& fill_color) override;
     void draw_rectangle_outline(const rectangle& rect, const color& stroke_color,
                                 float stroke_width = 1.0f) override;
+    void draw_rounded_rectangle(const rectangle& rect, const color& fill_color, float radius) override;
+    void draw_rounded_rectangle_outline(const rectangle& rect, const color& stroke_color, float radius, float stroke_width = 1.0f) override;
+    void push_clip(const rectangle& rect) override;
+    void pop_clip() override;
     void draw_circle(const point& center, float radius, const color& fill_color) override;
     void draw_circle_outline(const point& center, float radius, const color& stroke_color,
                              float stroke_width = 1.0f) override;
@@ -97,6 +101,7 @@ private:
         float m[16];
     };
     std::vector<Transform> transform_stack_;
+    std::vector<rectangle> clip_stack_;
     Transform current_transform_;
 
     float proj_[16];

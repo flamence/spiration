@@ -1,6 +1,6 @@
 /**
  * @file container.cpp
- * @brief Container 容器控件实现。
+ * @brief 容器控件实现。
  * @author clk
  */
 
@@ -16,7 +16,9 @@ void container::layout() {
 }
 
 void container::paint(std::shared_ptr<renderer> renderer) {
-    renderer->draw_rectangle({x, y, width, height}, widget_style.background_color);
+    if (widget_style.background_color.a > 0.0f) {
+        renderer->draw_rectangle({x, y, width, height}, widget_style.background_color);
+    }
     widget::paint(renderer);
 }
 

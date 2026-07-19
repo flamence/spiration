@@ -363,7 +363,10 @@ void linux_window::loop() {
         last_tick = now;
         if (dt_ms > 100.0f) dt_ms = 16.0f;
 
-        widget_->layout();
+        if (needs_layout_) {
+            widget_->layout();
+            needs_layout_ = false;
+        }
         widget_->tick(dt_ms);
 
         renderer_->begin_frame();
@@ -384,6 +387,10 @@ void* linux_window::user_data() const { return user_data_; }
 void linux_window::set_user_data(void* data) { user_data_ = data; }
 
 void linux_window::request_repaint() {
+}
+
+void linux_window::request_layout() {
+    needs_layout_ = true;
 }
 
 void linux_window::set_on_close(void_function callback) { on_close_ = callback; }
@@ -850,6 +857,7 @@ void linux_window::handle_expose() {
         renderer_->begin_frame();
         widget_->paint(renderer_);
         renderer_->end_frame();
+        glXSwapBuffers(display_, window_);
     }
 }
 
@@ -1235,6 +1243,7 @@ void linux_window::notify_widget_resize() {
 
     size sizeData = { static_cast<float>(width_), static_cast<float>(height_) };
     widget_->handle_event(event_type::window_resize, &sizeData);
+    needs_layout_ = true;
 }
 
 

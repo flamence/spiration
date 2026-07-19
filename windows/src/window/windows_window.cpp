@@ -158,7 +158,6 @@ LRESULT Window::HandleMessage(UINT uMsg, WPARAM wParam, LPARAM lParam) {
         PAINTSTRUCT ps;
         BeginPaint(m_hWnd, &ps);
         if (m_Widget && m_Renderer) {
-            m_Widget->layout();
             m_Renderer->begin_frame();
             m_Widget->paint(m_Renderer);
             m_Renderer->end_frame();
@@ -318,9 +317,6 @@ LRESULT Window::HandleMessage(UINT uMsg, WPARAM wParam, LPARAM lParam) {
 
         float xDIP = static_cast<float>(clientPos.x) / m_DPIScale;
         float yDIP = static_cast<float>(clientPos.y) / m_DPIScale;
-
-        console::debug("mouse msg=0x%04X raw=(%d,%d) dip=(%.2f,%.2f) scale=%.2f",
-                       uMsg, clientPos.x, clientPos.y, xDIP, yDIP, m_DPIScale);
 
         mouse_button btn = mouse_button::none;
         switch (uMsg) {
@@ -507,6 +503,7 @@ void Window::NotifyWidgetResize() {
     get_size(widthDIP, heightDIP);
     size sizeData = { static_cast<float>(widthDIP), static_cast<float>(heightDIP) };
     m_Widget->handle_event(event_type::window_resize, &sizeData);
+    m_NeedsLayout = true;
 }
 
 
@@ -650,7 +647,18 @@ void Window::loop() {
         }
 
         if (m_Widget) {
-            m_Widget->layout();
+            if (m_NeedsLayout) {
+                m_Widget->layout();
+                m_NeedsLayout = false;
+            }
+        }
+
+        if (m_Widget) {
+            static DWORD lastTick = GetTickCount();
+            DWORD now = GetTickCount();
+            float dt_ms = static_cast<float>(now - lastTick);
+            lastTick = now;
+            m_Widget->tick(dt_ms);
         }
 
         
@@ -665,14 +673,6 @@ void Window::loop() {
         if (!processedInput && !m_NeedsRepaint) {
             WaitMessage();
         }
-
-        if (m_Widget) {
-            static DWORD lastTick = GetTickCount();
-            DWORD now = GetTickCount();
-            float dt_ms = static_cast<float>(now - lastTick);
-            lastTick = now;
-            m_Widget->tick(dt_ms);
-        }
     }
 }
 
@@ -680,6 +680,10 @@ void Window::request_repaint() {
     if (m_hWnd) {
         InvalidateRect(m_hWnd, nullptr, FALSE);
     }
+}
+
+void Window::request_layout() {
+    m_NeedsLayout = true;
 }
 
 bool Window::should_close() const { return m_ShouldClose; }

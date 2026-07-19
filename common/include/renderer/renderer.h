@@ -46,6 +46,16 @@ public:
     
     virtual void draw_rectangle(const rectangle& rectangle, const color& fill_color) = 0;
     virtual void draw_rectangle_outline(const rectangle& rectangle, const color& stroke_color, float stroke_width = 1.0f) = 0;
+
+    virtual void draw_rounded_rectangle(const rectangle& rect, const color& fill_color, float radius) {
+        draw_rectangle(rect, fill_color);
+    }
+    virtual void draw_rounded_rectangle_outline(const rectangle& rect, const color& stroke_color, float radius, float stroke_width = 1.0f) {
+        draw_rectangle_outline(rect, stroke_color, stroke_width);
+    }
+
+    virtual void push_clip(const rectangle& rect) { (void)rect; }
+    virtual void pop_clip() {}
     virtual void draw_circle(const point& center, float radius, const color& fill_color) = 0;
     virtual void draw_circle_outline(const point& center, float radius, const color& stroke_color, float stroke_width = 1.0f) = 0;
     virtual void draw_line(const point& start, const point& end, const color& stroke_color, float stroke_width = 1.0f) = 0;

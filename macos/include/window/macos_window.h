@@ -70,6 +70,7 @@ public:
     void set_user_data(void* data) override;
 
     void request_repaint() override;
+    void request_layout() override;
 
     void set_on_close(void_function callback) override;
     void set_on_resize(void_function callback) override;
@@ -130,6 +131,7 @@ private:
     bool m_IsFullscreen = false;
     bool m_IsVisible = false;
     bool m_Initialized = false;
+    bool m_NeedsLayout = true;
 
     void_function m_OnClose = nullptr;
     void_function m_OnResize = nullptr;

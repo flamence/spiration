@@ -32,6 +32,7 @@ void horizontal_layout::arrange(
     float totalSpacing = spacing_ * std::max(0.0f, static_cast<float>(children.size()) - 1.0f);
     float flexAvailable = bounds.width - fixedTotal - totalSpacing;
     if (flexAvailable < 0.0f) flexAvailable = 0.0f;
+    float flexW = (flexCount > 0) ? (flexAvailable / static_cast<float>(flexCount)) : 0.0f;
 
     float currentX = bounds.x;
     for (auto& child : children) {
@@ -43,12 +44,9 @@ void horizontal_layout::arrange(
             child->width = static_cast<float>(child->widget_style.width);
             currentX += child->width + spacing_;
         } else {
-            float flexW = (flexCount > 0) ? (flexAvailable / flexCount) : 0.0f;
             child->x = currentX;
             child->width = flexW;
             currentX += flexW + spacing_;
-            --flexCount;
-            flexAvailable -= flexW;
         }
     }
 }
@@ -91,6 +89,7 @@ void vertical_layout::arrange(
     float totalSpacing = spacing_ * std::max(0.0f, static_cast<float>(children.size()) - 1.0f);
     float flexAvailable = bounds.height - fixedTotal - totalSpacing;
     if (flexAvailable < 0.0f) flexAvailable = 0.0f;
+    float flexH = (flexCount > 0) ? (flexAvailable / static_cast<float>(flexCount)) : 0.0f;
 
     float currentY = bounds.y;
     for (auto& child : children) {
@@ -102,12 +101,9 @@ void vertical_layout::arrange(
             child->height = static_cast<float>(child->widget_style.height);
             currentY += child->height + spacing_;
         } else {
-            float flexH = (flexCount > 0) ? (flexAvailable / flexCount) : 0.0f;
             child->y = currentY;
             child->height = flexH;
             currentY += flexH + spacing_;
-            --flexCount;
-            flexAvailable -= flexH;
         }
     }
 }

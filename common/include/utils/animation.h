@@ -91,4 +91,57 @@ private:
     bool animating_ = false;
 };
 
+/**
+ * @brief 浮点数值过渡动画（与 color_transition 相同的缓动曲线）。
+ */
+class value_transition {
+public:
+    value_transition() = default;
+
+    explicit value_transition(float initial)
+        : current_(initial), from_(initial), target_(initial) {}
+
+    void animate_to(float target, float duration_ms = 120.0f) {
+        if (target_ == target) return;
+        from_ = current_;
+        target_ = target;
+        elapsed_ = 0.0f;
+        duration_ = duration_ms;
+        animating_ = true;
+    }
+
+    void snap_to(float target) {
+        from_ = target;
+        current_ = target;
+        target_ = target;
+        animating_ = false;
+        elapsed_ = 0.0f;
+    }
+
+    bool update(float dt_ms) {
+        if (!animating_) return false;
+        elapsed_ += dt_ms;
+        float t = (duration_ > 0.0f) ? (elapsed_ / duration_) : 1.0f;
+        if (t >= 1.0f) {
+            current_ = target_;
+            animating_ = false;
+            return false;
+        }
+        float eased = 1.0f - (1.0f - t) * (1.0f - t);
+        current_ = from_ + (target_ - from_) * eased;
+        return true;
+    }
+
+    float current() const { return current_; }
+    bool is_animating() const { return animating_; }
+
+private:
+    float current_ = 0.0f;
+    float from_ = 0.0f;
+    float target_ = 0.0f;
+    float elapsed_ = 0.0f;
+    float duration_ = 0.0f;
+    bool animating_ = false;
+};
+
 } 

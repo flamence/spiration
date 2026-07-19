@@ -18,6 +18,7 @@ namespace spiration {
 struct popup_item {
     std::string text;
     std::function<void()> callback;
+    bool separator = false;
 };
 
 /**
@@ -31,6 +32,7 @@ public:
     void tick(float dt_ms) override;
 
     void add_item(const std::string& text, std::function<void()> callback);
+    void add_separator();
     void set_dismiss_callback(std::function<void()> cb) { on_dismiss_ = cb; }
 
 private:

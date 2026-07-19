@@ -821,6 +821,50 @@ void metal_renderer::pop_transform() {
     m_TransformStack.pop_back();
 }
 
+void metal_renderer::draw_rounded_rectangle(const rectangle& rect, const color& fill_color, float) {
+    draw_rectangle(rect, fill_color);
+}
+
+void metal_renderer::draw_rounded_rectangle_outline(const rectangle& rect, const color& stroke_color,
+                                                     float, float stroke_width) {
+    draw_rectangle_outline(rect, stroke_color, stroke_width);
+}
+
+void metal_renderer::push_clip(const rectangle& rect) {
+    rectangle prev = m_ClipStack.empty()
+        ? rectangle{0.0f, 0.0f, static_cast<float>(m_Width), static_cast<float>(m_Height)}
+        : m_ClipStack.back();
+    float cx = std::max(rect.x, prev.x);
+    float cy = std::max(rect.y, prev.y);
+    float cw = std::min(rect.x + rect.width, prev.x + prev.width) - cx;
+    float ch = std::min(rect.y + rect.height, prev.y + prev.height) - cy;
+    if (cw < 0.0f) cw = 0.0f;
+    if (ch < 0.0f) ch = 0.0f;
+    m_ClipStack.push_back({cx, cy, cw, ch});
+
+    if (m_CommandEncoder) {
+        MTLScissorRect sr = {static_cast<NSUInteger>(cx), static_cast<NSUInteger>(cy),
+                              static_cast<NSUInteger>(cw), static_cast<NSUInteger>(ch)};
+        [m_CommandEncoder setScissorRect:sr];
+    }
+}
+
+void metal_renderer::pop_clip() {
+    if (m_ClipStack.empty()) return;
+    m_ClipStack.pop_back();
+    if (m_CommandEncoder) {
+        if (m_ClipStack.empty()) {
+            MTLScissorRect full = {0, 0, static_cast<NSUInteger>(m_Width), static_cast<NSUInteger>(m_Height)};
+            [m_CommandEncoder setScissorRect:full];
+        } else {
+            auto& c = m_ClipStack.back();
+            MTLScissorRect sr = {static_cast<NSUInteger>(c.x), static_cast<NSUInteger>(c.y),
+                                  static_cast<NSUInteger>(c.width), static_cast<NSUInteger>(c.height)};
+            [m_CommandEncoder setScissorRect:sr];
+        }
+    }
+}
+
 void metal_renderer::set_blend_mode(bool enabled) {
     m_BlendEnabled = enabled;
 }

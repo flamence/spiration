@@ -45,6 +45,10 @@ public:
 
     void draw_rectangle(const rectangle& rectangle, const color& fill_color) override;
     void draw_rectangle_outline(const rectangle& rectangle, const color& stroke_color, float stroke_width = 1.0f) override;
+    void draw_rounded_rectangle(const rectangle& rect, const color& fill_color, float radius) override;
+    void draw_rounded_rectangle_outline(const rectangle& rect, const color& stroke_color, float radius, float stroke_width = 1.0f) override;
+    void push_clip(const rectangle& rect) override;
+    void pop_clip() override;
     void draw_circle(const point& center, float radius, const color& fill_color) override;
     void draw_circle_outline(const point& center, float radius, const color& stroke_color, float stroke_width = 1.0f) override;
     void draw_line(const point& start, const point& end, const color& stroke_color, float stroke_width = 1.0f) override;
@@ -146,6 +150,7 @@ private:
     void draw_rect_impl(float x, float y, float w, float h, const color& fill_color);
     void draw_rect_outline_impl(float x, float y, float w, float h, const color& stroke_color, float stroke_width);
     void draw_circle_impl(float cx, float cy, float radius, const color& fill_color, bool filled);
+    void apply_clip();
 
 private:
     Display* display_ = nullptr;
@@ -167,6 +172,7 @@ private:
     std::unordered_map<std::string, image_resource> images_;
 
     std::vector<transform> transform_stack_;
+    std::vector<rectangle> clip_stack_;
     transform current_transform_;
     float proj_matrix_[16];
     float mvp_matrix_[16];

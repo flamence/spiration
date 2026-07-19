@@ -214,6 +214,34 @@ void direct2d_renderer::draw_rectangle_outline(const rectangle& rectangle, const
     m_RenderTarget->DrawRectangle(to_d2d_rect(rectangle), m_Brush.Get(), stroke_width);
 }
 
+void direct2d_renderer::draw_rounded_rectangle(const rectangle& rect, const color& fill_color, float radius) {
+    if (!m_RenderTarget || !m_Brush) return;
+    D2D1_COLOR_F color = to_d2d_color(fill_color);
+    color.a *= m_Alpha;
+    m_Brush->SetColor(color);
+    D2D1_ROUNDED_RECT rr = D2D1::RoundedRect(to_d2d_rect(rect), radius, radius);
+    m_RenderTarget->FillRoundedRectangle(rr, m_Brush.Get());
+}
+
+void direct2d_renderer::draw_rounded_rectangle_outline(const rectangle& rect, const color& stroke_color, float radius, float stroke_width) {
+    if (!m_RenderTarget || !m_Brush) return;
+    D2D1_COLOR_F color = to_d2d_color(stroke_color);
+    color.a *= m_Alpha;
+    m_Brush->SetColor(color);
+    D2D1_ROUNDED_RECT rr = D2D1::RoundedRect(to_d2d_rect(rect), radius, radius);
+    m_RenderTarget->DrawRoundedRectangle(rr, m_Brush.Get(), stroke_width);
+}
+
+void direct2d_renderer::push_clip(const rectangle& rect) {
+    if (!m_RenderTarget) return;
+    m_RenderTarget->PushAxisAlignedClip(to_d2d_rect(rect), D2D1_ANTIALIAS_MODE_ALIASED);
+}
+
+void direct2d_renderer::pop_clip() {
+    if (!m_RenderTarget) return;
+    m_RenderTarget->PopAxisAlignedClip();
+}
+
 void direct2d_renderer::draw_circle(const point& center, float radius, const color& fill_color) {
     if (!m_RenderTarget || !m_Brush) return;
     D2D1_COLOR_F color = to_d2d_color(fill_color);
