@@ -17,6 +17,7 @@ namespace spiration {
 class renderer;
 class window;
 class tab;
+class root;
 
 /**
  * @brief 扩展 API 上下文。
@@ -26,22 +27,29 @@ class tab;
  */
 class extension_api {
 public:
+    explicit extension_api(std::shared_ptr<window> win);
+
+    /**
+     * @brief 设置根控件引用。
+     */
+    void set_root(root* r) { root_ = r; }
+
     /**
      * @brief 获取渲染器实例。
      */
-    virtual std::shared_ptr<renderer> get_renderer() const = 0;
+    std::shared_ptr<renderer> get_renderer() const;
 
     /**
      * @brief 获取窗口实例。
      */
-    virtual std::shared_ptr<window> get_window() const = 0;
+    std::shared_ptr<window> get_window() const;
 
     /**
      * @brief 获取翻译文本。
      * @param key 翻译键
      * @return 翻译后的字符串
      */
-    virtual std::string tr(const std::string& key) const = 0;
+    std::string tr(const std::string& key) const;
 
     /**
      * @brief 获取带参数的翻译文本。
@@ -49,38 +57,38 @@ public:
      * @param args 参数列表
      * @return 翻译后的字符串
      */
-    virtual std::string tr(const std::string& key,
-                           const std::vector<std::string>& args) const = 0;
+    std::string tr(const std::string& key,
+                   const std::vector<std::string>& args) const;
 
     /**
      * @brief 记录日志信息。
      */
-    virtual void log_info(const std::string& message) const = 0;
+    void log_info(const std::string& message) const;
 
     /**
      * @brief 记录日志警告。
      */
-    virtual void log_warning(const std::string& message) const = 0;
+    void log_warning(const std::string& message) const;
 
     /**
      * @brief 记录日志错误。
      */
-    virtual void log_error(const std::string& message) const = 0;
+    void log_error(const std::string& message) const;
 
     /**
      * @brief 获取应用数据目录。
      */
-    virtual std::string app_data_dir() const = 0;
+    std::string app_data_dir() const;
 
     /**
      * @brief 获取扩展数据目录。
      */
-    virtual std::string extension_data_dir(const std::string& extension_id) const = 0;
+    std::string extension_data_dir(const std::string& extension_id) const;
 
     /**
      * @brief 请求重绘窗口。
      */
-    virtual void request_repaint() const = 0;
+    void request_repaint() const;
 
     /**
      * @brief 在指定菜单中添加子项。
@@ -88,21 +96,21 @@ public:
      * @param label 子项标签
      * @param callback 点击回调
      */
-    virtual void add_menu_item(const std::string& menu_name,
-                               const std::string& label,
-                               std::function<void()> callback) = 0;
+    void add_menu_item(const std::string& menu_name,
+                       const std::string& label,
+                       std::function<void()> callback);
 
     /**
      * @brief 在标签栏中打开一个新标签页。
      * @param t 标签页实例
      */
-    virtual void open_tab(std::unique_ptr<tab> t) = 0;
+    void open_tab(std::unique_ptr<tab> t);
 
     /**
      * @brief 注册新主题 profile。
      * @param name profile 名称
      */
-    virtual void register_theme_profile(const std::string& name) = 0;
+    void register_theme_profile(const std::string& name);
 
     /**
      * @brief 为指定 profile 设置主题参数。
@@ -110,12 +118,13 @@ public:
      * @param key 参数键名
      * @param value 颜色值
      */
-    virtual void set_theme_param(const std::string& profile,
-                                 const std::string& key,
-                                 const color& value) = 0;
+    void set_theme_param(const std::string& profile,
+                         const std::string& key,
+                         const color& value);
 
-protected:
-    ~extension_api() = default;
+private:
+    std::shared_ptr<window> window_;
+    root* root_ = nullptr;
 };
 
 } // namespace spiration

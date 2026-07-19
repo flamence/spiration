@@ -9,7 +9,7 @@
 #import <utils/console.h>
 #import <utils/i18n.h>
 #import <utils/platform.h>
-#import <extension/extension_api_impl.h>
+#import <extension/extension_api.h>
 #import <extension/extension_manager.h>
 #import <Cocoa/Cocoa.h>
 #import <string>
@@ -62,7 +62,7 @@ int main(int argc, const char* argv[]) {
     auto root = std::make_unique<spiration::root>(window);
     spiration::root* root_ptr = root.get();
 
-    auto api = std::make_shared<spiration::extension_api_impl>(window);
+    auto api = std::make_shared<spiration::extension_api>(window);
     api->set_root(root_ptr);
     spiration::extension_manager::initialize(api);
 
