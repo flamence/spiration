@@ -9,7 +9,7 @@
 #include <utils/console.h>
 #include <utils/i18n.h>
 #include <utils/platform.h>
-#include <extension/extension_api_impl.h>
+#include <extension/extension_api.h>
 #include <extension/extension_manager.h>
 #include <windows.h>
 #include <string>
@@ -48,7 +48,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
     auto root = std::make_unique<spiration::root>(window);
     spiration::root* root_ptr = root.get();
 
-    auto api = std::make_shared<spiration::extension_api_impl>(window);
+    auto api = std::make_shared<spiration::extension_api>(window);
     api->set_root(root_ptr);
     spiration::extension_manager::initialize(api);
 
