@@ -1,5 +1,7 @@
 # Spiration
 
+[![](https://github.com/flamence/spiration/actions/workflows/cmake-multi-platform.yml/badge.svg?branch=gui)](https://github.com/flamence/spiration/actions/workflows/cmake-multi-platform.yml)
+
 ## 快速开始
 
 前往 [Release](https://github.com/flamence/spiration/releases) 页面下载最新稳定的版本，
