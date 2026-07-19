@@ -51,17 +51,4 @@ cmake --build ./build
 
 ## 贡献支持
 
-### 代码风格
-
-- 简洁、明了，逻辑清晰，强可维护性，比如对可分离的功能进行模块化处理。
-- 需注明文档注释，例如文件、类、方法、变量等均可以进行适当标注。
-- 不允许滥用行注释。
-- 确保代码缩进正确、格式鲜明。
-- 在编写通用代码库时，强化多平台思维，谨记使用预处理指令。
-
-### 提交修改
-
-> 贡献者应该 [Fork](https://github.com/flamence/spiration/fork) 项目后，
-> 在本地使用 [Git](https://git-scm.cn/) 签出到分支（如 `feature/...`、`fix/...`），
-> 并将修改提交到该分支上。
-> 此后，在 [Pull requests](https://github.com/flamence/spiration/pulls) 页面点击 [New pull request](https://github.com/flamence/spiration/compare)，选择自己的分支并等待审查，通过后即可并入修改。
+详见 [CONTRIBUTING.md](CONTRIBUTION.md)
