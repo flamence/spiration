@@ -52,3 +52,11 @@ cmake --build ./build
 ## 贡献支持
 
 详见 [CONTRIBUTING.md](CONTRIBUTION.md)
+
+## 协议许可
+
+详见 [LICENSE](LICENSE)。
+
+同时提供了简体中文版本 [LICENSE.zh-CN](LICENSE.zh-CN)，
+参考自 [【英译中】Apache-2.0](https://openatom.org/journalism/article/rYJ6HgQ5vxex)，
+仅为便于阅读、理解、研讨而翻译。
