@@ -1,19 +1,19 @@
 /**
  * @file menu_bar.cpp
- * @brief 菜单栏控件实现。
+ * @brief 菜单栏控件实现�?
  * @author clk
  */
 
 #include <ui/menu_bar.h>
 #include <ui/layout.h>
 #include <ui/popup_menu.h>
-#include <ui/theme.h>
+#include <ui/theme_manager.h>
 #include <utils/i18n.h>
 
 namespace spiration {
 
 void menu_bar::init() {
-    widget_style.background_color = theme::get(theme::MENU_BAR_BG);
+    widget_style.background_color = theme_manager::get(theme_manager::MENU_BAR_BG);
     auto hlayout = std::make_unique<horizontal_layout>(0.0f);
     set_layout_manager(std::move(hlayout));
 }
@@ -71,8 +71,8 @@ menu_desc& menu_bar::add_menu(const std::string& text) {
     item->text = i18n::tr(text, text);
     item->widget_style.width = 60;
     item->height = height;
-    item->hover_color = theme::get(theme::BUTTON_HOVER);
-    item->press_color = theme::get(theme::BUTTON_PRESS);
+    item->hover_color = theme_manager::get(theme_manager::BUTTON_HOVER);
+    item->press_color = theme_manager::get(theme_manager::BUTTON_PRESS);
     item->init();
 
     items_.push_back(item.get());

@@ -1,6 +1,6 @@
 /**
  * @file dialog.cpp
- * @brief 模态对话框实现。
+ * @brief 模态对话框实现�?
  * @author clk
  */
 
@@ -10,7 +10,7 @@
 namespace spiration {
 
 void dialog::init() {
-    widget_style.background_color = theme::get(theme::DIALOG_BG);
+    widget_style.background_color = theme_manager::get(theme_manager::DIALOG_BG);
 }
 
 void dialog::show() { visible_ = true; if (request_repaint_) request_repaint_(); }
@@ -33,16 +33,16 @@ void dialog::paint(std::shared_ptr<renderer> renderer) {
     uint32_t vw = 0, vh = 0;
     renderer->get_viewport_size(vw, vh);
     x = 0; y = 0; width = static_cast<float>(vw); height = static_cast<float>(vh);
-    renderer->draw_rectangle({x, y, width, height}, theme::get(theme::DIALOG_OVERLAY));
+    renderer->draw_rectangle({x, y, width, height}, theme_manager::get(theme_manager::DIALOG_OVERLAY));
     x = ox; y = oy;
     width = 400.0f; height = 250.0f;
-    renderer->draw_rounded_rectangle({x, y, width, height}, theme::get(theme::DIALOG_BG), 8.0f);
-    renderer->draw_rounded_rectangle_outline({x, y, width, height}, theme::get(theme::POPUP_BORDER), 8.0f, 1.0f);
+    renderer->draw_rounded_rectangle({x, y, width, height}, theme_manager::get(theme_manager::DIALOG_BG), 8.0f);
+    renderer->draw_rounded_rectangle_outline({x, y, width, height}, theme_manager::get(theme_manager::POPUP_BORDER), 8.0f, 1.0f);
 
     renderer->draw_text_aligned(title, {x + 16.0f, y, width - 16.0f, title_bar_h_},
-                                theme::get(theme::LABEL_TEXT),
+                                theme_manager::get(theme_manager::LABEL_TEXT),
                                 text_alignment::left, vertical_alignment::center, 14.0f);
-    renderer->draw_line({x, y + title_bar_h_}, {x + width, y + title_bar_h_}, theme::get(theme::SEPARATOR), 1.0f);
+    renderer->draw_line({x, y + title_bar_h_}, {x + width, y + title_bar_h_}, theme_manager::get(theme_manager::SEPARATOR), 1.0f);
 
     widget::paint(renderer);
 }
@@ -66,7 +66,7 @@ void message_dialog::add_button(const std::string& label, std::function<void()> 
     btn->init();
     btn->widget_style.width = 80;
     btn->widget_style.height = 28;
-    btn->hover_color = theme::get(theme::BUTTON_HOVER);
+    btn->hover_color = theme_manager::get(theme_manager::BUTTON_HOVER);
     if (callback) {
         auto* raw = btn.get();
         raw->handle_event(event_type::mouse, nullptr);

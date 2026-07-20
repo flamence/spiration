@@ -1,6 +1,6 @@
 /**
  * @file radio_button.cpp
- * @brief 单选按钮实现。
+ * @brief 单选按钮实现�?
  * @author clk
  */
 
@@ -35,14 +35,14 @@ void radio_button::paint(std::shared_ptr<renderer> renderer) {
     float outer = radius;
     float inner = radius * 0.55f;
 
-    renderer->draw_circle_outline({cx, cy}, outer, theme::get(theme::CHECKBOX_BORDER), 1.5f);
+    renderer->draw_circle_outline({cx, cy}, outer, theme_manager::get(theme_manager::CHECKBOX_BORDER), 1.5f);
     if (selected) {
-        renderer->draw_circle({cx, cy}, inner, theme::get(theme::CHECKBOX_CHECK_BG));
+        renderer->draw_circle({cx, cy}, inner, theme_manager::get(theme_manager::CHECKBOX_CHECK_BG));
     }
 
     float tx = cx + outer + gap;
     renderer->draw_text_aligned(text, {tx, y, width - (tx - x), height},
-                                theme::get(theme::LABEL_TEXT),
+                                theme_manager::get(theme_manager::LABEL_TEXT),
                                 text_alignment::left, vertical_alignment::center, 14.0f);
 }
 

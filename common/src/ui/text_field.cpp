@@ -1,6 +1,6 @@
 /**
  * @file text_field.cpp
- * @brief 单行文本输入框实现，支持键盘输入和光标操作。
+ * @brief 单行文本输入框实现，支持键盘输入和光标操作�?
  * @author clk
  */
 
@@ -124,10 +124,10 @@ void text_field::handle_event(const event_type& type, void* data) {
 }
 
 void text_field::paint(std::shared_ptr<renderer> renderer) {
-    color border = focused_ ? theme::get(theme::INPUT_FOCUS_BORDER)
-                            : theme::get(theme::INPUT_BORDER);
+    color border = focused_ ? theme_manager::get(theme_manager::INPUT_FOCUS_BORDER)
+                            : theme_manager::get(theme_manager::INPUT_BORDER);
 
-    renderer->draw_rectangle({x, y, width, height}, theme::get(theme::INPUT_BG));
+    renderer->draw_rectangle({x, y, width, height}, theme_manager::get(theme_manager::INPUT_BG));
     renderer->draw_rectangle_outline({x, y, width, height}, border, 1.5f);
 
     float text_area_x = x + padding_h_;
@@ -139,7 +139,7 @@ void text_field::paint(std::shared_ptr<renderer> renderer) {
         renderer->draw_text_aligned(
             placeholder,
             {text_area_x, text_area_y, text_area_w, text_area_h},
-            theme::get(theme::INPUT_PLACEHOLDER),
+            theme_manager::get(theme_manager::INPUT_PLACEHOLDER),
             text_alignment::left,
             vertical_alignment::center,
             font_size);
@@ -147,7 +147,7 @@ void text_field::paint(std::shared_ptr<renderer> renderer) {
         renderer->draw_text_aligned(
             text,
             {text_area_x, text_area_y, text_area_w, text_area_h},
-            theme::get(theme::INPUT_TEXT),
+            theme_manager::get(theme_manager::INPUT_TEXT),
             text_alignment::left,
             vertical_alignment::center,
             font_size);
@@ -162,7 +162,7 @@ void text_field::paint(std::shared_ptr<renderer> renderer) {
             float cursor_y = y + (height - cursor_h) * 0.5f;
             renderer->draw_rectangle(
                 {cursor_x, cursor_y, 1.5f, cursor_h},
-                theme::get(theme::INPUT_CURSOR));
+                theme_manager::get(theme_manager::INPUT_CURSOR));
         }
     }
 }

@@ -1,6 +1,6 @@
 /**
  * @file tooltip.cpp
- * @brief 悬停提示控件实现。
+ * @brief 悬停提示控件实现�?
  * @author clk
  */
 
@@ -9,9 +9,9 @@
 namespace spiration {
 
 void tooltip::paint(std::shared_ptr<renderer> renderer) {
-    renderer->draw_rounded_rectangle({x, y, width, height}, theme::get(theme::TOOLTIP_BG), 4.0f);
+    renderer->draw_rounded_rectangle({x, y, width, height}, theme_manager::get(theme_manager::TOOLTIP_BG), 4.0f);
     renderer->draw_text_aligned(text, {x + padding, y, width - padding * 2.0f, height},
-                                theme::get(theme::TOOLTIP_TEXT),
+                                theme_manager::get(theme_manager::TOOLTIP_TEXT),
                                 text_alignment::left, vertical_alignment::center, font_size);
 }
 

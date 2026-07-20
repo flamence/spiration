@@ -1,6 +1,6 @@
 /**
  * @file extension_api.h
- * @brief 扩展 API 上下文，提供扩展可用的平台无关接口。
+ * @brief 拓展 API 上下文。
  * @author clk
  */
 
@@ -18,12 +18,10 @@ class renderer;
 class window;
 class tab;
 class root;
+class extension;
 
 /**
- * @brief 扩展 API 上下文。
- *
- * 扩展在 initialize() 时获得此上下文引用，通过它访问宿主应用功能。
- * 所有接口均为平台无关，确保扩展跨平台兼容。
+ * @brief 拓展 API 上下文。
  */
 class extension_api {
 public:
@@ -61,19 +59,22 @@ public:
                    const std::vector<std::string>& args) const;
 
     /**
-     * @brief 记录日志信息。
+     * @brief 记录格式化日志信息。
+     * @param fmt 格式化消息
      */
-    void log_info(const std::string& message) const;
+    void log_info(const char* fmt, ...) const;
 
     /**
-     * @brief 记录日志警告。
+     * @brief 记录格式化日志警告。
+     * @param fmt 格式化消息
      */
-    void log_warning(const std::string& message) const;
+    void log_warning(const char* fmt, ...) const;
 
     /**
-     * @brief 记录日志错误。
+     * @brief 记录格式化日志错误。
+     * @param fmt 格式化消息
      */
-    void log_error(const std::string& message) const;
+    void log_error(const char* fmt, ...) const;
 
     /**
      * @brief 获取应用数据目录。
@@ -122,9 +123,63 @@ public:
                          const std::string& key,
                          const color& value);
 
+    /**
+     * @brief 根据 ID 查找已加载的扩展。
+     * @param id 扩展 ID
+     * @return 扩展指针，未找到返回 nullptr
+     */
+    extension* get_extension(const std::string& id) const;
+
+    /**
+     * @brief 获取所有已加载的扩展。
+     */
+    std::vector<extension*> get_extensions() const;
+
+    /**
+     * @brief 订阅事件。
+     * @param event 事件名称
+     * @param callback 回调函数
+     * @return 订阅 ID，用于 off_event 取消
+     */
+    int on_event(const std::string& event,
+                 std::function<void(const std::string& data)> callback) const;
+
+    /**
+     * @brief 取消事件订阅。
+     * @param subscription_id on_event 返回的 ID
+     */
+    void off_event(int subscription_id) const;
+
+    /**
+     * @brief 发布事件。
+     * @param event 事件名称
+     * @param data 事件数据
+     */
+    void emit_event(const std::string& event, const std::string& data) const;
+
+    /** @brief 扩展被加载事件名 */
+    static constexpr const char* EVENT_EXTENSION_LOADED = "extension:loaded";
+    /** @brief 扩展被卸载事件名 */
+    static constexpr const char* EVENT_EXTENSION_UNLOADED = "extension:unloaded";
+    /** @brief 标签页打开事件名 */
+    static constexpr const char* EVENT_TAB_OPENED = "tab:opened";
+    /** @brief 标签页关闭事件名 */
+    static constexpr const char* EVENT_TAB_CLOSED = "tab:closed";
+    /** @brief 主题切换事件名 */
+    static constexpr const char* EVENT_THEME_CHANGED = "theme:changed";
+
+    /**
+     * @brief 设置当前调用方扩展 ID。
+     */
+    void set_calling_extension(const std::string& id) const { current_ext_id_ = id; }
+
 private:
+    /** @brief 窗口实例。 */
     std::shared_ptr<window> window_;
+    /** @brief 根控件指针。 */
     root* root_ = nullptr;
+    /** @brief 当前调用方扩展 ID。 */
+    mutable std::string current_ext_id_;
 };
 
 } // namespace spiration

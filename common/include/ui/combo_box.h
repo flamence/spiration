@@ -7,7 +7,7 @@
 #pragma once
 
 #include <ui/widget.h>
-#include <ui/theme.h>
+#include <ui/theme_manager.h>
 #include <functional>
 #include <string>
 #include <vector>

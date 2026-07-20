@@ -44,3 +44,8 @@ about_version = 版本
 about_platform = 平台
 about_desc = Spiration 是一个轻量级、跨平台的代码编辑器，支持扩展系统和自定义 UI。
 about_copyright = 版权所有 (c) 2026 炽光科技
+
+extension.theme.name=主题
+extension.theme.description=提供主题支持。
+extension.edit.name=编辑
+extension.edit.description=提供编辑能力。

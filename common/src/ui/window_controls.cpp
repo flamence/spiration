@@ -1,11 +1,11 @@
 /**
  * @file window_controls.cpp
- * @brief 平台感知的窗口控制按钮实现。
+ * @brief 平台感知的窗口控制按钮实现�?
  * @author clk
  */
 
 #include <ui/window_controls.h>
-#include <ui/theme.h>
+#include <ui/theme_manager.h>
 
 namespace spiration {
 
@@ -89,17 +89,17 @@ void window_controls::paint(std::shared_ptr<renderer> renderer) {
     for (int i = 0; i < 3; ++i) {
         float bx = x + startX + static_cast<float>(i) * btn_size_;
         if (i == 2) {
-            color bg = hovers[i] ? theme::get(theme::CLOSE_HOVER) : color::transparent();
+            color bg = hovers[i] ? theme_manager::get(theme_manager::CLOSE_HOVER) : color::transparent();
             renderer->draw_rectangle({bx, y, btn_size_, h}, bg);
         } else if (hovers[i]) {
-            renderer->draw_rectangle({bx, y, btn_size_, h}, theme::get(theme::CONTROL_HOVER_BG));
+            renderer->draw_rectangle({bx, y, btn_size_, h}, theme_manager::get(theme_manager::CONTROL_HOVER_BG));
         }
     }
 
     float cy = y + h * 0.5f;
-    renderer->draw_line({cx[0] - 5.0f, cy}, {cx[0] + 5.0f, cy}, theme::get(theme::CONTROL_ICON), 1.5f);
-    renderer->draw_rectangle_outline({cx[1] - 5.0f, cy - 4.0f, iconSize, iconSize - 1.0f}, theme::get(theme::CONTROL_ICON), 1.5f);
-    color closeIcon = hover_close_ ? theme::get(theme::CONTROL_ICON_HOVER) : theme::get(theme::CONTROL_ICON);
+    renderer->draw_line({cx[0] - 5.0f, cy}, {cx[0] + 5.0f, cy}, theme_manager::get(theme_manager::CONTROL_ICON), 1.5f);
+    renderer->draw_rectangle_outline({cx[1] - 5.0f, cy - 4.0f, iconSize, iconSize - 1.0f}, theme_manager::get(theme_manager::CONTROL_ICON), 1.5f);
+    color closeIcon = hover_close_ ? theme_manager::get(theme_manager::CONTROL_ICON_HOVER) : theme_manager::get(theme_manager::CONTROL_ICON);
     renderer->draw_line({cx[2] - 5.0f, cy - 5.0f}, {cx[2] + 5.0f, cy + 5.0f}, closeIcon, 1.5f);
     renderer->draw_line({cx[2] + 5.0f, cy - 5.0f}, {cx[2] - 5.0f, cy + 5.0f}, closeIcon, 1.5f);
 #endif

@@ -1,6 +1,6 @@
 /**
  * @file menu_bar.h
- * @brief 菜单栏控件，包含多个菜单项。
+ * @brief 菜单栏控件，包含多个菜单项�?
  * @author clk
  */
 
@@ -9,7 +9,7 @@
 #include <ui/container.h>
 #include <ui/button.h>
 #include <ui/popup_menu.h>
-#include <ui/theme.h>
+#include <ui/theme_manager.h>
 #include <functional>
 #include <memory>
 #include <string>
@@ -18,14 +18,14 @@
 namespace spiration {
 
 /**
- * @brief 菜单项。
+ * @brief 菜单项目
  */
 class menu_item : public button {
 public:
     void paint(std::shared_ptr<renderer> renderer) override {
         
         renderer->draw_rectangle({x, y, width, height}, bg_transition_.current());
-        renderer->draw_text_aligned(text, rectangle{ x, y, width, height }, theme::get(theme::MENU_TEXT),
+        renderer->draw_text_aligned(text, rectangle{ x, y, width, height }, theme_manager::get(theme_manager::MENU_TEXT),
                                     text_alignment::center, vertical_alignment::center, 14.0f);
     }
 };

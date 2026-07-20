@@ -1,6 +1,6 @@
 /**
  * @file text_area.cpp
- * @brief 多行文本编辑器实现。
+ * @brief 多行文本编辑器实现�?
  * @author clk
  */
 
@@ -134,21 +134,21 @@ void text_area::handle_event(const event_type& type, void* data) {
 }
 
 void text_area::paint(std::shared_ptr<renderer> renderer) {
-    renderer->draw_rectangle({x, y, width, height}, theme::get(theme::INPUT_BG));
+    renderer->draw_rectangle({x, y, width, height}, theme_manager::get(theme_manager::INPUT_BG));
     renderer->draw_rectangle_outline({x, y, width, height},
-        focused_ ? theme::get(theme::INPUT_FOCUS_BORDER) : theme::get(theme::INPUT_BORDER), 1.5f);
+        focused_ ? theme_manager::get(theme_manager::INPUT_FOCUS_BORDER) : theme_manager::get(theme_manager::INPUT_BORDER), 1.5f);
 
     renderer->push_clip({x + padding_h_, y, width - padding_h_ * 2.0f, height});
 
     if (text.empty() && !focused_) {
-        renderer->draw_text("", {x + padding_h_, y - scroll_y_}, theme::get(theme::INPUT_PLACEHOLDER), font_size);
+        renderer->draw_text("", {x + padding_h_, y - scroll_y_}, theme_manager::get(theme_manager::INPUT_PLACEHOLDER), font_size);
     }
 
     float cy = y - scroll_y_;
     for (size_t li = 0; li < lines_.size(); ++li) {
         if (cy + line_height < y || cy > y + height) { cy += line_height; continue; }
         std::string line = text.substr(lines_[li].start, lines_[li].length);
-        renderer->draw_text(line, {x + padding_h_, cy}, theme::get(theme::INPUT_TEXT), font_size);
+        renderer->draw_text(line, {x + padding_h_, cy}, theme_manager::get(theme_manager::INPUT_TEXT), font_size);
         cy += line_height;
     }
 
@@ -157,7 +157,7 @@ void text_area::paint(std::shared_ptr<renderer> renderer) {
     if (focused_ && cursor_visible_ && cursor_line_ < lines_.size()) {
         float cx = x + padding_h_ + cursor_col_ * font_size * 0.6f;
         float cy = y + cursor_line_ * line_height - scroll_y_;
-        renderer->draw_rectangle({cx, cy, 1.5f, line_height}, theme::get(theme::INPUT_CURSOR));
+        renderer->draw_rectangle({cx, cy, 1.5f, line_height}, theme_manager::get(theme_manager::INPUT_CURSOR));
     }
 }
 

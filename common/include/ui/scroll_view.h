@@ -7,7 +7,7 @@
 #pragma once
 
 #include <ui/container.h>
-#include <ui/theme.h>
+#include <ui/theme_manager.h>
 
 namespace spiration {
 

@@ -5,7 +5,7 @@
  */
 
 #include <ui/button.h>
-#include <ui/theme.h>
+#include <ui/theme_manager.h>
 #include <utils/console.h>
 
 namespace spiration {
@@ -51,7 +51,7 @@ void button::handle_event(const event_type& type, void* data) {
 
 void button::paint(std::shared_ptr<renderer> renderer) {
     renderer->draw_rectangle({x, y, width, height}, bg_transition_.current());
-    renderer->draw_text_aligned(text, rectangle{ x, y, width, height }, theme::get(theme::BUTTON_TEXT), 
+    renderer->draw_text_aligned(text, rectangle{ x, y, width, height }, theme_manager::get(theme_manager::BUTTON_TEXT), 
                                 text_alignment::center, vertical_alignment::center, 16.0f);
 }
 

@@ -1,17 +1,17 @@
 /**
- * @file theme.cpp
- * @brief 基于 profile 的主题系统实现。
+ * @file theme_manager.cpp
+ * @brief 基于 profile 的主题管理器实现。
  * @author clk
  */
 
-#include <ui/theme.h>
+#include <ui/theme_manager.h>
 
 namespace spiration {
 
-std::vector<theme::profile> theme::s_profiles;
-size_t theme::s_active = 0;
+std::vector<theme_manager::profile> theme_manager::s_profiles;
+size_t theme_manager::s_active = 0;
 
-void theme::ensure_profiles() {
+void theme_manager::ensure_profiles() {
     if (!s_profiles.empty()) return;
 
     s_profiles.resize(1);
@@ -19,7 +19,7 @@ void theme::ensure_profiles() {
     init_defaults(&s_profiles[0]);
 }
 
-void theme::init_defaults(profile* dark) {
+void theme_manager::init_defaults(profile* dark) {
     auto d = [&](const char* k, color v) { dark->params[k] = v; };
 
     d(WINDOW_BG,          {0.18f, 0.18f, 0.18f});
@@ -90,7 +90,7 @@ void theme::init_defaults(profile* dark) {
     d(SCROLL_BAR_THUMB_HOVER, {0.45f, 0.45f, 0.50f});
 }
 
-void theme::set_active(const std::string& name) {
+void theme_manager::set_active(const std::string& name) {
     ensure_profiles();
     for (size_t i = 0; i < s_profiles.size(); ++i) {
         if (s_profiles[i].name == name) {
@@ -100,12 +100,12 @@ void theme::set_active(const std::string& name) {
     }
 }
 
-std::string theme::active() {
+std::string theme_manager::active() {
     ensure_profiles();
     return s_profiles[s_active].name;
 }
 
-std::vector<std::string> theme::profiles() {
+std::vector<std::string> theme_manager::profiles() {
     ensure_profiles();
     std::vector<std::string> names;
     names.reserve(s_profiles.size());
@@ -114,7 +114,7 @@ std::vector<std::string> theme::profiles() {
     return names;
 }
 
-void theme::register_profile(const std::string& name) {
+void theme_manager::register_profile(const std::string& name) {
     ensure_profiles();
     for (const auto& p : s_profiles) {
         if (p.name == name) return;
@@ -122,26 +122,26 @@ void theme::register_profile(const std::string& name) {
     s_profiles.push_back({name, {}});
 }
 
-color theme::get(const std::string& key) {
+color theme_manager::get(const std::string& key) {
     ensure_profiles();
     auto& p = s_profiles[s_active];
     auto it = p.params.find(key);
     return it != p.params.end() ? it->second : color{};
 }
 
-void theme::set(const std::string& key, const color& value) {
+void theme_manager::set(const std::string& key, const color& value) {
     ensure_profiles();
     s_profiles[s_active].params[key] = value;
 }
 
-void theme::set(const std::string& profile, const std::string& key, const color& value) {
+void theme_manager::set(const std::string& profile_name, const std::string& key, const color& value) {
     ensure_profiles();
     for (auto& p : s_profiles) {
-        if (p.name == profile) {
+        if (p.name == profile_name) {
             p.params[key] = value;
             return;
         }
     }
 }
 
-} 
+} // namespace spiration

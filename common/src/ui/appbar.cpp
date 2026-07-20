@@ -13,7 +13,7 @@
 #include <ui/window_controls.h>
 #include <utils/console.h>
 #include <utils/i18n.h>
-#include <ui/theme.h>
+#include <ui/theme_manager.h>
 #ifdef _WIN32
 #include <windows.h>
 #include <cstring>
@@ -22,7 +22,7 @@
 namespace spiration {
 
 void appbar::init() {
-    widget_style.background_color = theme::get(theme::APPBAR_BG);
+    widget_style.background_color = theme_manager::get(theme_manager::APPBAR_BG);
     height = 34;
 
     auto hlayout = std::make_unique<horizontal_layout>(0.0f);

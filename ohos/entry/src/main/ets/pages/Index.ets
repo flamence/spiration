@@ -7,11 +7,11 @@
 import { hilog } from '@kit.PerformanceAnalysisKit';
 import { display, window } from '@kit.ArkUI';
 import { resourceManager } from '@kit.LocalizationKit';
-import spirationLib from 'libentry.so';
+import nativeEntry from 'libentry.so';
 import { GlobalContext, AbilityContext } from '../utils/GlobalContext';
 
 const DOMAIN = 0x0000;
-const TAG = 'Spiration';
+const TAG = 'spiration';
 
 @Entry
 @Component
@@ -32,31 +32,34 @@ struct Index {
       const win = GlobalContext.getInstance().getValue('mainWindow') as window.Window;
       let isMaximized: boolean = false;
 
-      spirationLib.registerCloseCallback(() => {
+      nativeEntry.registerCloseCallback(() => {
         ctx.terminateSelf();
       });
       hilog.info(DOMAIN, TAG, 'Close callback registered');
 
-      spirationLib.registerMaximizeCallback(() => {
+      nativeEntry.registerMaximizeCallback(() => {
         if (isMaximized) {
-          win.recover();
+          win.recover().catch(() => {  });
           isMaximized = false;
         } else {
-          win.maximize();
+          win.maximize().catch(() => {  });
           isMaximized = true;
         }
-        /* 最大化/恢复后强制同步渲染尺寸（windowSizeChange 可能不触发） */
         this.onWindowSizeChange();
       });
       hilog.info(DOMAIN, TAG, 'Maximize/restore callback registered');
 
-      spirationLib.registerMinimizeCallback(() => {
-        win.minimize();
+      nativeEntry.registerMinimizeCallback(() => {
+        win.minimize().catch((err: Error) => {
+          hilog.error(DOMAIN, TAG, 'Minimize failed: %{public}s', err.message);
+        });
       });
       hilog.info(DOMAIN, TAG, 'Minimize callback registered');
 
-      spirationLib.registerStartMoveCallback(() => {
-        win.startMoving();
+      nativeEntry.registerStartMoveCallback(() => {
+        win.startMoving().catch((err: Error) => {
+          hilog.error(DOMAIN, TAG, 'StartMoving failed: %{public}s', err.message);
+        });
       });
       hilog.info(DOMAIN, TAG, 'StartMove callback registered');
     } catch (err) {
@@ -68,7 +71,7 @@ struct Index {
     try {
       const ctx = GlobalContext.getInstance().getValue('abilityContext') as AbilityContext;
       const resMgr: resourceManager.ResourceManager = ctx.resourceManager;
-      spirationLib.initResourceManager(resMgr);
+      nativeEntry.initResourceManager(resMgr);
       hilog.info(DOMAIN, TAG, 'ResourceManager initialized');
     } catch (err) {
       hilog.error(DOMAIN, TAG, 'ResourceManager init failed: %{public}s', JSON.stringify(err));
@@ -82,7 +85,7 @@ struct Index {
     if (this.winWidth > 0 && this.winHeight > 0) {
       try {
         const density = this.getDensity();
-        spirationLib.onWindowResize(this.winWidth, this.winHeight, density);
+        nativeEntry.onWindowResize(this.winWidth, this.winHeight, density);
       } catch (err) {
         hilog.error(DOMAIN, TAG, 'Resize error: %{public}s', JSON.stringify(err));
       }
@@ -91,7 +94,7 @@ struct Index {
 
   private loadSystemInfo(): void {
     try {
-      const platform = spirationLib.spiration.platform;
+      const platform = nativeEntry.spiration.platform;
       const sysLocale = platform.getSystemLocale();
       const osName = platform.getOsName();
       const arch = platform.getArchitecture();
@@ -118,7 +121,7 @@ struct Index {
    */
   private handleTouch(vpX: number, vpY: number, action: number): void {
     try {
-      spirationLib.onTouchEvent(vpX, vpY, action);
+      nativeEntry.onTouchEvent(vpX, vpY, action);
       hilog.info(DOMAIN, TAG, 'Touch: (%.0f, %.0f) action=%{public}d',
         vpX, vpY, action);
     } catch (err) {
@@ -135,34 +138,21 @@ struct Index {
 
   build() {
     Stack() {
-      // OpenGL ES 原生渲染表面
       XComponent({
-        id: 'spiration_surface',
-        type: 'surface',
-        libraryname: 'entry',
+        type: XComponentType.SURFACE,
         controller: this.xcController
       })
         .onLoad(() => {
           this.onWindowSizeChange();
           try {
-            const surfaceId: string = this.xcController.getXComponentSurfaceId();
-            const idNum: number = Number(surfaceId);
-            const density: number = this.getDensity();
-            const result: boolean = spirationLib.initNativeWindow(idNum, density);
-            hilog.info(DOMAIN, TAG, 'Native init result=%{public}s, id=%{public}s, density=%.1f',
-              JSON.stringify(result), surfaceId, density);
-
-            // 启动帧循环（~60fps）
             this.lastTick = Date.now();
             this.timerId = setInterval((): void => {
               const now = Date.now();
               const dt = now - this.lastTick;
               this.lastTick = now;
               try {
-                spirationLib.onFrameTick(dt);
-              } catch (e) {
-                // 忽略
-              }
+                nativeEntry.onFrameTick(dt);
+              } catch (e) {  }
             }, 16);
           } catch (err) {
             hilog.error(DOMAIN, TAG, 'Native init failed: %{public}s', JSON.stringify(err));
@@ -172,7 +162,6 @@ struct Index {
         .width('100%')
         .height('100%')
 
-      // 透明输入捕获层（onTouch 提供实时 down/move/up）
       Column()
         .width('100%')
         .height('100%')
@@ -180,10 +169,9 @@ struct Index {
         .onTouch((event: TouchEvent) => {
           if (event.touches.length > 0) {
             const touch = event.touches[0];
-            /* TouchType: Down=0, Move=1, Up=2 → C++ action: Down=0, Up=1, Move=2 */
             let cppAction: number = event.type;
-            if (event.type === 1) cppAction = 2;  // Move
-            else if (event.type === 2) cppAction = 1;  // Up
+            if (event.type === 1) cppAction = 2;
+            else if (event.type === 2) cppAction = 1;
             this.handleTouch(touch.x, touch.y, cppAction);
           }
         })

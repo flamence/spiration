@@ -5,7 +5,6 @@
  */
 
 #include <ui/root.h>
-#include <ui/theme.h>
 #include <window/window.h>
 #include <utils/console.h>
 #include <utils/i18n.h>
