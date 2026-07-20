@@ -1,6 +1,6 @@
 /**
  * @file extension_loader.h
- * @brief 跨平台动态库加载器。
+ * @brief 拓展加载器。
  * @author clk
  */
 
@@ -13,9 +13,10 @@ namespace spiration {
 
 class extension;
 class extension_api;
+struct manifest_data;
 
 /**
- * @brief 跨平台动态库加载器。
+ * @brief 拓展加载器。
  */
 class extension_loader {
 public:
@@ -64,6 +65,22 @@ public:
      * @return 加载结果，失败时 instance 为 nullptr
      */
     static load_result load_extension_from(const std::string& path);
+
+    /**
+     * @brief 从扩展目录加载。
+     * @param dir_path 扩展目录路径
+     * @param out_manifest 解析后的清单
+     * @return 加载结果，失败时 instance 为 nullptr
+     */
+    static load_result load_extension_from_dir(const std::string& dir_path,
+                                               manifest_data* out_manifest = nullptr);
+
+    /**
+     * @brief 读取文本文件内容。
+     * @param path 文件路径
+     * @return 文件内容，失败返回空字符串
+     */
+    static std::string read_file_text(const std::string& path);
 
     /**
      * @brief 获取错误信息。

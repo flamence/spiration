@@ -2,14 +2,14 @@
 #include <ui/appbar.h>
 #include <ui/layout.h>
 #include <ui/menu_bar.h>
-#include <ui/theme.h>
+#include <ui/theme_manager.h>
 
 namespace spiration {
 
 root::root(std::shared_ptr<spiration::window> parent, bool create_appbar) {
     m_window = parent;
     create_appbar_ = create_appbar;
-    widget_style.background_color = theme::get(theme::WINDOW_BG);
+    widget_style.background_color = theme_manager::get(theme_manager::WINDOW_BG);
     init();
 }
 

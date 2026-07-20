@@ -7,9 +7,13 @@
 #include <extension/extension_loader.h>
 #include <extension/extension.h>
 #include <extension/extension_api.h>
+#include <extension/extension_manifest.h>
 #include <utils/console.h>
+#include <utils/platform.h>
 
 #include <string>
+#include <fstream>
+#include <sstream>
 
 #ifdef _WIN32
 #define WIN32_LEAN_AND_MEAN
@@ -115,6 +119,78 @@ extension_loader::load_result extension_loader::load_extension_from(const std::s
 
 std::string extension_loader::last_error() {
     return s_last_error;
+}
+
+std::string extension_loader::read_file_text(const std::string& path) {
+    std::ifstream file(path);
+    if (!file.is_open()) return {};
+    std::stringstream buf;
+    buf << file.rdbuf();
+    return buf.str();
+}
+
+extension_loader::load_result extension_loader::load_extension_from_dir(
+    const std::string& dir_path, manifest_data* out_manifest) {
+    load_result result;
+
+    std::string manifest_path = platform::join_path(dir_path, "extension.json");
+    std::string manifest_json = read_file_text(manifest_path);
+
+    if (manifest_json.empty()) {
+        auto entries = platform::list_directory(dir_path);
+        for (const auto& entry : entries) {
+#ifdef _WIN32
+            if (entry.size() >= 4 && entry.substr(entry.size() - 4) == ".dll")
+#else
+            if (entry.size() >= 3 && entry.substr(entry.size() - 3) == ".so")
+#endif
+            {
+                std::string dll_path = platform::join_path(dir_path, entry);
+                result = load_extension_from(dll_path);
+                if (result.instance) return result;
+            }
+        }
+        console::error("extension_loader: no extension.json or .dll/.so found in '%s'",
+                       dir_path.c_str());
+        return result;
+    }
+
+    auto manifest = parse_extension_manifest(manifest_json);
+    if (!manifest) {
+        console::error("extension_loader: failed to parse extension.json in '%s'",
+                       dir_path.c_str());
+        return result;
+    }
+
+    if (out_manifest) *out_manifest = *manifest;
+
+    std::string platform_str;
+#ifdef _WIN32
+    platform_str = "win-x64";
+    std::string dll_name = manifest->main + ".dll";
+#elif defined(__APPLE__)
+#ifdef __aarch64__
+    platform_str = "macos-arm64";
+#else
+    platform_str = "macos-x64";
+#endif
+    std::string dll_name = "lib" + manifest->main + ".dylib";
+#else
+    platform_str = "linux-x64";
+    std::string dll_name = "lib" + manifest->main + ".so";
+#endif
+
+    std::string dll_path = platform::join_path(
+        platform::join_path(dir_path, "dist"),
+        platform::join_path(platform_str, dll_name));
+
+    result = load_extension_from(dll_path);
+    if (!result.instance) {
+        dll_path = platform::join_path(dir_path, dll_name);
+        result = load_extension_from(dll_path);
+    }
+
+    return result;
 }
 
 } // namespace spiration

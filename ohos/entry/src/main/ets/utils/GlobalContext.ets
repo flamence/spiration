@@ -1,12 +1,11 @@
 /**
  * @file GlobalContext.ets
- * @brief ArkTS 全局上下文单例，替代被禁用的 globalThis。
+ * @brief ArkTS 全局上下文单例。
  * @author clk
  */
 
 import { resourceManager } from '@kit.LocalizationKit';
 
-/** AbilityContext 接口（仅声明所需成员） */
 export interface AbilityContext {
   terminateSelf(): void;
   resourceManager: resourceManager.ResourceManager;

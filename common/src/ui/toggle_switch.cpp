@@ -1,6 +1,6 @@
 /**
  * @file toggle_switch.cpp
- * @brief 开关控件实现，滑块带平滑过渡动画。
+ * @brief 开关控件实现，滑块带平滑过渡动画�?
  * @author clk
  */
 
@@ -41,8 +41,8 @@ void toggle_switch::paint(std::shared_ptr<renderer> renderer) {
     float ty = cy - track_height * 0.5f;
     float t = knob_pos_.current();
 
-    color track_bg = theme::get(theme::TOGGLE_BG);
-    color track_active = theme::get(theme::TOGGLE_BG_ACTIVE);
+    color track_bg = theme_manager::get(theme_manager::TOGGLE_BG);
+    color track_active = theme_manager::get(theme_manager::TOGGLE_BG_ACTIVE);
     color track_color;
     track_color.r = track_bg.r + (track_active.r - track_bg.r) * t;
     track_color.g = track_bg.g + (track_active.g - track_bg.g) * t;
@@ -54,7 +54,7 @@ void toggle_switch::paint(std::shared_ptr<renderer> renderer) {
     float travel = track_width - knob_diameter - knob_margin * 2.0f;
     float kx = tx + knob_margin + travel * t;
     float ky = cy - knob_diameter * 0.5f;
-    renderer->draw_rounded_rectangle({kx, ky, knob_diameter, knob_diameter}, theme::get(theme::TOGGLE_KNOB), knob_diameter * 0.5f);
+    renderer->draw_rounded_rectangle({kx, ky, knob_diameter, knob_diameter}, theme_manager::get(theme_manager::TOGGLE_KNOB), knob_diameter * 0.5f);
 }
 
 size toggle_switch::layout_preferred_size() const {

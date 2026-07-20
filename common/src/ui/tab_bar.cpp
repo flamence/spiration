@@ -1,11 +1,11 @@
 /**
  * @file tab_bar.cpp
- * @brief 标签栏控件实现，支持可滚动标签头、动画、指示条渐显隐。
+ * @brief 标签栏控件实现，支持可滚动标签头、动画、指示条渐显隐�?
  * @author clk
  */
 
 #include <ui/tab_bar.h>
-#include <ui/theme.h>
+#include <ui/theme_manager.h>
 #include <cmath>
 #include <algorithm>
 
@@ -13,20 +13,20 @@ namespace spiration {
 
 tab_head_item::tab_head_item(const std::string& title)
     : title_(title)
-    , bg_(theme::get(theme::TAB_INACTIVE_BG))
-    , text_(theme::get(theme::TAB_INACTIVE_TEXT))
-    , close_fg_(theme::get(theme::TAB_CLOSE_FG)) {}
+    , bg_(theme_manager::get(theme_manager::TAB_INACTIVE_BG))
+    , text_(theme_manager::get(theme_manager::TAB_INACTIVE_TEXT))
+    , close_fg_(theme_manager::get(theme_manager::TAB_CLOSE_FG)) {}
 
 void tab_head_item::sync_colors() {
     if (active_) {
-        bg_.animate_to(theme::get(theme::TAB_ACTIVE_BG), 150.0f);
-        text_.animate_to(theme::get(theme::TAB_ACTIVE_TEXT), 150.0f);
+        bg_.animate_to(theme_manager::get(theme_manager::TAB_ACTIVE_BG), 150.0f);
+        text_.animate_to(theme_manager::get(theme_manager::TAB_ACTIVE_TEXT), 150.0f);
     } else if (hovering_) {
-        bg_.animate_to(theme::get(theme::TAB_HOVER_BG), 100.0f);
-        text_.animate_to(theme::get(theme::TAB_HOVER_TEXT), 100.0f);
+        bg_.animate_to(theme_manager::get(theme_manager::TAB_HOVER_BG), 100.0f);
+        text_.animate_to(theme_manager::get(theme_manager::TAB_HOVER_TEXT), 100.0f);
     } else {
-        bg_.animate_to(theme::get(theme::TAB_INACTIVE_BG), 100.0f);
-        text_.animate_to(theme::get(theme::TAB_INACTIVE_TEXT), 100.0f);
+        bg_.animate_to(theme_manager::get(theme_manager::TAB_INACTIVE_BG), 100.0f);
+        text_.animate_to(theme_manager::get(theme_manager::TAB_INACTIVE_TEXT), 100.0f);
     }
 }
 
@@ -58,9 +58,9 @@ void tab_head_item::handle_event(const event_type& type, void* data) {
 
         if (close_hovering_ != old_close) {
             if (close_hovering_) {
-                close_fg_.animate_to(theme::get(theme::TAB_CLOSE_HOVER_FG), 100.0f);
+                close_fg_.animate_to(theme_manager::get(theme_manager::TAB_CLOSE_HOVER_FG), 100.0f);
             } else {
-                close_fg_.animate_to(theme::get(theme::TAB_CLOSE_FG), 100.0f);
+                close_fg_.animate_to(theme_manager::get(theme_manager::TAB_CLOSE_FG), 100.0f);
             }
             if (request_repaint_) request_repaint_();
         }
@@ -114,7 +114,7 @@ void tab_head_item::paint(std::shared_ptr<renderer> renderer) {
 }
 
 void tab_bar::init() {
-    widget_style.background_color = theme::get(theme::TAB_BAR_BG);
+    widget_style.background_color = theme_manager::get(theme_manager::TAB_BAR_BG);
 
     header_row_ = std::make_unique<scroll_row>();
     header_row_->set_child_width(TAB_FIXED_W);
@@ -203,7 +203,7 @@ void tab_bar::paint(std::shared_ptr<renderer> renderer) {
 
     float scrollOff = header_row_ ? header_row_->scroll_offset() : 0.0f;
 
-    color indicator_col = theme::get(theme::TAB_INDICATOR);
+    color indicator_col = theme_manager::get(theme_manager::TAB_INDICATOR);
 
     float prevAlpha = prev_indicator_alpha_.current().a;
     if (prevAlpha > 0.005f && prev_indicator_width_ > 0.0f) {
@@ -285,8 +285,8 @@ void tab_bar::add_tab(std::unique_ptr<tab> t) {
 
     if (tab_heads_.size() == 1) {
         raw_head->set_active(true);
-        raw_head->bg_.snap_to(theme::get(theme::TAB_ACTIVE_BG));
-        raw_head->text_.snap_to(theme::get(theme::TAB_ACTIVE_TEXT));
+        raw_head->bg_.snap_to(theme_manager::get(theme_manager::TAB_ACTIVE_BG));
+        raw_head->text_.snap_to(theme_manager::get(theme_manager::TAB_ACTIVE_TEXT));
     }
 
     if (active_index_ < 0) activate_tab(0);

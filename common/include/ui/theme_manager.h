@@ -1,5 +1,5 @@
 /**
- * @file theme.h
+ * @file theme_manager.h
  * @brief 基于 profile 的统一主题管理。
  * @author clk
  */
@@ -14,9 +14,9 @@
 namespace spiration {
 
 /**
- * @brief 主题管理。
+ * @brief 主题管理器。
  */
-class theme {
+class theme_manager {
 public:
     static constexpr const char* WINDOW_BG          = "window_bg";
     static constexpr const char* APPBAR_BG          = "appbar_bg";
@@ -106,4 +106,4 @@ private:
     static void init_defaults(profile* dark);
 };
 
-} 
+} // namespace spiration

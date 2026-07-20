@@ -7,7 +7,7 @@
 #pragma once
 
 #include <ui/container.h>
-#include <ui/theme.h>
+#include <ui/theme_manager.h>
 #include <utils/animation.h>
 
 namespace spiration {
@@ -38,8 +38,8 @@ public:
     /**
      * @brief hover 状态背景色。
      */
-    color hover_color = theme::get(theme::BUTTON_HOVER);
-    color press_color = theme::get(theme::BUTTON_PRESS);
+    color hover_color = theme_manager::get(theme_manager::BUTTON_HOVER);
+    color press_color = theme_manager::get(theme_manager::BUTTON_PRESS);
 };
 
 }

@@ -7,7 +7,7 @@
 #pragma once
 
 #include <ui/widget.h>
-#include <ui/theme.h>
+#include <ui/theme_manager.h>
 #include <utils/animation.h>
 #include <functional>
 #include <string>
@@ -37,7 +37,7 @@ public:
     float box_size = 16.0f;
     float gap = 6.0f;
 
-    color hover_color = theme::get(theme::BUTTON_HOVER);
+    color hover_color = theme_manager::get(theme_manager::BUTTON_HOVER);
 
 private:
     color_transition bg_transition_{color::transparent()};

@@ -1,6 +1,6 @@
 /**
  * @file slider.cpp
- * @brief 滑块控件实现，支持拖拽交互。
+ * @brief 滑块控件实现，支持拖拽交互�?
  * @author clk
  */
 
@@ -77,17 +77,17 @@ void slider::paint(std::shared_ptr<renderer> renderer) {
 
     renderer->draw_rectangle(
         {x, cy - track_thickness * 0.5f, width, track_thickness},
-        theme::get(theme::SLIDER_TRACK));
+        theme_manager::get(theme_manager::SLIDER_TRACK));
 
     float localVx = value_to_x();
 
     renderer->draw_rectangle(
         {x, cy - track_thickness * 0.5f, localVx, track_thickness},
-        theme::get(theme::SLIDER_FILL));
+        theme_manager::get(theme_manager::SLIDER_FILL));
 
     color thumb_c = thumb_hovered_ || dragging_
-                        ? theme::get(theme::SLIDER_THUMB_HOVER)
-                        : theme::get(theme::SLIDER_THUMB);
+                        ? theme_manager::get(theme_manager::SLIDER_THUMB_HOVER)
+                        : theme_manager::get(theme_manager::SLIDER_THUMB);
     renderer->draw_rectangle(
         {x + localVx - thumb_radius, cy - thumb_radius, thumb_radius * 2.0f, thumb_radius * 2.0f},
         thumb_c);

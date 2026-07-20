@@ -44,3 +44,8 @@ about_version = Version
 about_platform = Platform
 about_desc = Spiration is a lightweight, cross-platform code editor with extension support and a custom UI.
 about_copyright = Copyright (c) 2026 Flamence Technology
+
+extension.theme.name = Theme
+extension.theme.description = Provide theme support.
+extension.edit.name=Edit
+extension.edit.description=Provide edit ability.

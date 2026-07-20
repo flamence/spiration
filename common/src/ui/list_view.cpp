@@ -1,6 +1,6 @@
 /**
  * @file list_view.cpp
- * @brief 列表视图实现。
+ * @brief 列表视图实现�?
  * @author clk
  */
 
@@ -54,7 +54,7 @@ void list_view::handle_event(const event_type& type, void* data) {
 }
 
 void list_view::paint(std::shared_ptr<renderer> renderer) {
-    renderer->draw_rectangle({x, y, width, height}, theme::get(theme::LIST_BG));
+    renderer->draw_rectangle({x, y, width, height}, theme_manager::get(theme_manager::LIST_BG));
     renderer->push_clip({x, y, width, height});
 
     float iy = y - scroll_y_;
@@ -62,13 +62,13 @@ void list_view::paint(std::shared_ptr<renderer> renderer) {
         if (iy + item_height < y || iy > y + height) { iy += item_height; continue; }
         color bg = color::transparent();
         if (static_cast<int>(i) == selected_index)
-            bg = theme::get(theme::LIST_ITEM_SELECTED);
+            bg = theme_manager::get(theme_manager::LIST_ITEM_SELECTED);
         else if (static_cast<int>(i) == hovered_)
-            bg = theme::get(theme::LIST_ITEM_HOVER);
+            bg = theme_manager::get(theme_manager::LIST_ITEM_HOVER);
 
         if (bg.a > 0.0f) renderer->draw_rectangle({x, iy, width, item_height}, bg);
         renderer->draw_text_aligned(items[i], {x + 10.0f, iy, width - 20.0f, item_height},
-                                    theme::get(theme::LABEL_TEXT),
+                                    theme_manager::get(theme_manager::LABEL_TEXT),
                                     text_alignment::left, vertical_alignment::center, font_size);
         iy += item_height;
     }
@@ -82,9 +82,9 @@ void list_view::paint(std::shared_ptr<renderer> renderer) {
         float sb_x = x + width - sb_w;
         float th = std::max(20.0f, height * (height / content_height_));
         float ty = y + (scroll_y_ / scroll_max) * (height - th);
-        renderer->draw_rectangle({sb_x, y, sb_w, height}, theme::get(theme::SCROLL_BAR_BG));
+        renderer->draw_rectangle({sb_x, y, sb_w, height}, theme_manager::get(theme_manager::SCROLL_BAR_BG));
         renderer->draw_rounded_rectangle({sb_x + 1.0f, ty, sb_w - 2.0f, th},
-                                         theme::get(theme::SCROLL_BAR_THUMB), 3.0f);
+                                         theme_manager::get(theme_manager::SCROLL_BAR_THUMB), 3.0f);
     }
 }
 

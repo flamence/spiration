@@ -1,6 +1,6 @@
 /**
  * @file checkbox.cpp
- * @brief 复选框控件实现。
+ * @brief 复选框控件实现�?
  * @author clk
  */
 
@@ -45,19 +45,19 @@ void checkbox::paint(std::shared_ptr<renderer> renderer) {
     renderer->draw_rectangle({bx, by, box_size, box_size}, bg_transition_.current());
     renderer->draw_rectangle_outline(
         {bx, by, box_size, box_size},
-        theme::get(theme::CHECKBOX_BORDER), 1.5f);
+        theme_manager::get(theme_manager::CHECKBOX_BORDER), 1.5f);
 
     if (checked) {
         renderer->draw_rectangle(
             {bx + 2.0f, by + 2.0f, box_size - 4.0f, box_size - 4.0f},
-            theme::get(theme::CHECKBOX_CHECK_BG));
+            theme_manager::get(theme_manager::CHECKBOX_CHECK_BG));
     }
 
     float tx = bx + box_size + gap;
     renderer->draw_text_aligned(
         text,
         {tx, y, width - (tx - x), height},
-        theme::get(theme::LABEL_TEXT),
+        theme_manager::get(theme_manager::LABEL_TEXT),
         text_alignment::left,
         vertical_alignment::center,
         14.0f);

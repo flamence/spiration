@@ -1,6 +1,6 @@
 /**
  * @file scroll_view.cpp
- * @brief 垂直滚动容器实现。
+ * @brief 垂直滚动容器实现�?
  * @author clk
  */
 
@@ -41,13 +41,13 @@ void scroll_view::paint(std::shared_ptr<renderer> renderer) {
     if (scroll_max_ > 0.0f) {
         float sb_x = x + width - scroll_bar_width;
         renderer->draw_rectangle({sb_x, y, scroll_bar_width, height},
-                                 theme::get(theme::SCROLL_BAR_BG));
+                                 theme_manager::get(theme_manager::SCROLL_BAR_BG));
 
         float th = thumb_height();
         float ty = y + thumb_y();
         color thumb_c = (hovering_scrollbar_ || dragging_scrollbar_)
-                            ? theme::get(theme::SCROLL_BAR_THUMB_HOVER)
-                            : theme::get(theme::SCROLL_BAR_THUMB);
+                            ? theme_manager::get(theme_manager::SCROLL_BAR_THUMB_HOVER)
+                            : theme_manager::get(theme_manager::SCROLL_BAR_THUMB);
         renderer->draw_rounded_rectangle({sb_x + 2.0f, ty, scroll_bar_width - 4.0f, th},
                                          thumb_c, 3.0f);
     }

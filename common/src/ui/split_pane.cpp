@@ -1,6 +1,6 @@
 /**
  * @file split_pane.cpp
- * @brief 可拖拽分割面板实现。
+ * @brief 可拖拽分割面板实现�?
  * @author clk
  */
 
@@ -43,8 +43,8 @@ void split_pane::paint(std::shared_ptr<renderer> renderer) {
     widget::paint(renderer);
 
     color hc = (hovering_handle_ || dragging_)
-                   ? theme::get(theme::SPLIT_HANDLE_HOVER)
-                   : theme::get(theme::SPLIT_HANDLE);
+                   ? theme_manager::get(theme_manager::SPLIT_HANDLE_HOVER)
+                   : theme_manager::get(theme_manager::SPLIT_HANDLE);
 
     if (dir == direction::vertical) {
         float hy = height * split_ratio_;

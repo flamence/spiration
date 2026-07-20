@@ -1,11 +1,11 @@
 /**
  * @file extension_tab.cpp
- * @brief 扩展管理标签页实现。
+ * @brief 扩展管理标签页实现�?
  * @author clk
  */
 
 #include <ui/extension_tab.h>
-#include <ui/theme.h>
+#include <ui/theme_manager.h>
 #include <extension/extension.h>
 #include <extension/extension_manager.h>
 #include <utils/i18n.h>
@@ -14,7 +14,7 @@
 namespace spiration {
 
 extension_tab::extension_tab() {
-    widget_style.background_color = theme::get(theme::CONTENT_BG);
+    widget_style.background_color = theme_manager::get(theme_manager::CONTENT_BG);
     title_ = i18n::tr("extensions");
     collect_extensions();
 }
@@ -46,7 +46,7 @@ void extension_tab::paint(std::shared_ptr<renderer> renderer) {
     renderer->draw_text_aligned(
         i18n::tr("extensions_title"),
         {x + left_margin, y + top_margin, width - left_margin * 2, title_h},
-        theme::get(theme::POPUP_TEXT),
+        theme_manager::get(theme_manager::POPUP_TEXT),
         text_alignment::left, vertical_alignment::center, 18.0f);
 
     float cur_y = y + top_margin + title_h + 10.0f;
@@ -56,7 +56,7 @@ void extension_tab::paint(std::shared_ptr<renderer> renderer) {
         renderer->draw_text_aligned(
             i18n::tr("no_extensions"),
             {x + left_margin, cur_y, width - left_margin * 2, empty_h},
-            theme::get(theme::TEXT_MUTED),
+            theme_manager::get(theme_manager::TEXT_MUTED),
             text_alignment::left, vertical_alignment::center, 14.0f);
 
         cur_y += empty_h + 4.0f;
@@ -65,7 +65,7 @@ void extension_tab::paint(std::shared_ptr<renderer> renderer) {
         renderer->draw_text_aligned(
             i18n::tr("extensions_hint"),
             {x + left_margin, cur_y, width - left_margin * 2, hint_h},
-            theme::get(theme::TEXT_MUTED),
+            theme_manager::get(theme_manager::TEXT_MUTED),
             text_alignment::left, vertical_alignment::center, 12.0f);
         return;
     }
@@ -78,17 +78,17 @@ void extension_tab::paint(std::shared_ptr<renderer> renderer) {
     renderer->draw_text_aligned(
         i18n::tr("ext_name"),
         {x + left_margin, cur_y, name_col, header_h},
-        theme::get(theme::SEPARATOR),
+        theme_manager::get(theme_manager::SEPARATOR),
         text_alignment::left, vertical_alignment::center, 13.0f);
     renderer->draw_text_aligned(
         i18n::tr("ext_version"),
         {x + left_margin + name_col, cur_y, ver_col, header_h},
-        theme::get(theme::SEPARATOR),
+        theme_manager::get(theme_manager::SEPARATOR),
         text_alignment::left, vertical_alignment::center, 13.0f);
     renderer->draw_text_aligned(
         i18n::tr("ext_description"),
         {x + left_margin + name_col + ver_col, cur_y, desc_col, header_h},
-        theme::get(theme::SEPARATOR),
+        theme_manager::get(theme_manager::SEPARATOR),
         text_alignment::left, vertical_alignment::center, 13.0f);
 
     cur_y += header_h + 4.0f;
@@ -96,7 +96,7 @@ void extension_tab::paint(std::shared_ptr<renderer> renderer) {
     renderer->draw_line(
         {x + left_margin, cur_y},
         {x + width - left_margin, cur_y},
-        theme::get(theme::SEPARATOR), 1.0f);
+        theme_manager::get(theme_manager::SEPARATOR), 1.0f);
 
     cur_y += section_gap;
 
@@ -125,20 +125,20 @@ void extension_tab::paint(std::shared_ptr<renderer> renderer) {
         renderer->draw_text_aligned(
             ext.name,
             {x + left_margin, item_y, name_col, item_h},
-            theme::get(theme::POPUP_TEXT),
+            theme_manager::get(theme_manager::POPUP_TEXT),
             text_alignment::left, vertical_alignment::center, 14.0f);
 
         renderer->draw_text_aligned(
             "v" + ext.version,
             {x + left_margin + name_col, item_y, ver_col, item_h},
-            theme::get(theme::POPUP_TEXT),
+            theme_manager::get(theme_manager::POPUP_TEXT),
             text_alignment::left, vertical_alignment::center, 14.0f);
 
         if (!ext.description.empty()) {
             renderer->draw_text_aligned(
                 ext.description,
                 {x + left_margin + name_col + ver_col, item_y, desc_col, item_h},
-                theme::get(theme::TEXT_MUTED),
+                theme_manager::get(theme_manager::TEXT_MUTED),
                 text_alignment::left, vertical_alignment::center, 13.0f);
         }
 
@@ -183,7 +183,7 @@ void extension_tab::handle_event(const event_type& type, void* data) {
         if (hovered_index_ != old_hover) {
             if (hovered_index_ >= 0) {
                 last_hovered_index_ = hovered_index_;
-                hover_bg_.animate_to(theme::get(theme::POPUP_HOVER), 100.0f);
+                hover_bg_.animate_to(theme_manager::get(theme_manager::POPUP_HOVER), 100.0f);
             } else {
                 hover_bg_.animate_to(color::transparent(), 100.0f);
             }

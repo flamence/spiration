@@ -1,13 +1,13 @@
 /**
  * @file separator.h
- * @brief 分割线控件，用于视觉上分隔界面区域。
+ * @brief 分割线控件，用于视觉上分隔界面区域�?
  * @author clk
  */
 
 #pragma once
 
 #include <ui/widget.h>
-#include <ui/theme.h>
+#include <ui/theme_manager.h>
 
 namespace spiration {
 
@@ -26,7 +26,7 @@ public:
 
     direction dir = direction::horizontal;
     float thickness = 1.0f;
-    color line_color = theme::get(theme::SEPARATOR);
+    color line_color = theme_manager::get(theme_manager::SEPARATOR);
 
     void paint(std::shared_ptr<renderer> renderer) override;
 

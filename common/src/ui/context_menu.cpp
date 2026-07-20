@@ -1,6 +1,6 @@
 /**
  * @file context_menu.cpp
- * @brief 上下文菜单实现。
+ * @brief 上下文菜单实现�?
  * @author clk
  */
 
@@ -71,7 +71,7 @@ void context_menu::handle_event(const event_type& type, void* data) {
         if (idx != hovered_) {
             hovered_ = idx;
             if (idx >= 0 && !items_[idx].separator && items_[idx].enabled)
-                hover_bg_.animate_to(theme::get(theme::POPUP_HOVER), 100.0f);
+                hover_bg_.animate_to(theme_manager::get(theme_manager::POPUP_HOVER), 100.0f);
             else
                 hover_bg_.animate_to(color::transparent(), 100.0f);
             if (request_repaint_) request_repaint_();
@@ -95,20 +95,20 @@ void context_menu::handle_event(const event_type& type, void* data) {
 
 void context_menu::paint(std::shared_ptr<renderer> renderer) {
     if (!visible_) return;
-    renderer->draw_rounded_rectangle({x, y, width, height}, theme::get(theme::POPUP_BG), 4.0f);
-    renderer->draw_rounded_rectangle_outline({x, y, width, height}, theme::get(theme::POPUP_BORDER), 4.0f, 1.0f);
+    renderer->draw_rounded_rectangle({x, y, width, height}, theme_manager::get(theme_manager::POPUP_BG), 4.0f);
+    renderer->draw_rounded_rectangle_outline({x, y, width, height}, theme_manager::get(theme_manager::POPUP_BORDER), 4.0f, 1.0f);
 
     float iy = y;
     for (size_t i = 0; i < items_.size(); ++i) {
         float h = items_[i].separator ? 7.0f : item_height;
         if (items_[i].separator) {
             float cy = iy + h * 0.5f;
-            renderer->draw_line({x + 8.0f, cy}, {x + width - 8.0f, cy}, theme::get(theme::SEPARATOR), 1.0f);
+            renderer->draw_line({x + 8.0f, cy}, {x + width - 8.0f, cy}, theme_manager::get(theme_manager::SEPARATOR), 1.0f);
         } else {
             if (static_cast<int>(i) == hovered_ && items_[i].enabled) {
                 renderer->draw_rectangle({x + 2.0f, iy + 1.0f, width - 4.0f, h - 2.0f}, hover_bg_.current());
             }
-            color tc = items_[i].enabled ? theme::get(theme::POPUP_TEXT) : theme::get(theme::TEXT_MUTED);
+            color tc = items_[i].enabled ? theme_manager::get(theme_manager::POPUP_TEXT) : theme_manager::get(theme_manager::TEXT_MUTED);
             renderer->draw_text_aligned(items_[i].text, {x + 14.0f, iy, width - 20.0f, h},
                                         tc, text_alignment::left, vertical_alignment::center, 13.0f);
         }

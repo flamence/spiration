@@ -9,7 +9,7 @@
 #include <ui/container.h>
 #include <ui/layout.h>
 #include <ui/button.h>
-#include <ui/theme.h>
+#include <ui/theme_manager.h>
 #include <functional>
 
 namespace spiration {
