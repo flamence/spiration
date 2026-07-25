@@ -33,14 +33,14 @@ void appbar::init() {
     mbar->height = height;
     mbar->init();
 
-    { auto& m = mbar->add_menu("file");
-      m.sub_items.push_back({i18n::tr("exit"),  [mbar = mbar.get()](){
+    { auto& m = mbar->add_menu("menu.file");
+      m.sub_items.push_back({i18n_manager::tr("menu.file.exit"),  [mbar = mbar.get()](){
           auto cb = mbar->get_window_action_callback();
           if (cb) cb(widget::action_close);
       }}); }
 
-    { auto& m = mbar->add_menu("help");
-      m.sub_items.push_back({i18n::tr("about"), [mbar = mbar.get()](){
+    { auto& m = mbar->add_menu("menu.help");
+      m.sub_items.push_back({i18n_manager::tr("menu.help.about"), [mbar = mbar.get()](){
           for (auto* p = mbar->parent(); p; p = p->parent()) {
               if (auto* r = dynamic_cast<root*>(p)) {
                   auto at = std::make_unique<about_tab>();
@@ -49,7 +49,7 @@ void appbar::init() {
               }
           }
       }});
-      m.sub_items.push_back({i18n::tr("extensions"), [mbar = mbar.get()](){
+      m.sub_items.push_back({i18n_manager::tr("extensions"), [mbar = mbar.get()](){
           for (auto* p = mbar->parent(); p; p = p->parent()) {
               if (auto* r = dynamic_cast<root*>(p)) {
                   auto et = std::make_unique<extension_tab>();

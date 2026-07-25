@@ -16,7 +16,7 @@ namespace spiration {
 /**
  * @brief 国际化翻译管理器。
  */
-class i18n {
+class i18n_manager {
 public:
     /**
      * @brief 从文件加载指定语言的翻译。

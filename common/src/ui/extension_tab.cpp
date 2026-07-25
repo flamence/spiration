@@ -1,6 +1,6 @@
 /**
  * @file extension_tab.cpp
- * @brief 扩展管理标签页实现�?
+ * @brief 扩展管理标签页实现�?
  * @author clk
  */
 
@@ -15,7 +15,7 @@ namespace spiration {
 
 extension_tab::extension_tab() {
     widget_style.background_color = theme_manager::get(theme_manager::CONTENT_BG);
-    title_ = i18n::tr("extensions");
+    title_ = i18n_manager::tr("extensions");
     collect_extensions();
 }
 
@@ -44,7 +44,7 @@ void extension_tab::paint(std::shared_ptr<renderer> renderer) {
 
     float title_h = lh(18.0f);
     renderer->draw_text_aligned(
-        i18n::tr("extensions_title"),
+        i18n_manager::tr("extensions_title"),
         {x + left_margin, y + top_margin, width - left_margin * 2, title_h},
         theme_manager::get(theme_manager::POPUP_TEXT),
         text_alignment::left, vertical_alignment::center, 18.0f);
@@ -54,7 +54,7 @@ void extension_tab::paint(std::shared_ptr<renderer> renderer) {
     if (extensions_.empty()) {
         float empty_h = lh(14.0f);
         renderer->draw_text_aligned(
-            i18n::tr("no_extensions"),
+            i18n_manager::tr("no_extensions"),
             {x + left_margin, cur_y, width - left_margin * 2, empty_h},
             theme_manager::get(theme_manager::TEXT_MUTED),
             text_alignment::left, vertical_alignment::center, 14.0f);
@@ -63,7 +63,7 @@ void extension_tab::paint(std::shared_ptr<renderer> renderer) {
 
         float hint_h = lh(12.0f);
         renderer->draw_text_aligned(
-            i18n::tr("extensions_hint"),
+            i18n_manager::tr("extensions_hint"),
             {x + left_margin, cur_y, width - left_margin * 2, hint_h},
             theme_manager::get(theme_manager::TEXT_MUTED),
             text_alignment::left, vertical_alignment::center, 12.0f);
@@ -76,17 +76,17 @@ void extension_tab::paint(std::shared_ptr<renderer> renderer) {
 
     float header_h = lh(13.0f);
     renderer->draw_text_aligned(
-        i18n::tr("ext_name"),
+        i18n_manager::tr("ext_name"),
         {x + left_margin, cur_y, name_col, header_h},
         theme_manager::get(theme_manager::SEPARATOR),
         text_alignment::left, vertical_alignment::center, 13.0f);
     renderer->draw_text_aligned(
-        i18n::tr("ext_version"),
+        i18n_manager::tr("ext_version"),
         {x + left_margin + name_col, cur_y, ver_col, header_h},
         theme_manager::get(theme_manager::SEPARATOR),
         text_alignment::left, vertical_alignment::center, 13.0f);
     renderer->draw_text_aligned(
-        i18n::tr("ext_description"),
+        i18n_manager::tr("ext_description"),
         {x + left_margin + name_col + ver_col, cur_y, desc_col, header_h},
         theme_manager::get(theme_manager::SEPARATOR),
         text_alignment::left, vertical_alignment::center, 13.0f);

@@ -16,30 +16,26 @@ namespace edit {
 bool extension::initialize() {
     if (!api_) return false;
 
-    api_->log_info("edit_extension: initializing...");
-
-    api_->add_menu_item("file", "新建", [this]() {
+    api_->add_menu_item("file", i18n_manager::tr("menu.file.new"), [this]() {
         new_editor_tab();
     });
 
-    api_->add_menu_item("file", "打开...", [this]() {
+    api_->add_menu_item("file", i18n_manager::tr("menu.file.open"), [this]() {
         open_editor_tab();
     });
 
-    api_->add_menu_item("file", "保存", [this]() {
+    api_->add_menu_item("file", i18n_manager::tr("menu.file.save"), [this]() {
         save_current();
     });
 
-    api_->add_menu_item("file", "另存为...", [this]() {
+    api_->add_menu_item("file", i18n_manager::tr("menu.file.save_as"), [this]() {
         save_current_as();
     });
 
-    api_->log_info("initialized successfully");
     return true;
 }
 
 void extension::shutdown() {
-    api_->log_info("shutting down...");
 }
 
 edit_tab* extension::active_editor() {

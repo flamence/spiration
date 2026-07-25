@@ -48,7 +48,7 @@ int main(int argc, const char* argv[]) {
                              sysLocale.c_str());
 
     spiration::window_params params;
-    params.title = spiration::i18n::tr("Spiration");
+    params.title = spiration::i18n::tr("window.title");
     params.width = 800;
     params.height = 600;
     params.decorated = false;

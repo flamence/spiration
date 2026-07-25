@@ -22,19 +22,18 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
     std::string exeDir = spiration::platform::executable_directory();
     std::string langDir = exeDir + "/lang";
 
-    spiration::i18n::load("zh-CN", langDir + "/zh-CN.txt");
+    spiration::i18n_manager::load("zh-CN", langDir + "/zh-CN.properties");
 
     std::string sysLocale = spiration::platform::system_locale();
-    std::string langPath = langDir + "/" + sysLocale + ".txt";
-    spiration::i18n::load(sysLocale, langPath);
-    spiration::i18n::set_locale(sysLocale);
+    std::string langPath = langDir + "/" + sysLocale + ".properties";
+    spiration::i18n_manager::load(sysLocale, langPath);
+    spiration::i18n_manager::set_locale(sysLocale);
 
-    spiration::console::info("Spiration starting on %s, locale: %s",
-                             spiration::platform::os_name().c_str(),
-                             sysLocale.c_str());
+    spiration::console::info("Spiration starting on %s",
+                             spiration::platform::os_name().c_str());
 
     spiration::window_params params;
-    params.title = spiration::i18n::tr("Spiration");
+    params.title = spiration::i18n_manager::tr("window.title");
     params.width = 800;
     params.height = 600;
     params.decorated = false;
