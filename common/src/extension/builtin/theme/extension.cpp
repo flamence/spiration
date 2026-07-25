@@ -13,16 +13,12 @@ namespace spiration {
 namespace theme {
 
 bool extension::initialize() {
-    auto* api = get_api();
-    if (api) {
-        api->register_theme_profile("dark");
-    }
+    api_->register_theme_profile("dark");
     api_->log_info("initialized (active: %s)", spiration::theme_manager::active().c_str());
     return true;
 }
 
 void extension::shutdown() {
-    api_->log_info("shutdown");
 }
 
 } // namespace theme

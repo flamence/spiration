@@ -30,7 +30,7 @@ int main(int argc, char* argv[]) {
 
     spiration::window_params params;
     params.decorated = false;
-    params.title = spiration::i18n::tr("Spiration");
+    params.title = spiration::i18n::tr("window.title");
     params.width = 800;
     params.height = 600;
 

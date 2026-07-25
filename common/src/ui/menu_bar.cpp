@@ -1,6 +1,6 @@
 /**
  * @file menu_bar.cpp
- * @brief 菜单栏控件实现�?
+ * @brief 菜单栏控件实现�?
  * @author clk
  */
 
@@ -68,7 +68,7 @@ void menu_bar::show_menu_popup(int index) {
 
 menu_desc& menu_bar::add_menu(const std::string& text) {
     auto item = std::make_unique<menu_item>();
-    item->text = i18n::tr(text, text);
+    item->text = i18n_manager::tr(text, text);
     item->widget_style.width = 60;
     item->height = height;
     item->hover_color = theme_manager::get(theme_manager::BUTTON_HOVER);

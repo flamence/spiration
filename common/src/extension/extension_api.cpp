@@ -33,12 +33,12 @@ std::shared_ptr<window> extension_api::get_window() const {
 }
 
 std::string extension_api::tr(const std::string& key) const {
-    return i18n::tr(key);
+    return i18n_manager::tr(key);
 }
 
 std::string extension_api::tr(const std::string& key,
                                     const std::vector<std::string>& args) const {
-    return i18n::tr(key, args);
+    return i18n_manager::tr(key, args);
 }
 
 void extension_api::log_info(const char* fmt, ...) const {

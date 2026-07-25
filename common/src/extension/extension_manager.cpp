@@ -34,6 +34,7 @@ void extension_manager::initialize(std::shared_ptr<extension_api> api) {
     s_initialized = true;
 
     register_builtin(std::make_unique<edit::extension>());
+    register_builtin(std::make_unique<i18n::extension>());
     register_builtin(std::make_unique<theme::extension>());
 
     console::info("extension_manager: initialized");

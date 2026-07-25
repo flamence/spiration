@@ -5,4 +5,5 @@
  */
 
 #include <extension/builtin/edit/extension.h>
+#include <extension/builtin/i18n/extension.h>
 #include <extension/builtin/theme/extension.h>

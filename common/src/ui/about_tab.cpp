@@ -12,7 +12,7 @@
 namespace spiration {
 
 about_tab::about_tab() {
-    title_ = i18n::tr("about");
+    title_ = i18n_manager::tr("about");
     app_name_ = "Spiration";
     app_version_ = "1.0.0";
     platform_name_ = platform::os_name() + " (" + platform::architecture() + ")";
@@ -33,14 +33,14 @@ void about_tab::paint(std::shared_ptr<renderer> renderer) {
     float cur_y = top + 50.0f;
 
     renderer->draw_text_aligned(
-        i18n::tr("about_version") + " " + app_version_,
+        i18n_manager::tr("about_version") + " " + app_version_,
         {left, cur_y, content_w, 22.0f},
         theme_manager::get(theme_manager::SEPARATOR),
         text_alignment::left, vertical_alignment::center, 15.0f);
     cur_y += 28.0f;
 
     renderer->draw_text_aligned(
-        i18n::tr("about_platform", "Platform") + ": " + platform_name_,
+        i18n_manager::tr("about_platform", "Platform") + ": " + platform_name_,
         {left, cur_y, content_w, 22.0f},
         theme_manager::get(theme_manager::SEPARATOR),
         text_alignment::left, vertical_alignment::center, 15.0f);
@@ -54,14 +54,14 @@ void about_tab::paint(std::shared_ptr<renderer> renderer) {
     cur_y += 16.0f;
 
     renderer->draw_text_aligned(
-        i18n::tr("about_desc"),
+        i18n_manager::tr("about_desc"),
         {left, cur_y, content_w, 44.0f},
         theme_manager::get(theme_manager::POPUP_TEXT),
         text_alignment::left, vertical_alignment::top, 14.0f);
     cur_y += 52.0f;
 
     renderer->draw_text_aligned(
-        i18n::tr("about_copyright"),
+        i18n_manager::tr("about_copyright"),
         {left, cur_y, content_w, 20.0f},
         theme_manager::get(theme_manager::TEXT_MUTED),
         text_alignment::left, vertical_alignment::center, 12.0f);
