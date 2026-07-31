@@ -13,6 +13,10 @@ set_target_properties(spiration-common PROPERTIES
     POSITION_INDEPENDENT_CODE ON
 )
 
+target_link_libraries(spiration-common PRIVATE CppProperties::cppproperties)
+target_link_libraries(spiration-common PRIVATE nlohmann_json::nlohmann_json)
+target_link_libraries(spiration-common PRIVATE CURL::libcurl)
+
 target_include_directories(spiration-common
     PUBLIC 
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
