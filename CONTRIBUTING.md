@@ -15,6 +15,25 @@
 并将修改提交到该分支上。
 此后，在 [Pull requests](https://github.com/flamence/spiration/pulls) 页面点击 [New pull request](https://github.com/flamence/spiration/compare)，选择自己的分支并等待审查，通过后即可并入修改。
 
+## 引入依赖
+
+通常都是通过编辑 `CMakeLists.txt` 来引入新的依赖，
+利用 [CMake](https://cmake.com.cn/) 中 [FetchContent](https://cmake.com.cn/cmake/help/latest/module/FetchContent.html) 的特性。
+
+> 为了减少 [CMP0135](https://cmake.com.cn/cmake/help/latest/policy/CMP0135.html) 警告，使用了 `cmake_policy(SET CMP0135 NEW)`。
+
+首先 `FetchContent_Declare` 依赖，确保：
+
+- 目标依赖的 `URL` / `GIT_REPOSITORY` 是可信的。
+- 确保通过 `GIT_TAG` 或 `URL` 指定的版本是可信的（避免供应链攻击），
+**必须**指定依赖版本或提交哈希。
+
+接着使用 `FetchContent_MakeAvailable` 来配置，
+添加依赖于其的功能，
+再拉取请求修改分支。
+
+**注意:** 非必要不引入依赖。
+
 ## 人工智能政策
 
 我们欢迎在编码中使用大语言模型，但我们对所有贡献都保持高标准，并且**我们期望有人类参与其中，真正理解 LLM 代表他们产出的工作**。因此，我们**不接受来自自主代理的贡献**。涉嫌违反此规定的拉取请求可能被关闭，有时恕不另行通知。
