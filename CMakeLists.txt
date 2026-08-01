@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.16)
-project(spiration VERSION 0.46 LANGUAGES C CXX)
+project(spiration VERSION 0.47 LANGUAGES C CXX)
 
 include(FetchContent)
 
@@ -35,7 +35,6 @@ if(NOT CURL_FOUND)
     set(BUILD_CURL_EXE OFF CACHE BOOL "" FORCE)
     set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
     set(BUILD_TESTING OFF CACHE BOOL "" FORCE)
-    set(CMAKE_REQUIRED_INCLUDES "$ENV{WINDIR}/System32;${CMAKE_REQUIRED_INCLUDES}")
     FetchContent_MakeAvailable(curl)
 endif()
 
