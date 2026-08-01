@@ -101,6 +101,12 @@ public:
      */
     static std::string system_locale();
 
+    /**
+     * @brief 使用系统默认程序打开 URL（网页、本地文件等）。
+     * @param url 目标 URL 或文件路径
+     */
+    static void open_url(const std::string& url);
+
 private:
     platform() = delete;
 };
