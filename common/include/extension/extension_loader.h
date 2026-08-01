@@ -6,14 +6,16 @@
 
 #pragma once
 
-#include <string>
+#include <extension/extension_manifest.h>
+#include <utils/console.h>
+#include <utils/platform.h>
+
 #include <memory>
+#include <string>
 
 namespace spiration {
 
 class extension;
-class extension_api;
-struct manifest_data;
 
 /**
  * @brief 拓展加载器。
@@ -81,14 +83,16 @@ public:
      * @return 文件内容，失败返回空字符串
      */
     static std::string read_file_text(const std::string& path);
-
-    /**
-     * @brief 获取错误信息。
-     */
-    static std::string last_error();
-
-private:
-    static std::string s_last_error;
 };
+
+/**
+ * @brief 拓展创建函数类型（动态库导出的 create_extension）。
+ */
+using extension_create_func = extension* (*)();
+
+/**
+ * @brief 拓展销毁函数类型。
+ */
+using extension_destroy_func = void (*)(extension*);
 
 } // namespace spiration
