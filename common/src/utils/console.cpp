@@ -9,6 +9,7 @@
 #include <cstdarg>
 #ifdef __OHOS__
 #include <hilog/log.h>
+#include <string>
 #endif
 #ifdef _WIN32
 #define WIN32_LEAN_AND_MEAN
@@ -28,6 +29,18 @@ namespace spiration {
 
 log_level console::s_level = log_level::info;
 
+namespace {
+const char* level_prefix(log_level level) {
+    switch (level) {
+        case log_level::debug:   return "[DEBUG] ";
+        case log_level::info:    return "[INFO] ";
+        case log_level::warning: return "[WARN] ";
+        case log_level::error:   return "[ERROR] ";
+    }
+    return "";
+}
+} // namespace
+
 void console::set_level(log_level level) {
     s_level = level;
 }
@@ -36,48 +49,66 @@ log_level console::get_level() {
     return s_level;
 }
 
-void console::debug(const char* format, ...) {
+void console::debug(const char* tag, const char* format, ...) {
 #ifndef NDEBUG
     if (s_level > log_level::debug) return;
     va_list args;
     va_start(args, format);
-    vprint("[DEBUG] ", format, args);
+    vprint(log_level::debug, tag, format, args);
     va_end(args);
 #endif
 }
 
-void console::info(const char* format, ...) {
+void console::info(const char* tag, const char* format, ...) {
     if (s_level > log_level::info) return;
     va_list args;
     va_start(args, format);
-    vprint("[INFO]  ", format, args);
+    vprint(log_level::info, tag, format, args);
     va_end(args);
 }
 
-void console::warning(const char* format, ...) {
+void console::warning(const char* tag, const char* format, ...) {
     if (s_level > log_level::warning) return;
     va_list args;
     va_start(args, format);
-    vprint("[WARN]  ", format, args);
+    vprint(log_level::warning, tag, format, args);
     va_end(args);
 }
 
-void console::error(const char* format, ...) {
+void console::error(const char* tag, const char* format, ...) {
     if (s_level > log_level::error) return;
     va_list args;
     va_start(args, format);
-    vprint("[ERROR] ", format, args);
+    vprint(log_level::error, tag, format, args);
     va_end(args);
 }
 
-void console::vprint(const char* prefix, const char* format, va_list args) {
+void console::vprint(log_level level, const char* tag, const char* format, va_list args) {
 #ifdef __OHOS__
-    char buf[1024];
-    vsnprintf(buf, sizeof(buf), format, args);
-    OH_LOG_Print(LOG_APP, LOG_INFO, 0x0000, "Spiration", "%{public}s%{public}s",
-                 prefix, buf);
+    LogLevel ohos_level = LOG_INFO;
+    switch (level) {
+        case log_level::debug:   ohos_level = LOG_DEBUG; break;
+        case log_level::info:    ohos_level = LOG_INFO;  break;
+        case log_level::warning: ohos_level = LOG_WARN;  break;
+        case log_level::error:   ohos_level = LOG_ERROR; break;
+    }
+    std::string fmt;
+    for (const char* p = format; *p; ++p) {
+        if (*p == '%') {
+            if (p[1] == '%') {
+                fmt += "%%";
+                ++p;
+            } else {
+                fmt += "%{public}";
+            }
+        } else {
+            fmt += *p;
+        }
+    }
+    OH_LOG_VPrint(LOG_APP, ohos_level, 0x0000, tag, fmt.c_str(), args);
 #else
-    printf("%s", prefix);
+    printf("%s", level_prefix(level));
+    if (tag && *tag) printf("[%s] ", tag);
     vprintf(format, args);
     printf("\n");
 #endif

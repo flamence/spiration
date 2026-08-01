@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.16)
-project(spiration VERSION 0.45 LANGUAGES C CXX)
+project(spiration VERSION 0.46 LANGUAGES C CXX)
 
 include(FetchContent)
 
