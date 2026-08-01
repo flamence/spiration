@@ -1,14 +1,15 @@
 /**
  * @file menu_bar.cpp
- * @brief 菜单栏控件实现�?
+ * @brief 菜单栏控件实现。
  * @author clk
  */
 
+#include <application.h>
 #include <ui/menu_bar.h>
 #include <ui/layout.h>
 #include <ui/popup_menu.h>
 #include <ui/theme_manager.h>
-#include <utils/i18n.h>
+#include <extension/builtin/i18n/i18n.h>
 
 namespace spiration {
 
@@ -68,7 +69,7 @@ void menu_bar::show_menu_popup(int index) {
 
 menu_desc& menu_bar::add_menu(const std::string& text) {
     auto item = std::make_unique<menu_item>();
-    item->text = i18n_manager::tr(text, text);
+    item->text = i18n_manager::get().tr(text, text);
     item->widget_style.width = 60;
     item->height = height;
     item->hover_color = theme_manager::get(theme_manager::BUTTON_HOVER);
@@ -88,7 +89,8 @@ bool menu_bar::add_sub_item(const std::string& menu_title,
                              const std::string& label,
                              std::function<void()> callback) {
     for (auto& menu : menus_) {
-        if (menu.title == menu_title) {
+        if (menu.title == menu_title
+            || i18n_manager::get().tr(menu.title) == menu_title) {
             menu.sub_items.push_back({label, std::move(callback)});
             return true;
         }
@@ -96,4 +98,4 @@ bool menu_bar::add_sub_item(const std::string& menu_title,
     return false;
 }
 
-} 
+} // namespace spiration

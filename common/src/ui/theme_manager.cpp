@@ -42,6 +42,12 @@ void theme_manager::init_defaults(profile* dark) {
     d(CONTENT_BG,         {0.20f, 0.20f, 0.20f});
     d(TEXT_MUTED,         {0.45f, 0.45f, 0.45f});
 
+    d(CODE_BG,            {0.12f, 0.12f, 0.13f});
+    d(CODE_TEXT,          {0.80f, 0.80f, 0.82f});
+    d(LINK_TEXT,          {0.45f, 0.70f, 1.00f});
+    d(HEADING_TEXT,       {0.93f, 0.93f, 0.93f});
+    d(QUOTE_BAR,          {0.45f, 0.45f, 0.45f});
+
     d(TAB_BAR_BG,          {0.17f, 0.17f, 0.17f});
     d(TAB_ACTIVE_BG,       {0.13f, 0.13f, 0.13f});
     d(TAB_ACTIVE_TEXT,     {0.85f, 0.85f, 0.85f});
@@ -88,6 +94,11 @@ void theme_manager::init_defaults(profile* dark) {
     d(SCROLL_BAR_BG,          {0.10f, 0.10f, 0.12f});
     d(SCROLL_BAR_THUMB,       {0.30f, 0.30f, 0.35f});
     d(SCROLL_BAR_THUMB_HOVER, {0.45f, 0.45f, 0.50f});
+
+    auto ds = [&](const char* k, const std::string& v) { dark->strings[k] = v; };
+    ds(UI_FONT,     "");
+    ds(INPUT_FONT,  "");
+    ds(EDITOR_FONT, "Consolas");
 }
 
 void theme_manager::set_active(const std::string& name) {
@@ -119,7 +130,7 @@ void theme_manager::register_profile(const std::string& name) {
     for (const auto& p : s_profiles) {
         if (p.name == name) return;
     }
-    s_profiles.push_back({name, {}});
+    s_profiles.push_back({name, {}, {}});
 }
 
 color theme_manager::get(const std::string& key) {
@@ -139,6 +150,28 @@ void theme_manager::set(const std::string& profile_name, const std::string& key,
     for (auto& p : s_profiles) {
         if (p.name == profile_name) {
             p.params[key] = value;
+            return;
+        }
+    }
+}
+
+std::string theme_manager::get_str(const std::string& key, const std::string& fallback) {
+    ensure_profiles();
+    auto& p = s_profiles[s_active];
+    auto it = p.strings.find(key);
+    return it != p.strings.end() ? it->second : fallback;
+}
+
+void theme_manager::set_str(const std::string& key, const std::string& value) {
+    ensure_profiles();
+    s_profiles[s_active].strings[key] = value;
+}
+
+void theme_manager::set_str(const std::string& profile_name, const std::string& key, const std::string& value) {
+    ensure_profiles();
+    for (auto& p : s_profiles) {
+        if (p.name == profile_name) {
+            p.strings[key] = value;
             return;
         }
     }

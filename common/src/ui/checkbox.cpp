@@ -1,6 +1,6 @@
 /**
  * @file checkbox.cpp
- * @brief 复选框控件实现�?
+ * @brief 复选框控件实现。
  * @author clk
  */
 
@@ -38,8 +38,8 @@ void checkbox::handle_event(const event_type& type, void* data) {
 }
 
 void checkbox::paint(std::shared_ptr<renderer> renderer) {
-    float cy = y + height * 0.5f;
-    float bx = x;
+    float cy = height * 0.5f;
+    float bx = 0;
     float by = cy - box_size * 0.5f;
 
     renderer->draw_rectangle({bx, by, box_size, box_size}, bg_transition_.current());
@@ -56,7 +56,7 @@ void checkbox::paint(std::shared_ptr<renderer> renderer) {
     float tx = bx + box_size + gap;
     renderer->draw_text_aligned(
         text,
-        {tx, y, width - (tx - x), height},
+        {tx, 0, width - tx, height},
         theme_manager::get(theme_manager::LABEL_TEXT),
         text_alignment::left,
         vertical_alignment::center,
@@ -67,4 +67,4 @@ size checkbox::layout_preferred_size() const {
     return {width, height};
 }
 
-}
+} // namespace spiration

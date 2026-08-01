@@ -1,6 +1,6 @@
 /**
  * @file tab_bar.cpp
- * @brief 标签栏控件实现，支持可滚动标签头、动画、指示条渐显隐�?
+ * @brief 标签栏控件实现。
  * @author clk
  */
 
@@ -15,7 +15,9 @@ tab_head_item::tab_head_item(const std::string& title)
     : title_(title)
     , bg_(theme_manager::get(theme_manager::TAB_INACTIVE_BG))
     , text_(theme_manager::get(theme_manager::TAB_INACTIVE_TEXT))
-    , close_fg_(theme_manager::get(theme_manager::TAB_CLOSE_FG)) {}
+    , close_fg_(theme_manager::get(theme_manager::TAB_CLOSE_FG)) {
+    widget_style.cursor = cursor_type::pointer;
+}
 
 void tab_head_item::sync_colors() {
     if (active_) {
@@ -83,7 +85,7 @@ void tab_head_item::handle_event(const event_type& type, void* data) {
 }
 
 void tab_head_item::paint(std::shared_ptr<renderer> renderer) {
-    renderer->draw_rectangle({x, y, width, height}, bg_.current());
+    renderer->draw_rectangle({0, 0, width, height}, bg_.current());
 
     float avail_w = width - CLOSE_BTN_W - 14.0f;
     std::string display = title_;
@@ -94,17 +96,21 @@ void tab_head_item::paint(std::shared_ptr<renderer> renderer) {
         float max_w = avail_w - dots_w;
         while (!display.empty() && renderer->measure_text_width(display, 13.0f) > max_w) {
             display.pop_back();
+            while (!display.empty() &&
+                   (static_cast<unsigned char>(display.back()) & 0xC0) == 0x80) {
+                display.pop_back();
+            }
         }
         display += dots;
     }
 
     renderer->draw_text_aligned(display,
-                                {x + 10.0f, y, avail_w, height},
+                                {10.0f, 0, avail_w, height},
                                 text_.current(),
                                 text_alignment::left, vertical_alignment::center, 13.0f);
 
-    float centerX = x + width - CLOSE_BTN_W * 0.5f;
-    float centerY = y + height * 0.5f;
+    float centerX = width - CLOSE_BTN_W * 0.5f;
+    float centerY = height * 0.5f;
     float half = CLOSE_ICON_SIZE * 0.5f;
     color closeCol = close_fg_.current();
     renderer->draw_line({centerX - half, centerY - half},
@@ -193,10 +199,10 @@ void tab_bar::handle_event(const event_type& type, void* data) {
 }
 
 void tab_bar::paint(std::shared_ptr<renderer> renderer) {
-    renderer->draw_rectangle({x, y, width, TAB_HEADER_H}, widget_style.background_color);
+    renderer->draw_rectangle({0, 0, width, TAB_HEADER_H}, widget_style.background_color);
 
     if (header_row_) {
-        renderer->push_transform(x, y);
+        renderer->push_transform(0, 0);
         header_row_->paint(renderer);
         renderer->pop_transform();
     }
@@ -208,7 +214,7 @@ void tab_bar::paint(std::shared_ptr<renderer> renderer) {
     float prevAlpha = prev_indicator_alpha_.current().a;
     if (prevAlpha > 0.005f && prev_indicator_width_ > 0.0f) {
         indicator_col.a = prevAlpha;
-        renderer->draw_rectangle({x + prev_indicator_pos_ - scrollOff, y + TAB_HEADER_H - 2.0f,
+        renderer->draw_rectangle({prev_indicator_pos_ - scrollOff, TAB_HEADER_H - 2.0f,
                                   prev_indicator_width_, 2.0f},
                                  indicator_col);
     }
@@ -216,15 +222,15 @@ void tab_bar::paint(std::shared_ptr<renderer> renderer) {
     float currAlpha = curr_indicator_alpha_.current().a;
     if (currAlpha > 0.005f && curr_indicator_width_ > 0.0f) {
         indicator_col.a = currAlpha;
-        renderer->draw_rectangle({x + curr_indicator_pos_ - scrollOff, y + TAB_HEADER_H - 2.0f,
+        renderer->draw_rectangle({curr_indicator_pos_ - scrollOff, TAB_HEADER_H - 2.0f,
                                   curr_indicator_width_, 2.0f},
                                  indicator_col);
     }
 
     if (active_index_ >= 0 && active_index_ < tab_count()) {
         auto* t = tabs_[active_index_].get();
-        renderer->push_transform(x, y);
-        renderer->push_clip({0.0f, TAB_HEADER_H, width, height - TAB_HEADER_H});
+        renderer->push_transform(0, TAB_HEADER_H);
+        renderer->push_clip({0, 0, width, height - TAB_HEADER_H});
         t->paint(renderer);
         renderer->pop_clip();
         renderer->pop_transform();
@@ -340,7 +346,6 @@ void tab_bar::close_tab(int index) {
         prev_indicator_width_ = 0.0f;
         curr_indicator_width_ = 0.0f;
     } else {
-        int old_active = active_index_;
         if (index < active_index_) {
             --active_index_;
         } else if (active_index_ >= static_cast<int>(tabs_.size())) {
@@ -360,4 +365,4 @@ void tab_bar::close_tab(int index) {
     if (request_repaint_) request_repaint_();
 }
 
-} 
+} // namespace spiration

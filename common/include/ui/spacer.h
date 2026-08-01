@@ -1,6 +1,6 @@
 /**
  * @file spacer.h
- * @brief 弹性空间控件，用于布局中占用剩余空间。
+ * @brief 弹性空间控件。
  * @author clk
  */
 
@@ -16,7 +16,7 @@ namespace spiration {
 class spacer : public widget {
 public:
     void paint(std::shared_ptr<renderer> renderer) override {
-        
+        (void)renderer;
     }
 };
 

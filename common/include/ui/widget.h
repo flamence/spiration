@@ -1,6 +1,6 @@
 /**
  * @file widget.h
- * @brief Widget 基类定义，所有 UI 控件的基类。
+ * @brief 控件基类定义。
  * @author clk
  */
 
@@ -16,6 +16,8 @@
 #include <vector>
 
 namespace spiration {
+
+class context_menu;
 
 /**
  * @brief 所有 UI 控件的抽象基类。
@@ -52,12 +54,14 @@ public:
     
     virtual void paint(std::shared_ptr<renderer> renderer) {
         for (auto& child : children_) {
+            renderer->push_transform(child->x, child->y);
             child->paint(renderer);
+            renderer->pop_transform();
         }
     }
     
     /**
-     * @brief 返回此 widget 的首选（理想）尺寸。
+     * @brief 返回此 widget 的首选尺寸。
      *        布局管理器会参考此值来决定 widget 的分配空间。
      */
     virtual size layout_preferred_size() const {
@@ -66,7 +70,7 @@ public:
 
     /**
      * @brief 每帧更新钩子，用于驱动动画等时间相关逻辑。
-     * @param dt_ms 距离上一帧的毫秒数
+     * @param dt_ms 距离上一帧的毫秒数。
      */
     virtual void tick(float dt_ms) {
         for (auto& child : children_) {
@@ -110,7 +114,7 @@ public:
         }
     }
 
-    virtual void on_hover_change(bool hovered) {}
+    virtual void on_hover_change(bool hovered) { (void)hovered; }
 
     bool is_hovered() const { return hovered_; }
 
@@ -119,6 +123,7 @@ public:
      * @return true 表示该 widget 在此位置是可交互的，不应穿透触发窗口拖拽
      */
     virtual bool hit_test(float x, float y) const {
+        (void)x; (void)y;
         return false;
     }
 
@@ -134,6 +139,23 @@ public:
             if (child->hit_test_children(cx, cy)) return true;
         }
         return false;
+    }
+
+    /**
+     * @brief 命中测试：返回包含 (x, y) 的最深层 enabled 控件。
+     *        坐标为本控件的局部坐标；递归时自动补偿各层滚动偏移。
+     */
+    widget* hit_test_hover(float x, float y) const {
+        if (!enabled) return nullptr;
+        if (x < 0.0f || x > width || y < 0.0f || y > height) return nullptr;
+        const float sox = scroll_offset_x_for_children();
+        const float soy = scroll_offset_for_children();
+        for (const auto& child : children_) {
+            const float cx = x - child->x + sox;
+            const float cy = y - child->y + soy;
+            if (widget* h = child->hit_test_hover(cx, cy)) return h;
+        }
+        return const_cast<widget*>(this);
     }
 
     widget* add_child(std::unique_ptr<widget> child) {
@@ -177,6 +199,43 @@ public:
         }
     }
 
+    /**
+     * @brief 设置右键上下文菜单请求回调（沿子树递归传播）。
+     * 实现在 widget.cpp（需要 context_menu 完整类型）。
+     */
+    void set_context_menu_callback(std::function<void(float x, float y, std::unique_ptr<context_menu>)> cb);
+
+    /**
+     * @brief 请求在窗口屏幕坐标 (x, y) 处显示右键菜单。
+     * 沿父链向上查找最近设置了回调的节点（root 通常持有）。
+     * 实现在 widget.cpp。
+     */
+    void request_context_menu(float x, float y, std::unique_ptr<context_menu> menu);
+
+    /**
+     * @brief 计算控件内局部坐标对应的窗口屏幕坐标。
+     */
+    point to_screen(float x, float y) const {
+        point p{x, y};
+        const widget* w = this;
+        while (w) {
+            p.x += w->x - w->scroll_offset_x_for_children();
+            p.y += w->y - w->scroll_offset_for_children();
+            w = w->parent_;
+        }
+        return p;
+    }
+
+    /**
+     * @brief 子内容的垂直滚动偏移。
+     */
+    virtual float scroll_offset_for_children() const { return 0.0f; }
+
+    /**
+     * @brief 子内容的水平滚动偏移。
+     */
+    virtual float scroll_offset_x_for_children() const { return 0.0f; }
+
     void set_parent(widget* p) { parent_ = p; }
 
     virtual void set_mouse_capture(widget* w) {
@@ -198,6 +257,7 @@ public:
 protected:
     
     std::function<void()> request_repaint_ = nullptr;
+    std::function<void(float, float, std::unique_ptr<context_menu>)> context_menu_cb_ = nullptr;
 
     bool focused_ = false;
     bool hovered_ = false;

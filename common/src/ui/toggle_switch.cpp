@@ -1,10 +1,5 @@
-/**
- * @file toggle_switch.cpp
- * @brief 开关控件实现，滑块带平滑过渡动画�?
- * @author clk
- */
-
 #include <ui/toggle_switch.h>
+#include <ui/theme_manager.h>
 
 namespace spiration {
 
@@ -36,8 +31,8 @@ void toggle_switch::handle_event(const event_type& type, void* data) {
 }
 
 void toggle_switch::paint(std::shared_ptr<renderer> renderer) {
-    float cy = y + height * 0.5f;
-    float tx = x;
+    float cy = height * 0.5f;
+    float tx = 0;
     float ty = cy - track_height * 0.5f;
     float t = knob_pos_.current();
 

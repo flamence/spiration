@@ -1,6 +1,6 @@
 /**
  * @file window_controls.cpp
- * @brief 平台感知的窗口控制按钮实现�?
+ * @brief 平台感知的窗口控制按钮实现�?
  * @author clk
  */
 
@@ -8,6 +8,10 @@
 #include <ui/theme_manager.h>
 
 namespace spiration {
+
+bool window_controls::hit_test(float x, float y) const {
+    return hit_test_btn(x, y) != hit_part::none;
+}
 
 window_controls::hit_part window_controls::hit_test_btn(float mx, float my) const {
     if (my < 0.0f || my > height) return hit_part::none;
@@ -62,7 +66,6 @@ void window_controls::handle_event(const event_type& type, void* data) {
 void window_controls::paint(std::shared_ptr<renderer> renderer) {
     float h = btn_h_;
     constexpr float iconSize = 10.0f;
-    float iconHalf = iconSize * 0.5f;
     
 #ifdef __APPLE__
     float xs[3] = { (btn_size_ - iconSize) * 0.5f,
@@ -77,22 +80,22 @@ void window_controls::paint(std::shared_ptr<renderer> renderer) {
             c.g = std::min(c.g + 0.2f, 1.0f);
             c.b = std::min(c.b + 0.2f, 1.0f);
         }
-        renderer->draw_circle({x + xs[i] + iconHalf, y + h * 0.5f}, iconHalf, c);
+        renderer->draw_circle({xs[i] + iconHalf, h * 0.5f}, iconHalf, c);
     }
 #else
     float startX = width - btn_size_ * 3.0f;
-    float cx[3] = { x + startX + btn_size_ * 0.5f,
-                    x + startX + btn_size_ * 1.5f,
-                    x + startX + btn_size_ * 2.5f };
+    float cx[3] = { startX + btn_size_ * 0.5f,
+                    startX + btn_size_ * 1.5f,
+                    startX + btn_size_ * 2.5f };
     bool hovers[3] = { hover_min_, hover_max_, hover_close_ };
 
     for (int i = 0; i < 3; ++i) {
-        float bx = x + startX + static_cast<float>(i) * btn_size_;
+        float bx = startX + static_cast<float>(i) * btn_size_;
         if (i == 2) {
             color bg = hovers[i] ? theme_manager::get(theme_manager::CLOSE_HOVER) : color::transparent();
-            renderer->draw_rectangle({bx, y, btn_size_, h}, bg);
+            renderer->draw_rectangle({bx, 0, btn_size_, h}, bg);
         } else if (hovers[i]) {
-            renderer->draw_rectangle({bx, y, btn_size_, h}, theme_manager::get(theme_manager::CONTROL_HOVER_BG));
+            renderer->draw_rectangle({bx, 0, btn_size_, h}, theme_manager::get(theme_manager::CONTROL_HOVER_BG));
         }
     }
 

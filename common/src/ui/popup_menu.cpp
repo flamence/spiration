@@ -1,6 +1,6 @@
 /**
  * @file popup_menu.cpp
- * @brief 弹出菜单控件实现�?
+ * @brief 弹出菜单控件实现。
  * @author clk
  */
 
@@ -95,23 +95,24 @@ void popup_menu::tick(float dt_ms) {
 }
 
 void popup_menu::paint(std::shared_ptr<renderer> renderer) {
-    renderer->draw_rectangle({x, y, width, height}, theme_manager::get(theme_manager::POPUP_BG));
+    // root 已通过 push_transform 处理 (x,y)，此处用 (0,0) 基准
+    renderer->draw_rectangle({0, 0, width, height}, theme_manager::get(theme_manager::POPUP_BG));
 
-    float iy = y;
+    float iy = 0;
     for (size_t i = 0; i < items_.size(); ++i) {
         float h = items_[i].separator ? 8.0f : item_height_;
         if (items_[i].separator) {
             float cy = iy + h * 0.5f;
-            renderer->draw_line({x + 8.0f, cy}, {x + width - 8.0f, cy}, theme_manager::get(theme_manager::SEPARATOR), 1.0f);
+            renderer->draw_line({8.0f, cy}, {width - 8.0f, cy}, theme_manager::get(theme_manager::SEPARATOR), 1.0f);
         } else {
             if (static_cast<int>(i) == hovered_index_) {
-                renderer->draw_rectangle({x, iy, width, h}, hover_bg_.current());
+                renderer->draw_rectangle({0, iy, width, h}, hover_bg_.current());
             }
-            renderer->draw_text_aligned(items_[i].text, {x + 12.0f, iy, width - 18.0f, h},
+            renderer->draw_text_aligned(items_[i].text, {12.0f, iy, width - 18.0f, h},
                                         theme_manager::get(theme_manager::POPUP_TEXT), text_alignment::left, vertical_alignment::center, 14.0f);
         }
         iy += h;
     }
 }
 
-} 
+} // namespace spiration

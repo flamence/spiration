@@ -1,6 +1,6 @@
 /**
  * @file context_menu.cpp
- * @brief 上下文菜单实现�?
+ * @brief 上下文菜单实现。
  * @author clk
  */
 
@@ -95,21 +95,21 @@ void context_menu::handle_event(const event_type& type, void* data) {
 
 void context_menu::paint(std::shared_ptr<renderer> renderer) {
     if (!visible_) return;
-    renderer->draw_rounded_rectangle({x, y, width, height}, theme_manager::get(theme_manager::POPUP_BG), 4.0f);
-    renderer->draw_rounded_rectangle_outline({x, y, width, height}, theme_manager::get(theme_manager::POPUP_BORDER), 4.0f, 1.0f);
+    renderer->draw_rounded_rectangle({0, 0, width, height}, theme_manager::get(theme_manager::POPUP_BG), 4.0f);
+    renderer->draw_rounded_rectangle_outline({0, 0, width, height}, theme_manager::get(theme_manager::POPUP_BORDER), 4.0f, 1.0f);
 
-    float iy = y;
+    float iy = 0.0f;
     for (size_t i = 0; i < items_.size(); ++i) {
         float h = items_[i].separator ? 7.0f : item_height;
         if (items_[i].separator) {
             float cy = iy + h * 0.5f;
-            renderer->draw_line({x + 8.0f, cy}, {x + width - 8.0f, cy}, theme_manager::get(theme_manager::SEPARATOR), 1.0f);
+            renderer->draw_line({8.0f, cy}, {width - 8.0f, cy}, theme_manager::get(theme_manager::SEPARATOR), 1.0f);
         } else {
             if (static_cast<int>(i) == hovered_ && items_[i].enabled) {
-                renderer->draw_rectangle({x + 2.0f, iy + 1.0f, width - 4.0f, h - 2.0f}, hover_bg_.current());
+                renderer->draw_rectangle({2.0f, iy + 1.0f, width - 4.0f, h - 2.0f}, hover_bg_.current());
             }
             color tc = items_[i].enabled ? theme_manager::get(theme_manager::POPUP_TEXT) : theme_manager::get(theme_manager::TEXT_MUTED);
-            renderer->draw_text_aligned(items_[i].text, {x + 14.0f, iy, width - 20.0f, h},
+            renderer->draw_text_aligned(items_[i].text, {14.0f, iy, width - 20.0f, h},
                                         tc, text_alignment::left, vertical_alignment::center, 13.0f);
         }
         iy += h;
@@ -120,4 +120,4 @@ size context_menu::layout_preferred_size() const {
     return {width, height};
 }
 
-}
+} // namespace spiration

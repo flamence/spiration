@@ -1,6 +1,6 @@
 /**
  * @file split_pane.cpp
- * @brief 可拖拽分割面板实现�?
+ * @brief 可拖拽分割面板实现。
  * @author clk
  */
 
@@ -48,10 +48,10 @@ void split_pane::paint(std::shared_ptr<renderer> renderer) {
 
     if (dir == direction::vertical) {
         float hy = height * split_ratio_;
-        renderer->draw_rectangle({x, y + hy, width, handle_size}, hc);
+        renderer->draw_rectangle({0, hy, width, handle_size}, hc);
     } else {
         float hx = width * split_ratio_;
-        renderer->draw_rectangle({x + hx, y, handle_size, height}, hc);
+        renderer->draw_rectangle({hx, 0, handle_size, height}, hc);
     }
 }
 
@@ -123,4 +123,4 @@ widget* split_pane::second() const {
     return children().size() < 2 ? nullptr : children()[1].get();
 }
 
-}
+} // namespace spiration

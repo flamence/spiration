@@ -37,6 +37,12 @@ public:
     static constexpr const char* SEPARATOR          = "separator";
     static constexpr const char* TEXT_MUTED         = "text_muted";
 
+    static constexpr const char* CODE_BG            = "code_bg";
+    static constexpr const char* CODE_TEXT          = "code_text";
+    static constexpr const char* LINK_TEXT          = "link_text";
+    static constexpr const char* HEADING_TEXT       = "heading_text";
+    static constexpr const char* QUOTE_BAR          = "quote_bar";
+
     static constexpr const char* TAB_BAR_BG          = "tab_bar_bg";
     static constexpr const char* TAB_ACTIVE_BG       = "tab_active_bg";
     static constexpr const char* TAB_ACTIVE_TEXT     = "tab_active_text";
@@ -65,6 +71,9 @@ public:
     static constexpr const char* INPUT_TEXT             = "input_text";
     static constexpr const char* INPUT_PLACEHOLDER      = "input_placeholder";
     static constexpr const char* INPUT_CURSOR           = "input_cursor";
+    static constexpr const char* INPUT_FONT             = "input_font";
+    static constexpr const char* UI_FONT                = "ui_font";
+    static constexpr const char* EDITOR_FONT            = "editor_font";
     static constexpr const char* PROGRESS_BG            = "progress_bg";
     static constexpr const char* PROGRESS_FILL          = "progress_fill";
 
@@ -94,10 +103,18 @@ public:
     static void set(const std::string& key, const color& value);
     static void set(const std::string& profile, const std::string& key, const color& value);
 
+    /// @brief 获取字符串类型主题属性（如 font_family）。
+    static std::string get_str(const std::string& key, const std::string& fallback = "");
+    /// @brief 设置当前 profile 的字符串主题属性。
+    static void set_str(const std::string& key, const std::string& value);
+    /// @brief 设置指定 profile 的字符串主题属性。
+    static void set_str(const std::string& profile, const std::string& key, const std::string& value);
+
 private:
     struct profile {
         std::string name;
         std::unordered_map<std::string, color> params;
+        std::unordered_map<std::string, std::string> strings;
     };
 
     static std::vector<profile> s_profiles;

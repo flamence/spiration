@@ -1,5 +1,6 @@
 #include <ui/root.h>
 #include <ui/appbar.h>
+#include <ui/cursor.h>
 #include <ui/layout.h>
 #include <ui/menu_bar.h>
 #include <ui/theme_manager.h>
@@ -10,13 +11,21 @@ root::root(std::shared_ptr<spiration::window> parent, bool create_appbar) {
     m_window = parent;
     create_appbar_ = create_appbar;
     widget_style.background_color = theme_manager::get(theme_manager::WINDOW_BG);
+    cursor_manager::instance().set_window(m_window.get());
     init();
 }
 
 void root::paint(std::shared_ptr<renderer> renderer) {
     container::paint(renderer);
     if (m_popup) {
+        renderer->push_transform(m_popup->x, m_popup->y);
         m_popup->paint(renderer);
+        renderer->pop_transform();
+    }
+    if (m_context_menu && m_context_menu->visible()) {
+        renderer->push_transform(m_context_menu->x, m_context_menu->y);
+        m_context_menu->paint(renderer);
+        renderer->pop_transform();
     }
 }
 
@@ -28,6 +37,21 @@ void root::set_mouse_capture(widget* w) {
 void root::handle_event(const event_type& type, void* data) {
     if (type == event_type::window_resize) {
         layout();
+    }
+
+    if (type == event_type::mouse) {
+        auto* md = static_cast<mouse_event_data*>(data);
+        cursor_manager::instance().update(this, md->position.x, md->position.y);
+    }
+
+    if (m_context_menu && m_context_menu->visible() && type == event_type::mouse) {
+        auto* md = static_cast<mouse_event_data*>(data);
+        point old = md->position;
+        md->position.x = old.x - m_context_menu->x;
+        md->position.y = old.y - m_context_menu->y;
+        m_context_menu->handle_event(type, data);
+        md->position = old;
+        if (md->consumed) return;
     }
 
     if (m_popup && type == event_type::mouse) {
@@ -61,6 +85,7 @@ void root::handle_event(const event_type& type, void* data) {
 void root::tick(float dt_ms) {
     container::tick(dt_ms);
     if (m_popup) m_popup->tick(dt_ms);
+    if (m_context_menu) m_context_menu->tick(dt_ms);
 }
 
 void root::layout() {
@@ -93,6 +118,7 @@ void root::layout() {
     }
 
     if (m_popup) m_popup->layout();
+    if (m_context_menu) m_context_menu->layout();
 }
 
 void root::init() {
@@ -116,6 +142,10 @@ void root::init() {
         }
         add_child(std::move(appbar));
     }
+
+    set_context_menu_callback([this](float x, float y, std::unique_ptr<context_menu> menu) {
+        show_context_menu(x, y, std::move(menu));
+    });
 }
 
 bool root::add_menu_item(const std::string& menu_name,
@@ -150,4 +180,25 @@ void root::dismiss_popup() {
     }
 }
 
+void root::show_context_menu(float x, float y, std::unique_ptr<context_menu> menu) {
+    if (m_context_menu) m_context_menu.reset();
+    if (!menu) return;
+    if (x + menu->width > width) x = std::max(0.0f, width - menu->width);
+    if (y + menu->height > height) y = std::max(0.0f, height - menu->height);
+    menu->set_repaint_callback(request_repaint_);
+    menu->set_window_action_callback(window_action_);
+    menu->on_dismiss = [this]() { m_context_menu.reset(); };
+    menu->show_at(x, y);
+    m_context_menu = std::move(menu);
+    if (request_repaint_) request_repaint_();
 }
+
+void root::dismiss_context_menu() {
+    if (m_context_menu) {
+        m_context_menu->on_dismiss = nullptr;
+        m_context_menu.reset();
+        if (request_repaint_) request_repaint_();
+    }
+}
+
+} // namespace spiration

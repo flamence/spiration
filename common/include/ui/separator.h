@@ -1,6 +1,6 @@
 /**
  * @file separator.h
- * @brief 分割线控件，用于视觉上分隔界面区域�?
+ * @brief 分割线控件，用于视觉上分隔界面区域。
  * @author clk
  */
 
