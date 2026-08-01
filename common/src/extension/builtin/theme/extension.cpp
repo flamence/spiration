@@ -1,9 +1,3 @@
-/**
- * @file extension.cpp
- * @brief 拓展入口。
- * @author clk
- */
-
 #include <extension/builtin/theme/extension.h>
 
 namespace spiration {
