@@ -15,6 +15,8 @@
 并将修改提交到该分支上。
 此后，在 [Pull requests](https://github.com/flamence/spiration/pulls) 页面点击 [New pull request](https://github.com/flamence/spiration/compare)，选择自己的分支并等待审查，通过后即可并入修改。
 
+> 建议在提交时，对版本号进行同步修改。
+
 ## 引入依赖
 
 通常都是通过编辑 `CMakeLists.txt` 来引入新的依赖，
