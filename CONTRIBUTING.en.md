@@ -12,6 +12,8 @@
 
 Contributors should [Fork](https://github.com/flamence/spiration/fork) the project, then locally check out a branch (e.g., `feature/...`, `fix/...`) using [Git](https://git-scm.cn/), commit the changes on that branch, and then click [New pull request](https://github.com/flamence/spiration/compare) on the [Pull requests](https://github.com/flamence/spiration/pulls) page, select your branch and wait for review. Once approved, the changes will be merged.
 
+> It is recommended to update the version number accordingly when committing.
+
 ## AI Policy
 
 We welcome the use of LLMs for coding, but we hold a high bar for all contributions, and **we expect a human in the loop who genuinely understands the work an LLM produces** on their behalf. For that reason, we **don't accept contributions from autonomous agents**. Pull requests that appear to violate this may be closed, sometimes without notice.
