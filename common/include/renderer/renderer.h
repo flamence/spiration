@@ -48,9 +48,11 @@ public:
     virtual void draw_rectangle_outline(const rectangle& rectangle, const color& stroke_color, float stroke_width = 1.0f) = 0;
 
     virtual void draw_rounded_rectangle(const rectangle& rect, const color& fill_color, float radius) {
+        (void)radius;
         draw_rectangle(rect, fill_color);
     }
     virtual void draw_rounded_rectangle_outline(const rectangle& rect, const color& stroke_color, float radius, float stroke_width = 1.0f) {
+        (void)radius;
         draw_rectangle_outline(rect, stroke_color, stroke_width);
     }
 
@@ -70,6 +72,12 @@ public:
     
     virtual void draw_image(const std::string& image_path, const rectangle& destination) = 0;
     virtual void draw_image_subregion(const std::string& image_path, const rectangle& source, const rectangle& destination) = 0;
+
+    /// @brief 查询图片尺寸（可解码返回 true 并填充宽高）。默认不支持则返回 false。
+    virtual bool query_image_size(const std::string& image_path, uint32_t& width, uint32_t& height) {
+        (void)image_path; (void)width; (void)height;
+        return false;
+    }
     
     virtual void push_transform(float x, float y, float rotation = 0.0f, float scale_x = 1.0f, float scale_y = 1.0f) = 0;
     virtual void pop_transform() = 0;
@@ -82,6 +90,16 @@ public:
     
     virtual float measure_text_width(const std::string& text, float font_size = 16.0f,
                                      const std::string& font_family = "Consolas") = 0;
+
+    /// @brief 测量文本高度（DIP），考虑给定宽度内的自动换行。
+    /// @param text  要测量的文本
+    /// @param font_size  字体大小（DIP）
+    /// @param font_family  字体名称
+    /// @param wrap_width  换行宽度（DIP），超出此宽度自动换行
+    /// @return 文本在给定宽度内完整渲染所需的高度（DIP）
+    virtual float measure_text_height(const std::string& text, float font_size = 16.0f,
+                                       const std::string& font_family = "Consolas",
+                                       float wrap_width = 10000.0f) = 0;
     
     static std::shared_ptr<renderer> create_direct2d_renderer();
     static std::shared_ptr<renderer> create_opengl_renderer();

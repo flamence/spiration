@@ -18,8 +18,34 @@
 #include <cmath>
 #include <functional>
 
+// MinGW 兼容性：DWMWA_USE_IMMERSIVE_DARK_MODE 可能未定义
+#ifndef DWMWA_USE_IMMERSIVE_DARK_MODE
+#define DWMWA_USE_IMMERSIVE_DARK_MODE 20
+#endif
+
 
 namespace spiration {
+
+namespace {
+
+/// cursor_type → Win32 系统光标。
+HCURSOR load_cursor(cursor_type c) {
+    switch (c) {
+    case cursor_type::text:        return LoadCursorW(nullptr, IDC_IBEAM);
+    case cursor_type::pointer:     return LoadCursorW(nullptr, IDC_HAND);
+    case cursor_type::crosshair:   return LoadCursorW(nullptr, IDC_CROSS);
+    case cursor_type::move:        return LoadCursorW(nullptr, IDC_SIZEALL);
+    case cursor_type::resize_h:    return LoadCursorW(nullptr, IDC_SIZEWE);
+    case cursor_type::resize_v:    return LoadCursorW(nullptr, IDC_SIZENS);
+    case cursor_type::resize_nwse: return LoadCursorW(nullptr, IDC_SIZENWSE);
+    case cursor_type::resize_nesw: return LoadCursorW(nullptr, IDC_SIZENESW);
+    case cursor_type::forbidden:   return LoadCursorW(nullptr, IDC_NO);
+    case cursor_type::default_cursor:
+    default:                       return LoadCursorW(nullptr, IDC_ARROW);
+    }
+}
+
+} // namespace
 
 uint32_t Window::s_NextWindowId = 1;
 
@@ -46,7 +72,6 @@ Window::Window(Window&& other) noexcept
     , m_DPIScale(other.m_DPIScale)
     , m_Renderer(std::move(other.m_Renderer))
     , m_Widget(std::move(other.m_Widget)) {
-
     other.m_hWnd = nullptr;
     other.m_hInstance = nullptr;
     other.m_ShouldClose = false;
@@ -114,7 +139,6 @@ LRESULT CALLBACK Window::WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM 
 LRESULT Window::HandleMessage(UINT uMsg, WPARAM wParam, LPARAM lParam) {
     switch (uMsg) {
     case WM_NCHITTEST: {
-        
         if (!m_hWnd) break;
         POINT pt = { static_cast<SHORT>(LOWORD(lParam)),
                      static_cast<SHORT>(HIWORD(lParam)) };
@@ -124,6 +148,7 @@ LRESULT Window::HandleMessage(UINT uMsg, WPARAM wParam, LPARAM lParam) {
         int32_t w, h;
         get_size(w, h);
 
+        // 调整大小边框区域
         bool onTop    = yDIP < RESIZE_BORDER_WIDTH;
         bool onBottom = yDIP > (static_cast<float>(h) - RESIZE_BORDER_WIDTH);
         bool onLeft   = xDIP < RESIZE_BORDER_WIDTH;
@@ -138,10 +163,31 @@ LRESULT Window::HandleMessage(UINT uMsg, WPARAM wParam, LPARAM lParam) {
         if (onLeft)   return HTLEFT;
         if (onRight)  return HTRIGHT;
 
+        // 标题栏拖拽区域：检查是否有交互控件，无则返回 HTCAPTION 启用原生拖拽/贴靠
+        if (yDIP < DRAG_AREA_HEIGHT) {
+            if (m_Widget && m_Widget->hit_test_children(xDIP, yDIP))
+                return HTCLIENT;
+            return HTCAPTION;
+        }
+
         return HTCLIENT;
     }
 
     case WM_NCCALCSIZE: {
+        if (wParam == TRUE) {
+            NCCALCSIZE_PARAMS* params = reinterpret_cast<NCCALCSIZE_PARAMS*>(lParam);
+            if (is_maximized()) {
+                // 最大化时让 DefWindowProc 计算正确的边框补偿，
+                // 避免客户区延伸到屏幕外的隐藏边框区域导致内容被裁切。
+                // DefWindowProc 会保留标题栏偏移量，需清除以使用自绘标题栏。
+                DefWindowProc(m_hWnd, WM_NCCALCSIZE, wParam, lParam);
+                params->rgrc[0].top = 0;
+            } else {
+                // 非最大化：客户区覆盖整个窗口（自绘标题栏 + 自定义边框）
+                params->rgrc[0] = params->rgrc[1];
+            }
+            return 0;
+        }
         return 0;
     }
 
@@ -195,7 +241,8 @@ LRESULT Window::HandleMessage(UINT uMsg, WPARAM wParam, LPARAM lParam) {
 
     case WM_SETCURSOR:
         if (LOWORD(lParam) == HTCLIENT) {
-            SetCursor(LoadCursorW(nullptr, IDC_ARROW));
+            // 应用 cursor_manager 当前光标（由根控件悬停检测驱动）。
+            SetCursor(load_cursor(cursor_manager::instance().current()));
             return TRUE;
         }
         break;
@@ -222,11 +269,12 @@ LRESULT Window::HandleMessage(UINT uMsg, WPARAM wParam, LPARAM lParam) {
         m_ShouldClose = true;
         if (m_OnClose) m_OnClose(this);
         m_hWnd = nullptr;
+        PostQuitMessage(0);
         return TRUE;
 
     case WM_CLOSE:
-        m_ShouldClose = true;
-        if (m_OnClose) m_OnClose(this);
+        // 立即销毁窗口，避免延迟关闭
+        DestroyWindow(m_hWnd);
         return TRUE;
 
     case WM_SIZE: {
@@ -344,27 +392,13 @@ LRESULT Window::HandleMessage(UINT uMsg, WPARAM wParam, LPARAM lParam) {
         data.button = btn;
         data.action = act;
         data.wheel_delta = (uMsg == WM_MOUSEWHEEL) ? GET_WHEEL_DELTA_WPARAM(wParam) : 0;
+        data.shift = (GetKeyState(VK_SHIFT) & 0x8000) != 0;
 
         if (m_Widget) {
             m_Widget->handle_event(event_type::mouse, &data);
         }
 
-        if (!data.consumed && yDIP < DRAG_AREA_HEIGHT) {
-            if (uMsg == WM_LBUTTONDOWN) {
-                POINT screenPt = { clientPos.x, clientPos.y };
-                ClientToScreen(m_hWnd, &screenPt);
-                ReleaseCapture();
-                SendMessageW(m_hWnd, WM_NCLBUTTONDOWN, HTCAPTION,
-                             MAKELPARAM(screenPt.x, screenPt.y));
-            } else if (uMsg == WM_LBUTTONDBLCLK) {
-                if (is_maximized()) {
-                    restore();
-                } else {
-                    maximize();
-                }
-            }
-        }
-
+        // 标题栏拖拽与双击最大化现在由 Windows 通过 HTCAPTION 原生处理
         return TRUE;
     }
     }
@@ -436,9 +470,9 @@ bool Window::CreateActualWindow(const window_params& params) {
         style &= ~(WS_THICKFRAME | WS_MAXIMIZEBOX);
     }
     if (!params.decorated) {
-        
-        
-        style = WS_POPUP | WS_THICKFRAME | WS_MAXIMIZEBOX | WS_MINIMIZEBOX;
+        // 使用 WS_OVERLAPPEDWINDOW 保留原生窗口管理（贴靠、阴影、动画）
+        // 标题栏通过 WM_NCCALCSIZE + DWM 移除
+        style = WS_OVERLAPPEDWINDOW;
         exStyle = WS_EX_APPWINDOW;
     }
 
@@ -462,7 +496,16 @@ bool Window::CreateActualWindow(const window_params& params) {
     
     SetWindowPos(m_hWnd, nullptr, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_FRAMECHANGED);
 
-    
+    // DWM 沉浸式暗色模式（标题栏右键菜单等跟随暗色主题）
+    BOOL dark = TRUE;
+    DwmSetWindowAttribute(m_hWnd, DWMWA_USE_IMMERSIVE_DARK_MODE,
+                          &dark, sizeof(dark));
+
+    // 扩展 DWM 框架到整个窗口，保留原生阴影
+    MARGINS margins = {0, 0, 0, 1};
+    DwmExtendFrameIntoClientArea(m_hWnd, &margins);
+
+    // Windows 11 圆角
     DWM_WINDOW_CORNER_PREFERENCE corner = DWMWCP_ROUND;
     DwmSetWindowAttribute(m_hWnd, DWMWA_WINDOW_CORNER_PREFERENCE,
                           &corner, sizeof(corner));
@@ -513,7 +556,8 @@ void Window::AdjustWindowForFullscreen() {
     m_WindowStyleBeforeFullscreen = GetWindowLong(m_hWnd, GWL_STYLE);
     m_WindowExStyleBeforeFullscreen = GetWindowLong(m_hWnd, GWL_EXSTYLE);
 
-    MONITORINFO mi = { sizeof(MONITORINFO) };
+    MONITORINFO mi = {};
+    mi.cbSize = sizeof(MONITORINFO);
     if (GetMonitorInfo(MonitorFromWindow(m_hWnd, MONITOR_DEFAULTTOPRIMARY), &mi)) {
         SetWindowLong(m_hWnd, GWL_STYLE, WS_POPUP);
         SetWindowLong(m_hWnd, GWL_EXSTYLE, WS_EX_APPWINDOW);
@@ -684,6 +728,11 @@ void Window::request_repaint() {
 
 void Window::request_layout() {
     m_NeedsLayout = true;
+}
+
+void Window::set_cursor(cursor_type c) {
+    if (!m_hWnd) return;
+    SetCursor(load_cursor(c));
 }
 
 bool Window::should_close() const { return m_ShouldClose; }

@@ -4,26 +4,32 @@
  * @author clk
  */
 
-import { hilog } from '@kit.PerformanceAnalysisKit';
 import { display, window } from '@kit.ArkUI';
 import { resourceManager } from '@kit.LocalizationKit';
+import { inputMethod } from '@kit.IMEKit';
+import { pasteboard } from '@kit.BasicServicesKit';
 import nativeEntry from 'libentry.so';
 import { GlobalContext, AbilityContext } from '../utils/GlobalContext';
-
-const DOMAIN = 0x0000;
-const TAG = 'spiration';
 
 @Entry
 @Component
 struct Index {
   private xcController: XComponentController = new XComponentController();
   @StorageLink('windowWidth') @Watch('onWindowSizeChange') winWidth: number = 0;
-  @StorageLink('windowHeight') winHeight: number = 0;
+  @StorageLink('windowHeight') @Watch('onWindowSizeChange') winHeight: number = 0;
+  // 修饰键状态跟踪
+  private ctrlPressed: boolean = false;
+  private shiftPressed: boolean = false;
+  private altPressed: boolean = false;
+  // 输入法控制器
+  private inputMethodController: inputMethod.InputMethodController | null = null;
+  private isInputMethodAttached: boolean = false;
 
   aboutToAppear(): void {
     this.registerWindowActions();
     this.loadSystemInfo();
     this.initLangResources();
+    this.initInputMethod();
   }
 
   private registerWindowActions(): void {
@@ -35,7 +41,6 @@ struct Index {
       nativeEntry.registerCloseCallback(() => {
         ctx.terminateSelf();
       });
-      hilog.info(DOMAIN, TAG, 'Close callback registered');
 
       nativeEntry.registerMaximizeCallback(() => {
         if (isMaximized) {
@@ -47,23 +52,17 @@ struct Index {
         }
         this.onWindowSizeChange();
       });
-      hilog.info(DOMAIN, TAG, 'Maximize/restore callback registered');
 
       nativeEntry.registerMinimizeCallback(() => {
-        win.minimize().catch((err: Error) => {
-          hilog.error(DOMAIN, TAG, 'Minimize failed: %{public}s', err.message);
+        win.minimize().catch((_: Error) => {
         });
       });
-      hilog.info(DOMAIN, TAG, 'Minimize callback registered');
 
       nativeEntry.registerStartMoveCallback(() => {
-        win.startMoving().catch((err: Error) => {
-          hilog.error(DOMAIN, TAG, 'StartMoving failed: %{public}s', err.message);
+        win.startMoving().catch((_: Error) => {
         });
       });
-      hilog.info(DOMAIN, TAG, 'StartMove callback registered');
     } catch (err) {
-      hilog.error(DOMAIN, TAG, 'Register window actions failed: %{public}s', JSON.stringify(err));
     }
   }
 
@@ -72,9 +71,7 @@ struct Index {
       const ctx = GlobalContext.getInstance().getValue('abilityContext') as AbilityContext;
       const resMgr: resourceManager.ResourceManager = ctx.resourceManager;
       nativeEntry.initResourceManager(resMgr);
-      hilog.info(DOMAIN, TAG, 'ResourceManager initialized');
     } catch (err) {
-      hilog.error(DOMAIN, TAG, 'ResourceManager init failed: %{public}s', JSON.stringify(err));
     }
   }
 
@@ -87,20 +84,13 @@ struct Index {
         const density = this.getDensity();
         nativeEntry.onWindowResize(this.winWidth, this.winHeight, density);
       } catch (err) {
-        hilog.error(DOMAIN, TAG, 'Resize error: %{public}s', JSON.stringify(err));
       }
     }
   }
 
   private loadSystemInfo(): void {
     try {
-      const platform = nativeEntry.spiration.platform;
-      const sysLocale = platform.getSystemLocale();
-      const osName = platform.getOsName();
-      const arch = platform.getArchitecture();
-      hilog.info(DOMAIN, TAG, 'OS: %{public}s, locale: %{public}s', osName + ' | ' + arch, sysLocale);
     } catch (err) {
-      hilog.error(DOMAIN, TAG, 'Failed to load system info: %{public}s', JSON.stringify(err));
     }
   }
 
@@ -122,10 +112,7 @@ struct Index {
   private handleTouch(vpX: number, vpY: number, action: number): void {
     try {
       nativeEntry.onTouchEvent(vpX, vpY, action);
-      hilog.info(DOMAIN, TAG, 'Touch: (%.0f, %.0f) action=%{public}d',
-        vpX, vpY, action);
     } catch (err) {
-      hilog.error(DOMAIN, TAG, 'Touch error: %{public}s', JSON.stringify(err));
     }
   }
 
@@ -134,6 +121,84 @@ struct Index {
 
   aboutToDisappear(): void {
     clearInterval(this.timerId);
+    this.detachInputMethod();
+  }
+
+  // 初始化输入法
+  private initInputMethod(): void {
+    try {
+      this.inputMethodController = inputMethod.getController();
+      
+      // 监听文本插入事件
+      this.inputMethodController.on('insertText', (text: string) => {
+        for (let i = 0; i < text.length; i++) {
+          const charCode = text.charCodeAt(i);
+          nativeEntry.onKeyEvent(0, charCode, this.ctrlPressed, this.shiftPressed, this.altPressed, true);
+        }
+      });
+
+      // 监听删除事件
+      this.inputMethodController.on('deleteLeft', (length: number) => {
+        for (let i = 0; i < length; i++) {
+          // Backspace keyCode = 8
+          nativeEntry.onKeyEvent(8, 0, this.ctrlPressed, this.shiftPressed, this.altPressed, true);
+        }
+      });
+    } catch (err) {
+      console.error('Failed to initialize input method:', err);
+    }
+  }
+
+  // 拉起输入法
+  private attachInputMethod(): void {
+    if (this.inputMethodController && !this.isInputMethodAttached) {
+      try {
+        const textConfig: inputMethod.TextConfig = {
+          inputAttribute: {
+            textInputType: inputMethod.TextInputType.TEXT,
+            enterKeyType: inputMethod.EnterKeyType.DONE
+          }
+        };
+        this.inputMethodController.attach(true, textConfig);
+        this.isInputMethodAttached = true;
+      } catch (err) {
+        console.error('Failed to attach input method:', err);
+      }
+    }
+  }
+
+  // 隐藏输入法
+  private detachInputMethod(): void {
+    if (this.inputMethodController && this.isInputMethodAttached) {
+      try {
+        this.inputMethodController.detach();
+        this.isInputMethodAttached = false;
+      } catch (err) {
+        console.error('Failed to detach input method:', err);
+      }
+    }
+  }
+
+  // 剪贴板辅助函数
+  async copyToClipboard(text: string): Promise<void> {
+    try {
+      const pasteData = pasteboard.createPlainTextData(text);
+      const systemPasteboard = pasteboard.getSystemPasteboard();
+      await systemPasteboard.setData(pasteData);
+    } catch (err) {
+      console.error('Failed to copy to clipboard:', err);
+    }
+  }
+
+  async pasteFromClipboard(): Promise<string> {
+    try {
+      const systemPasteboard = pasteboard.getSystemPasteboard();
+      const pasteData = await systemPasteboard.getData();
+      return pasteData.getPrimaryText() || '';
+    } catch (err) {
+      console.error('Failed to paste from clipboard:', err);
+      return '';
+    }
   }
 
   build() {
@@ -143,8 +208,16 @@ struct Index {
         controller: this.xcController
       })
         .onLoad(() => {
-          this.onWindowSizeChange();
           try {
+            // 1. 获取 surface ID 并初始化原生渲染器
+            const surfaceId = this.xcController.getXComponentSurfaceId();
+            const density = this.getDensity();
+            nativeEntry.initNativeWindow(surfaceId, density);
+
+            // 2. 通知窗口大小
+            this.onWindowSizeChange();
+
+            // 3. 启动帧定时器
             this.lastTick = Date.now();
             this.timerId = setInterval((): void => {
               const now = Date.now();
@@ -155,7 +228,6 @@ struct Index {
               } catch (e) {  }
             }, 16);
           } catch (err) {
-            hilog.error(DOMAIN, TAG, 'Native init failed: %{public}s', JSON.stringify(err));
           }
         })
         .hitTestBehavior(HitTestMode.None)
@@ -166,6 +238,37 @@ struct Index {
         .width('100%')
         .height('100%')
         .hitTestBehavior(HitTestMode.Block)
+        .focusable(true)
+        .defaultFocus(true)
+        .onKeyEvent((event: KeyEvent) => {
+          try {
+            const keyCode = event.keyCode;
+            const isDown = event.type === KeyType.Down;
+            
+            // 更新修饰键状态
+            // HarmonyOS KeyCode: Ctrl=2072/2073, Shift=2019/2020, Alt=2054/2055
+            if (keyCode === 2072 || keyCode === 2073) {
+              this.ctrlPressed = isDown;
+            } else if (keyCode === 2019 || keyCode === 2020) {
+              this.shiftPressed = isDown;
+            } else if (keyCode === 2054 || keyCode === 2055) {
+              this.altPressed = isDown;
+            }
+            
+            // 文本输入：使用 Unicode 码点
+            const codepoint = event.keyText ? event.keyText.charCodeAt(0) : 0;
+            
+            nativeEntry.onKeyEvent(
+              keyCode,
+              codepoint,
+              this.ctrlPressed,
+              this.shiftPressed,
+              this.altPressed,
+              isDown
+            );
+          } catch (err) {
+          }
+        })
         .onTouch((event: TouchEvent) => {
           if (event.touches.length > 0) {
             const touch = event.touches[0];
@@ -173,6 +276,27 @@ struct Index {
             if (event.type === 1) cppAction = 2;
             else if (event.type === 2) cppAction = 1;
             this.handleTouch(touch.x, touch.y, cppAction);
+            
+            // 在触摸按下时拉起输入法
+            if (event.type === TouchType.Down) {
+              this.attachInputMethod();
+            }
+          }
+        })
+        .onMouse((event: MouseEvent) => {
+          // 处理鼠标右键事件
+          if (event.button === MouseButton.Right) {
+            const action = event.action === MouseAction.Press ? 0 : 1;  // 0=press, 1=release
+            nativeEntry.onMouseEvent(event.x, event.y, action, 2);  // button=2 表示右键
+          }
+          // 处理鼠标左键拖动
+          if (event.button === MouseButton.Left || event.button === MouseButton.None) {
+            // MouseAction: Press=1, Release=2, Move=3
+            // 转换为 C++ 期望的格式: 0=press, 1=release, 2=move
+            let cppAction: number = 2; // 默认 move
+            if (event.action === MouseAction.Press) cppAction = 0;
+            else if (event.action === MouseAction.Release) cppAction = 1;
+            nativeEntry.onMouseEvent(event.x, event.y, cppAction, 0); // button=0 表示左键
           }
         })
     }

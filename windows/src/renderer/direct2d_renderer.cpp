@@ -17,9 +17,11 @@
 #include <cmath>
 #include <cassert>
 
+#ifdef _MSC_VER
 #pragma comment(lib, "d2d1.lib")
 #pragma comment(lib, "dwrite.lib")
 #pragma comment(lib, "windowscodecs.lib")
+#endif
 
 using namespace Microsoft::WRL;
 
@@ -35,7 +37,7 @@ static std::wstring string_to_wstring(const std::string& str) {
     return wstr;
 }
 
-static std::string wstring_to_string(const std::wstring& wstr) {
+[[maybe_unused]] static std::string wstring_to_string(const std::wstring& wstr) {
     if (wstr.empty()) return "";
     int size_needed = WideCharToMultiByte(CP_UTF8, 0, wstr.c_str(), static_cast<int>(wstr.size()), nullptr, 0, nullptr, nullptr);
     if (size_needed == 0) return "";
@@ -371,6 +373,14 @@ void direct2d_renderer::draw_image_subregion(const std::string& image_path, cons
                                D2D1_BITMAP_INTERPOLATION_MODE_LINEAR, srcRect);
 }
 
+bool direct2d_renderer::query_image_size(const std::string& image_path, uint32_t& width, uint32_t& height) {
+    texture_resource* texture = load_texture(image_path);
+    if (!texture) return false;
+    width = texture->width;
+    height = texture->height;
+    return true;
+}
+
 
 void direct2d_renderer::push_transform(float x, float y, float rotation, float scale_x, float scale_y) {
     m_TransformStack.push_back(m_CurrentTransform);
@@ -424,6 +434,25 @@ float direct2d_renderer::measure_text_width(const std::string& text, float font_
     DWRITE_TEXT_METRICS metrics;
     layout->GetMetrics(&metrics);
     return metrics.widthIncludingTrailingWhitespace;
+}
+
+float direct2d_renderer::measure_text_height(const std::string& text, float font_size,
+                                              const std::string& font_family,
+                                              float wrap_width) {
+    if (!m_DWriteFactory || !m_RenderTarget) return 0.0f;
+    font_resource* font = get_font(font_family, font_size);
+    if (!font || !font->format) return 0.0f;
+
+    std::wstring wtext = string_to_wstring(text);
+    ComPtr<IDWriteTextLayout> layout;
+    HRESULT hr = m_DWriteFactory->CreateTextLayout(
+        wtext.c_str(), static_cast<UINT32>(wtext.length()),
+        font->format.Get(), wrap_width, 10000.0f, &layout);
+    if (FAILED(hr)) return 0.0f;
+
+    DWRITE_TEXT_METRICS metrics;
+    layout->GetMetrics(&metrics);
+    return metrics.height;
 }
 
 

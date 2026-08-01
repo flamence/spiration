@@ -64,3 +64,5 @@ set_target_properties(${PROJECT_NAME} PROPERTIES
     OUTPUT_NAME "spiration"
     RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/../bin
 )
+
+target_link_options(${PROJECT_NAME} PRIVATE -rdynamic)

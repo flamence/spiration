@@ -60,6 +60,8 @@ public:
     void draw_image(const std::string& image_path, const rectangle& destination) override;
     void draw_image_subregion(const std::string& image_path, const rectangle& source, const rectangle& destination) override;
 
+    bool query_image_size(const std::string& image_path, uint32_t& width, uint32_t& height) override;
+
     void push_transform(float x, float y, float rotation = 0.0f, float scale_x = 1.0f, float scale_y = 1.0f) override;
     void pop_transform() override;
 
@@ -70,6 +72,9 @@ public:
 
     float measure_text_width(const std::string& text, float font_size = 16.0f,
                              const std::string& font_family = "Consolas") override;
+    float measure_text_height(const std::string& text, float font_size = 16.0f,
+                              const std::string& font_family = "Consolas",
+                              float wrap_width = 10000.0f) override;
 
 private:
     bool init_metal();

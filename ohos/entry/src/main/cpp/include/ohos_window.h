@@ -67,7 +67,11 @@ public:
 
     void set_renderer(const std::shared_ptr<renderer>& r) { renderer_ = r; }
 
+    std::shared_ptr<class renderer> get_renderer() const override { return renderer_.lock(); }
+
     void on_touch_event(float x, float y, int action);
+    void on_mouse_event(float x, float y, int action, int button);
+    void on_key_event(int key_code, unsigned int codepoint, bool ctrl, bool shift, bool alt, bool is_down);
 
     void resize_widget(int32_t logical_w, int32_t logical_h);
 

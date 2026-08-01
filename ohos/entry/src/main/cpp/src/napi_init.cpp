@@ -1,13 +1,14 @@
 #include "napi/native_api.h"
 #include "napi_bridge.h"
 
+#include <ohos_application.h>
 #include <ohos_renderer.h>
 #include <ohos_window.h>
+#include <ohos_clipboard.h>
 #include <ui/root.h>
-#include <ui/theme.h>
 #include <utils/platform.h>
 #include <utils/console.h>
-#include <utils/i18n.h>
+#include <extension/builtin/i18n/i18n.h>
 
 #include <native_window/external_window.h>
 #include <rawfile/raw_file_manager.h>
@@ -46,6 +47,8 @@ DECL_NAPI_CALLBACK(StartMoveCallback) /* → win.startMoving() */
 static napi_value NapiInitNativeWindow(napi_env env, napi_callback_info info);
 static napi_value NapiInitResourceManager(napi_env env, napi_callback_info info);
 static napi_value NapiOnTouchEvent(napi_env env, napi_callback_info info);
+static napi_value NapiOnMouseEvent(napi_env env, napi_callback_info info);
+static napi_value NapiOnKeyEvent(napi_env env, napi_callback_info info);
 static napi_value NapiOnWindowResize(napi_env env, napi_callback_info info);
 static napi_value NapiOnFrameTick(napi_env env, napi_callback_info info);
 static napi_value NapiRegisterCloseCallback(napi_env env, napi_callback_info info);
@@ -58,8 +61,11 @@ static napi_value NapiRegisterStartMoveCallback(napi_env env, napi_callback_info
  */
 EXTERN_C_START
 static napi_value Init(napi_env env, napi_value exports) {
-    std::string dataDir = spiration::platform::app_data_dir();
-    spiration::bridge::initialize_runtime(dataDir);
+    // 使用 ohos_application 单例初始化
+    spiration::ohos_application::instance()->initialize_early();
+
+    // 初始化剪贴板 NAPI 环境
+    spiration::set_clipboard_napi_env(env);
 
     napi_value spirationNs;
     napi_create_object(env, &spirationNs);
@@ -80,6 +86,8 @@ static napi_value Init(napi_env env, napi_value exports) {
     napi_property_descriptor native_funcs[] = {
         {"initNativeWindow", nullptr, NapiInitNativeWindow, nullptr, nullptr, nullptr, napi_default, nullptr},
         {"onTouchEvent", nullptr, NapiOnTouchEvent, nullptr, nullptr, nullptr, napi_default, nullptr},
+        {"onMouseEvent", nullptr, NapiOnMouseEvent, nullptr, nullptr, nullptr, napi_default, nullptr},
+        {"onKeyEvent", nullptr, NapiOnKeyEvent, nullptr, nullptr, nullptr, napi_default, nullptr},
         {"onWindowResize", nullptr, NapiOnWindowResize, nullptr, nullptr, nullptr, napi_default, nullptr},
         {"onFrameTick", nullptr, NapiOnFrameTick, nullptr, nullptr, nullptr, napi_default, nullptr},
         {"initResourceManager", nullptr, NapiInitResourceManager, nullptr, nullptr, nullptr, napi_default, nullptr},
@@ -92,7 +100,7 @@ static napi_value Init(napi_env env, napi_value exports) {
     napi_define_properties(env, exports, sizeof(desc) / sizeof(desc[0]), desc);
     napi_define_properties(env, exports, sizeof(native_funcs) / sizeof(native_funcs[0]), native_funcs);
 
-    spiration::console::info("Spiration NAPI module initialized");
+    spiration::console::info("napi", "Spiration NAPI module initialized");
     return exports;
 }
 EXTERN_C_END
@@ -104,7 +112,7 @@ static bool load_lang_from_rawfile(const std::string& locale, const std::string&
     if (!g_resourceMgr) return false;
     RawFile* raw = OH_ResourceManager_OpenRawFile(g_resourceMgr, ("lang/" + filename).c_str());
     if (!raw) {
-        spiration::console::warning("rawfile not found: lang/%s", filename.c_str());
+        spiration::console::warning("napi", "rawfile not found: lang/%s", filename.c_str());
         return false;
     }
     long size = OH_ResourceManager_GetRawFileSize(raw);
@@ -125,7 +133,7 @@ static bool load_lang_from_rawfile(const std::string& locale, const std::string&
     out.write(content.data(), content.size());
     out.close();
 
-    return spiration::i18n::load(locale, tmpFile);
+    return spiration::i18n_manager::get().load(locale, tmpFile);
 }
 
 /**
@@ -144,20 +152,17 @@ static napi_value NapiInitResourceManager(napi_env env, napi_callback_info info)
 
     g_resourceMgr = OH_ResourceManager_InitNativeResourceManager(env, args[0]);
     if (!g_resourceMgr) {
-        spiration::console::error("Failed to init native resource manager");
+        spiration::console::error("napi", "Failed to init native resource manager");
         napi_value ret;
         napi_get_boolean(env, false, &ret);
         return ret;
     }
 
     std::string sysLocale = spiration::platform::system_locale();
-    load_lang_from_rawfile("zh-CN", "zh-CN.txt");
-    load_lang_from_rawfile("en-US", "en-US.txt");
-    if (sysLocale != "zh-CN" && sysLocale != "en-US") {
-        load_lang_from_rawfile(sysLocale, sysLocale + ".txt");
-    }
-    spiration::i18n::set_locale(sysLocale);
-    spiration::console::info("ResourceManager initialized, locale=%s", sysLocale.c_str());
+    load_lang_from_rawfile("zh-CN", "zh-CN.properties");
+    load_lang_from_rawfile(sysLocale, sysLocale + ".properties");
+    spiration::i18n_manager::get().set_locale(sysLocale);
+    spiration::console::info("napi", "ResourceManager initialized, locale=%s", sysLocale.c_str());
     napi_value ret;
     napi_get_boolean(env, true, &ret);
     return ret;
@@ -171,8 +176,22 @@ static napi_value NapiInitNativeWindow(napi_env env, napi_callback_info info) {
     napi_value args[2];
     napi_get_cb_info(env, info, &argc, args, nullptr, nullptr);
 
-    int64_t surface_id = 0;
-    napi_get_value_int64(env, args[0], &surface_id);
+    // 获取 surface ID (string 类型)
+    size_t str_size = 0;
+    napi_get_value_string_utf8(env, args[0], nullptr, 0, &str_size);
+    std::string surface_id_str(str_size, '\0');
+    napi_get_value_string_utf8(env, args[0], &surface_id_str[0], str_size + 1, &str_size);
+
+    // 将字符串转换为 uint64_t
+    uint64_t surface_id = 0;
+    try {
+        surface_id = std::stoull(surface_id_str);
+    } catch (const std::exception& e) {
+        spiration::console::error("napi", "Invalid surface ID: %s", surface_id_str.c_str());
+        napi_value ret;
+        napi_get_boolean(env, false, &ret);
+        return ret;
+    }
 
     double density = 1.0;
     if (argc >= 2) {
@@ -180,10 +199,9 @@ static napi_value NapiInitNativeWindow(napi_env env, napi_callback_info info) {
     }
 
     OHNativeWindow* native_window = nullptr;
-    OH_NativeWindow_CreateNativeWindowFromSurfaceId(
-        static_cast<uint64_t>(surface_id), &native_window);
+    OH_NativeWindow_CreateNativeWindowFromSurfaceId(surface_id, &native_window);
     if (!native_window) {
-        spiration::console::error("Failed to get native window from surface id");
+        spiration::console::error("napi", "Failed to get native window from surface id");
         napi_value ret;
         napi_get_boolean(env, false, &ret);
         return ret;
@@ -191,7 +209,7 @@ static napi_value NapiInitNativeWindow(napi_env env, napi_callback_info info) {
 
     g_renderer = std::make_shared<spiration::ohos_renderer>();
     if (!g_renderer->initialize(native_window)) {
-        spiration::console::error("Failed to initialize OHOS renderer");
+        spiration::console::error("napi", "Failed to initialize OHOS renderer");
         napi_value ret;
         napi_get_boolean(env, false, &ret);
         return ret;
@@ -208,7 +226,7 @@ static napi_value NapiInitNativeWindow(napi_env env, napi_callback_info info) {
     uint32_t logical_w = static_cast<uint32_t>(actual_w / dpi);
     uint32_t logical_h = static_cast<uint32_t>(actual_h / dpi);
 
-    spiration::console::info("DPI=%.1f, physical=%dx%d, logical=%dx%d",
+    spiration::console::info("napi", "DPI=%.1f, physical=%dx%d, logical=%dx%d",
         dpi, actual_w, actual_h, logical_w, logical_h);
 
     g_renderer->set_logical_size(logical_w, logical_h);
@@ -222,23 +240,25 @@ static napi_value NapiInitNativeWindow(napi_env env, napi_callback_info info) {
     g_window->initialize(params);
     g_window->set_renderer(g_renderer);
 
-    auto root_ptr = std::make_unique<spiration::root>(g_window);
-    root_ptr->width = static_cast<float>(logical_w);
-    root_ptr->height = static_cast<float>(logical_h);
-    root_ptr->layout();
+    // 使用 ohos_application 单例设置窗口
+    spiration::ohos_application::instance()->set_window(g_window,
+        static_cast<int32_t>(logical_w), static_cast<int32_t>(logical_h));
 
+    // 设置回调函数
     g_window->set_on_close([](void*) { invoke_CloseCallback_callback(); });
     g_window->set_on_maximize([](void*) { invoke_MaximizeCallback_callback(); });
     g_window->set_on_minimize([](void*) { invoke_MinimizeCallback_callback(); });
     g_window->set_on_start_move([](void*) { invoke_StartMoveCallback_callback(); });
 
-    g_window->set_widget(std::move(root_ptr));
+    // 初始化 normal 阶段扩展
+    spiration::ohos_application::instance()->initialize_normal();
 
+    // 渲染第一帧
     if (g_renderer) {
         g_window->render(g_renderer);
     }
 
-    spiration::console::info("Spiration native window initialized");
+    spiration::console::info("napi", "Spiration native window initialized");
 
     napi_value ret;
     napi_get_boolean(env, true, &ret);
@@ -295,8 +315,63 @@ static napi_value NapiOnFrameTick(napi_env env, napi_callback_info info) {
                                     static_cast<int32_t>(vp_h));
         }
 
-        g_window->tick(static_cast<float>(dt_ms));
+        // 使用 ohos_application 单例驱动动画
+        spiration::ohos_application::instance()->tick(static_cast<float>(dt_ms));
         g_window->render(g_renderer);
+    }
+
+    napi_value ret;
+    napi_get_undefined(env, &ret);
+    return ret;
+}
+
+/**
+ * @brief 接收 ArkUI 窗口大小变化事件，更新渲染器和 widget 树。
+ */
+static napi_value NapiOnMouseEvent(napi_env env, napi_callback_info info) {
+    size_t argc = 4;
+    napi_value args[4];
+    napi_get_cb_info(env, info, &argc, args, nullptr, nullptr);
+
+    double x = 0, y = 0;
+    double action = 0, button = 0;
+    napi_get_value_double(env, args[0], &x);
+    napi_get_value_double(env, args[1], &y);
+    napi_get_value_double(env, args[2], &action);
+    napi_get_value_double(env, args[3], &button);
+
+    if (g_window) {
+        g_window->on_mouse_event(static_cast<float>(x),
+                                 static_cast<float>(y),
+                                 static_cast<int>(action),
+                                 static_cast<int>(button));
+        if (g_renderer) g_window->render(g_renderer);
+    }
+
+    napi_value ret;
+    napi_get_undefined(env, &ret);
+    return ret;
+}
+
+static napi_value NapiOnKeyEvent(napi_env env, napi_callback_info info) {
+    size_t argc = 6;
+    napi_value args[6];
+    napi_get_cb_info(env, info, &argc, args, nullptr, nullptr);
+
+    double key_code = 0, codepoint = 0;
+    bool ctrl = false, shift = false, alt = false, is_down = false;
+    napi_get_value_double(env, args[0], &key_code);
+    napi_get_value_double(env, args[1], &codepoint);
+    napi_get_value_bool(env, args[2], &ctrl);
+    napi_get_value_bool(env, args[3], &shift);
+    napi_get_value_bool(env, args[4], &alt);
+    napi_get_value_bool(env, args[5], &is_down);
+
+    if (g_window) {
+        g_window->on_key_event(static_cast<int>(key_code),
+                               static_cast<unsigned int>(codepoint),
+                               ctrl, shift, alt, is_down);
+        if (g_renderer) g_window->render(g_renderer);
     }
 
     napi_value ret;

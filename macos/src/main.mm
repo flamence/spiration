@@ -1,6 +1,6 @@
 /**
  * @file main.mm
- * @brief Spiration 入口。
+ * @brief 应用入口。
  * @author clk
  */
 

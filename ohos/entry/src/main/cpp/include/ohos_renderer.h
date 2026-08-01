@@ -42,6 +42,9 @@ public:
     void get_viewport_size(uint32_t& width, uint32_t& height) const override;
     float measure_text_width(const std::string& text, float font_size,
                              const std::string& font_family) override;
+    float measure_text_height(const std::string& text, float font_size = 16.0f,
+                              const std::string& font_family = "Consolas",
+                              float wrap_width = 10000.0f) override;
 
 private:
     void begin_frame() override;
@@ -96,6 +99,8 @@ private:
 
     uint32_t viewport_width_ = 0;
     uint32_t viewport_height_ = 0;
+    uint32_t physical_width_ = 0;   // 物理像素宽度
+    uint32_t physical_height_ = 0;  // 物理像素高度
 
     struct Transform {
         float m[16];
