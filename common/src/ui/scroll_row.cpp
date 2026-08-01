@@ -36,11 +36,13 @@ void scroll_row::paint(std::shared_ptr<renderer> renderer) {
     float vis_start = scroll_offset_;
     float vis_end = scroll_offset_ + width;
     float cx = 0.0f;
-    renderer->push_transform(x - scroll_offset_, y);
+    renderer->push_transform(-scroll_offset_, 0);
     for (auto& child : children()) {
         float child_end = cx + child->width;
         if (child_end > vis_start && cx < vis_end) {
+            renderer->push_transform(child->x, child->y);
             child->paint(renderer);
+            renderer->pop_transform();
         }
         cx += child_width_;
     }
@@ -77,4 +79,4 @@ void scroll_row::handle_event(const event_type& type, void* data) {
     container::handle_event(type, data);
 }
 
-} 
+} // namespace spiration

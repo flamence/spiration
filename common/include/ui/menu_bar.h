@@ -1,6 +1,6 @@
 /**
  * @file menu_bar.h
- * @brief 菜单栏控件，包含多个菜单项�?
+ * @brief 菜单栏控件。
  * @author clk
  */
 
@@ -18,14 +18,13 @@
 namespace spiration {
 
 /**
- * @brief 菜单项目
+ * @brief 菜单项目。
  */
 class menu_item : public button {
 public:
     void paint(std::shared_ptr<renderer> renderer) override {
-        
-        renderer->draw_rectangle({x, y, width, height}, bg_transition_.current());
-        renderer->draw_text_aligned(text, rectangle{ x, y, width, height }, theme_manager::get(theme_manager::MENU_TEXT),
+        renderer->draw_rectangle({0, 0, width, height}, bg_transition_.current());
+        renderer->draw_text_aligned(text, rectangle{ 0, 0, width, height }, theme_manager::get(theme_manager::MENU_TEXT),
                                     text_alignment::center, vertical_alignment::center, 14.0f);
     }
 };
@@ -56,17 +55,17 @@ public:
 
     /**
      * @brief 添加一个顶级菜单。
-     * @param text 菜单标题
-     * @return menu_desc& 引用，用于添加子项
+     * @param text 菜单标题。
+     * @return menu_desc& 引用，用于添加子项。
      */
     menu_desc& add_menu(const std::string& text);
 
     /**
      * @brief 在已存在的菜单中添加子项。
-     * @param menu_title 目标菜单标题
-     * @param label 子项标签
-     * @param callback 点击回调
-     * @return true 添加成功，false 未找到目标菜单
+     * @param menu_title 目标菜单标题。
+     * @param label 子项标签。
+     * @param callback 点击回调。
+     * @return true 添加成功，false 未找到目标菜单。
      */
     bool add_sub_item(const std::string& menu_title,
                       const std::string& label,

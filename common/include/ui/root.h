@@ -4,6 +4,7 @@
 #include <functional>
 #include <ui/appbar.h>
 #include <ui/container.h>
+#include <ui/context_menu.h>
 #include <ui/menu_bar.h>
 #include <ui/popup_menu.h>
 #include <ui/tab_bar.h>
@@ -15,11 +16,12 @@ class root : public container {
 private:
     std::shared_ptr<spiration::window> m_window;
     std::unique_ptr<popup_menu> m_popup = nullptr;
+    std::unique_ptr<context_menu> m_context_menu = nullptr;
 
 public:
     /**
-     * @param parent 窗口对象
-     * @param create_appbar 是否创建 appbar
+     * @param parent 窗口对象。
+     * @param create_appbar 是否创建 `appbar`。
      */
     explicit root(std::shared_ptr<spiration::window> parent, bool create_appbar = true);
 
@@ -32,6 +34,10 @@ public:
     void show_popup(float x, float y, std::unique_ptr<popup_menu> popup);
     void dismiss_popup();
     bool has_popup() const { return m_popup != nullptr; }
+
+    void show_context_menu(float x, float y, std::unique_ptr<context_menu> menu);
+    void dismiss_context_menu();
+    bool has_context_menu() const { return m_context_menu != nullptr; }
 
     void set_mouse_capture(widget* w) override;
 

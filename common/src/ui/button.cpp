@@ -41,6 +41,8 @@ void button::handle_event(const event_type& type, void* data) {
             bg_transition_.animate_to(target, 60.0f);
         } else if (mouse_data->action == mouse_action::up && pressing_) {
             pressing_ = false;
+            if (on_click) on_click();
+            mouse_data->consumed = true;
             color target = is_hovered() ? hover_color : color::transparent();
             bg_transition_.animate_to(target, 80.0f);
         }
@@ -50,8 +52,8 @@ void button::handle_event(const event_type& type, void* data) {
 }
 
 void button::paint(std::shared_ptr<renderer> renderer) {
-    renderer->draw_rectangle({x, y, width, height}, bg_transition_.current());
-    renderer->draw_text_aligned(text, rectangle{ x, y, width, height }, theme_manager::get(theme_manager::BUTTON_TEXT), 
+    renderer->draw_rectangle({0, 0, width, height}, bg_transition_.current());
+    renderer->draw_text_aligned(text, rectangle{ 0, 0, width, height }, theme_manager::get(theme_manager::BUTTON_TEXT), 
                                 text_alignment::center, vertical_alignment::center, 16.0f);
 }
 

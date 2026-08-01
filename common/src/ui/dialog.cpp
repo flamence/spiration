@@ -1,6 +1,6 @@
 /**
  * @file dialog.cpp
- * @brief 模态对话框实现�?
+ * @brief 模态对话框实现。
  * @author clk
  */
 
@@ -75,4 +75,4 @@ void message_dialog::add_button(const std::string& label, std::function<void()> 
     layout();
 }
 
-}
+} // namespace spiration

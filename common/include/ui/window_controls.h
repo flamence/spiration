@@ -17,6 +17,7 @@ class window_controls : public container {
 public:
     void init() override;
     void paint(std::shared_ptr<renderer> renderer) override;
+    bool hit_test(float x, float y) const override;
 
     void set_control_size(float size) { btn_size_ = size; }
 

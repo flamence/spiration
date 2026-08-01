@@ -9,6 +9,7 @@
 #include <ui/container.h>
 #include <ui/theme_manager.h>
 #include <utils/animation.h>
+#include <functional>
 
 namespace spiration {
 
@@ -25,7 +26,12 @@ protected:
     void on_hover_change(bool hovered) override;
 
 public:
+    button() {
+        widget_style.cursor = cursor_type::pointer;
+    }
+
     std::string text;
+    std::function<void()> on_click;
 
     bool hit_test(float x, float y) const override;
 

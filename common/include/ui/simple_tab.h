@@ -1,6 +1,6 @@
 /**
  * @file simple_tab.h
- * @brief 可自定义绘制回调的简易标签页，供扩展使用。
+ * @brief 可自定义绘制回调的简易标签页，供拓展使用。
  * @author clk
  */
 
@@ -14,7 +14,7 @@
 namespace spiration {
 
 /**
- * @brief 简易标签页，扩展可通过 paint 回调自定义绘制内容。
+ * @brief 简易标签页。
  */
 class simple_tab : public tab {
 public:
@@ -23,8 +23,8 @@ public:
                                         float w, float h)>;
 
     /**
-     * @param title 标签标题
-     * @param painter 绘制回调
+     * @param title 标签标题。
+     * @param painter 绘制回调。
      */
     explicit simple_tab(const std::string& title, paint_fn painter)
         : painter_(std::move(painter)) {
@@ -34,7 +34,7 @@ public:
 
     void paint(std::shared_ptr<renderer> renderer) override {
         if (painter_) {
-            painter_(renderer, x, y, width, height);
+            painter_(renderer, 0, 0, width, height);
         }
     }
 

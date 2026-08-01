@@ -1,6 +1,6 @@
 /**
  * @file list_view.cpp
- * @brief 列表视图实现�?
+ * @brief 列表视图实现。
  * @author clk
  */
 
@@ -54,20 +54,20 @@ void list_view::handle_event(const event_type& type, void* data) {
 }
 
 void list_view::paint(std::shared_ptr<renderer> renderer) {
-    renderer->draw_rectangle({x, y, width, height}, theme_manager::get(theme_manager::LIST_BG));
-    renderer->push_clip({x, y, width, height});
+    renderer->draw_rectangle({0, 0, width, height}, theme_manager::get(theme_manager::LIST_BG));
+    renderer->push_clip({0, 0, width, height});
 
-    float iy = y - scroll_y_;
+    float iy = -scroll_y_;
     for (size_t i = 0; i < items.size(); ++i) {
-        if (iy + item_height < y || iy > y + height) { iy += item_height; continue; }
+        if (iy + item_height < 0 || iy > height) { iy += item_height; continue; }
         color bg = color::transparent();
         if (static_cast<int>(i) == selected_index)
             bg = theme_manager::get(theme_manager::LIST_ITEM_SELECTED);
         else if (static_cast<int>(i) == hovered_)
             bg = theme_manager::get(theme_manager::LIST_ITEM_HOVER);
 
-        if (bg.a > 0.0f) renderer->draw_rectangle({x, iy, width, item_height}, bg);
-        renderer->draw_text_aligned(items[i], {x + 10.0f, iy, width - 20.0f, item_height},
+        if (bg.a > 0.0f) renderer->draw_rectangle({0, iy, width, item_height}, bg);
+        renderer->draw_text_aligned(items[i], {10.0f, iy, width - 20.0f, item_height},
                                     theme_manager::get(theme_manager::LABEL_TEXT),
                                     text_alignment::left, vertical_alignment::center, font_size);
         iy += item_height;
@@ -79,10 +79,10 @@ void list_view::paint(std::shared_ptr<renderer> renderer) {
     float scroll_max = std::max(0.0f, content_height_ - height);
     if (scroll_max > 0.0f) {
         float sb_w = 6.0f;
-        float sb_x = x + width - sb_w;
+        float sb_x = width - sb_w;
         float th = std::max(20.0f, height * (height / content_height_));
-        float ty = y + (scroll_y_ / scroll_max) * (height - th);
-        renderer->draw_rectangle({sb_x, y, sb_w, height}, theme_manager::get(theme_manager::SCROLL_BAR_BG));
+        float ty = (scroll_y_ / scroll_max) * (height - th);
+        renderer->draw_rectangle({sb_x, 0, sb_w, height}, theme_manager::get(theme_manager::SCROLL_BAR_BG));
         renderer->draw_rounded_rectangle({sb_x + 1.0f, ty, sb_w - 2.0f, th},
                                          theme_manager::get(theme_manager::SCROLL_BAR_THUMB), 3.0f);
     }
@@ -92,4 +92,4 @@ size list_view::layout_preferred_size() const {
     return {width, height};
 }
 
-}
+} // namespace spiration

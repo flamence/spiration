@@ -1,6 +1,6 @@
 /**
  * @file radio_button.cpp
- * @brief 单选按钮实现�?
+ * @brief 单选按钮实现。
  * @author clk
  */
 
@@ -30,8 +30,8 @@ void radio_button::handle_event(const event_type& type, void* data) {
 }
 
 void radio_button::paint(std::shared_ptr<renderer> renderer) {
-    float cy = y + height * 0.5f;
-    float cx = x + radius;
+    float cy = height * 0.5f;
+    float cx = radius;
     float outer = radius;
     float inner = radius * 0.55f;
 
@@ -41,7 +41,7 @@ void radio_button::paint(std::shared_ptr<renderer> renderer) {
     }
 
     float tx = cx + outer + gap;
-    renderer->draw_text_aligned(text, {tx, y, width - (tx - x), height},
+    renderer->draw_text_aligned(text, {tx, 0, width - tx, height},
                                 theme_manager::get(theme_manager::LABEL_TEXT),
                                 text_alignment::left, vertical_alignment::center, 14.0f);
 }
@@ -50,4 +50,4 @@ size radio_button::layout_preferred_size() const {
     return {width, height};
 }
 
-}
+} // namespace spiration

@@ -1,16 +1,11 @@
-/**
- * @file tooltip.cpp
- * @brief 悬停提示控件实现�?
- * @author clk
- */
-
 #include <ui/tooltip.h>
+#include <ui/theme_manager.h>
 
 namespace spiration {
 
 void tooltip::paint(std::shared_ptr<renderer> renderer) {
-    renderer->draw_rounded_rectangle({x, y, width, height}, theme_manager::get(theme_manager::TOOLTIP_BG), 4.0f);
-    renderer->draw_text_aligned(text, {x + padding, y, width - padding * 2.0f, height},
+    renderer->draw_rounded_rectangle({0, 0, width, height}, theme_manager::get(theme_manager::TOOLTIP_BG), 4.0f);
+    renderer->draw_text_aligned(text, {padding, 0, width - padding * 2.0f, height},
                                 theme_manager::get(theme_manager::TOOLTIP_TEXT),
                                 text_alignment::left, vertical_alignment::center, font_size);
 }

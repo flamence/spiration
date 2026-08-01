@@ -7,7 +7,6 @@
 #pragma once
 
 #include <ui/widget.h>
-#include <ui/scroll_view.h>
 #include <ui/theme_manager.h>
 #include <functional>
 #include <string>

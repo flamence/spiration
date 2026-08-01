@@ -1,6 +1,6 @@
 /**
  * @file slider.cpp
- * @brief 滑块控件实现，支持拖拽交互�?
+ * @brief 滑块控件实现。
  * @author clk
  */
 
@@ -73,23 +73,23 @@ void slider::handle_event(const event_type& type, void* data) {
 }
 
 void slider::paint(std::shared_ptr<renderer> renderer) {
-    float cy = y + height * 0.5f;
+    float cy = height * 0.5f;
 
     renderer->draw_rectangle(
-        {x, cy - track_thickness * 0.5f, width, track_thickness},
+        {0, cy - track_thickness * 0.5f, width, track_thickness},
         theme_manager::get(theme_manager::SLIDER_TRACK));
 
     float localVx = value_to_x();
 
     renderer->draw_rectangle(
-        {x, cy - track_thickness * 0.5f, localVx, track_thickness},
+        {0, cy - track_thickness * 0.5f, localVx, track_thickness},
         theme_manager::get(theme_manager::SLIDER_FILL));
 
     color thumb_c = thumb_hovered_ || dragging_
                         ? theme_manager::get(theme_manager::SLIDER_THUMB_HOVER)
                         : theme_manager::get(theme_manager::SLIDER_THUMB);
     renderer->draw_rectangle(
-        {x + localVx - thumb_radius, cy - thumb_radius, thumb_radius * 2.0f, thumb_radius * 2.0f},
+        {localVx - thumb_radius, cy - thumb_radius, thumb_radius * 2.0f, thumb_radius * 2.0f},
         thumb_c);
 }
 
@@ -97,4 +97,4 @@ size slider::layout_preferred_size() const {
     return {width, thumb_radius * 4.0f};
 }
 
-}
+} // namespace spiration

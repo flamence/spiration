@@ -1,13 +1,12 @@
 /**
  * @file toggle_switch.h
- * @brief 开关控件，支持开/关状态切换，带平滑动画。
+ * @brief 开关控件。
  * @author clk
  */
 
 #pragma once
 
 #include <ui/widget.h>
-#include <ui/theme_manager.h>
 #include <utils/animation.h>
 #include <functional>
 

@@ -22,8 +22,10 @@ void horizontal_layout::arrange(
     float fixedTotal = 0.0f;
     int flexCount = 0;
     for (const auto& child : children) {
+        float mlr = static_cast<float>(child->widget_style.margin.left +
+                                       child->widget_style.margin.right);
         if (child->widget_style.width > 0) {
-            fixedTotal += static_cast<float>(child->widget_style.width);
+            fixedTotal += static_cast<float>(child->widget_style.width) + mlr;
         } else {
             ++flexCount;
         }
@@ -36,17 +38,22 @@ void horizontal_layout::arrange(
 
     float currentX = bounds.x;
     for (auto& child : children) {
-        child->y = bounds.y;
-        child->height = bounds.height;
+        const auto& m = child->widget_style.margin;
+        float ml = static_cast<float>(m.left);
+        float mr = static_cast<float>(m.right);
+        float mt = static_cast<float>(m.top);
+        float mb = static_cast<float>(m.bottom);
+        child->y = bounds.y + mt;
+        child->height = std::max(0.0f, bounds.height - mt - mb);
 
         if (child->widget_style.width > 0) {
-            child->x = currentX;
+            child->x = currentX + ml;
             child->width = static_cast<float>(child->widget_style.width);
-            currentX += child->width + spacing_;
+            currentX += child->width + ml + mr + spacing_;
         } else {
-            child->x = currentX;
+            child->x = currentX + ml;
             child->width = flexW;
-            currentX += flexW + spacing_;
+            currentX += flexW + ml + mr + spacing_;
         }
     }
 }
@@ -57,13 +64,15 @@ size horizontal_layout::preferred_size(
     float w = 0.0f, h = 0.0f;
     bool first = true;
     for (const auto& child : children) {
+        const auto& m = child->widget_style.margin;
         size pref = child->layout_preferred_size();
-        w += pref.width;
+        w += pref.width + static_cast<float>(m.left + m.right);
+        float ch = pref.height + static_cast<float>(m.top + m.bottom);
         if (first) {
-            h = pref.height;
+            h = ch;
             first = false;
         } else {
-            h = std::max(h, pref.height);
+            h = std::max(h, ch);
         }
     }
     w += spacing_ * std::max(0.0f, static_cast<float>(children.size()) - 1.0f);
@@ -76,34 +85,30 @@ void vertical_layout::arrange(
 {
     if (children.empty()) return;
 
-    float fixedTotal = 0.0f;
-    int flexCount = 0;
-    for (const auto& child : children) {
-        if (child->widget_style.height > 0) {
-            fixedTotal += static_cast<float>(child->widget_style.height);
-        } else {
-            ++flexCount;
-        }
-    }
-
-    float totalSpacing = spacing_ * std::max(0.0f, static_cast<float>(children.size()) - 1.0f);
-    float flexAvailable = bounds.height - fixedTotal - totalSpacing;
-    if (flexAvailable < 0.0f) flexAvailable = 0.0f;
-    float flexH = (flexCount > 0) ? (flexAvailable / static_cast<float>(flexCount)) : 0.0f;
-
     float currentY = bounds.y;
     for (auto& child : children) {
-        child->x = bounds.x;
-        child->width = bounds.width;
+        const auto& m = child->widget_style.margin;
+        float ml = static_cast<float>(m.left);
+        float mr = static_cast<float>(m.right);
+        float mt = static_cast<float>(m.top);
+        float mb = static_cast<float>(m.bottom);
+
+        child->x = bounds.x + ml;
+        child->width = std::max(0.0f, bounds.width - ml - mr);
 
         if (child->widget_style.height > 0) {
-            child->y = currentY;
+            child->y = currentY + mt;
             child->height = static_cast<float>(child->widget_style.height);
-            currentY += child->height + spacing_;
+            currentY += child->height + mt + mb + spacing_;
         } else {
-            child->y = currentY;
-            child->height = flexH;
-            currentY += flexH + spacing_;
+            // 先设宽度，再调用 layout() 让子 widget 自行更新高度
+            child->layout();
+            if (child->height <= 0.0f) {
+                size pref = child->layout_preferred_size();
+                child->height = pref.height;
+            }
+            child->y = currentY + mt;
+            currentY += child->height + mt + mb + spacing_;
         }
     }
 }
@@ -114,17 +119,32 @@ size vertical_layout::preferred_size(
     float w = 0.0f, h = 0.0f;
     bool first = true;
     for (const auto& child : children) {
-        size pref = child->layout_preferred_size();
-        h += pref.height;
+        const auto& m = child->widget_style.margin;
+        float ml = static_cast<float>(m.left);
+        float mr = static_cast<float>(m.right);
+        float mt = static_cast<float>(m.top);
+        float mb = static_cast<float>(m.bottom);
+        float dh;
+        if (child->widget_style.height > 0) {
+            dh = static_cast<float>(child->widget_style.height);
+        } else {
+            size pref = child->layout_preferred_size();
+            dh = pref.height;
+        }
+        h += dh + mt + mb;
+        float cw = (child->widget_style.width > 0)
+                    ? static_cast<float>(child->widget_style.width)
+                    : child->layout_preferred_size().width;
+        cw += ml + mr;
         if (first) {
-            w = pref.width;
+            w = cw;
             first = false;
         } else {
-            w = std::max(w, pref.width);
+            w = std::max(w, cw);
         }
     }
     h += spacing_ * std::max(0.0f, static_cast<float>(children.size()) - 1.0f);
     return {w, h};
 }
 
-} 
+} // namespace spiration
