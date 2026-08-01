@@ -1,17 +1,12 @@
 /**
  * @file extension_loader.cpp
- * @brief 跨平台动态库加载器实现。
+ * @brief 拓展加载器实现。
  * @author clk
  */
 
 #include <extension/extension_loader.h>
 #include <extension/extension.h>
-#include <extension/extension_api.h>
-#include <extension/extension_manifest.h>
-#include <utils/console.h>
-#include <utils/platform.h>
 
-#include <string>
 #include <fstream>
 #include <sstream>
 
@@ -23,8 +18,6 @@
 #endif
 
 namespace spiration {
-
-std::string extension_loader::s_last_error;
 
 void extension_loader::library_deleter::operator()(
     library_handle* handle) const {
@@ -48,27 +41,25 @@ extension_loader::lib_handle extension_loader::load_library(const std::string& p
 
     handle->mod = reinterpret_cast<void*>(LoadLibraryW(wpath.c_str()));
     if (!handle->mod) {
-        DWORD err = GetLastError();
-        s_last_error = "LoadLibraryW failed with error " + std::to_string(err);
-        console::error("extension_loader: %s", s_last_error.c_str());
+        console::error("extension/loader", "LoadLibraryW failed with error %s",
+                       std::to_string(GetLastError()).c_str());
         return lib_handle(nullptr);
     }
 #else
     handle->mod = dlopen(path.c_str(), RTLD_NOW | RTLD_LOCAL);
     if (!handle->mod) {
-        s_last_error = dlerror();
-        console::error("extension_loader: %s", s_last_error.c_str());
+        console::error("extension/loader", "%s", dlerror());
         return lib_handle(nullptr);
     }
 #endif
 
-    console::info("extension_loader: loaded library '%s'", path.c_str());
+    console::info("extension/loader", "loaded library \"%s\"", path.c_str());
     return result;
 }
 
 void* extension_loader::find_symbol(library_handle* handle, const std::string& symbol_name) {
     if (!handle || !handle->mod) {
-        s_last_error = "invalid library handle";
+        console::error("extension/loader", "invalid library handle");
         return nullptr;
     }
 
@@ -76,12 +67,12 @@ void* extension_loader::find_symbol(library_handle* handle, const std::string& s
     void* ptr = reinterpret_cast<void*>(
         GetProcAddress(static_cast<HMODULE>(handle->mod), symbol_name.c_str()));
     if (!ptr) {
-        s_last_error = "GetProcAddress: " + symbol_name + " failed";
+        console::error("extension/loader", "GetProcAddress: %s failed", symbol_name.c_str());
     }
 #else
     void* ptr = dlsym(handle->mod, symbol_name.c_str());
     if (!ptr) {
-        s_last_error = dlerror();
+        console::error("extension/loader", "%s", dlerror());
     }
 #endif
 
@@ -97,14 +88,14 @@ extension_loader::load_result extension_loader::load_extension_from(const std::s
     auto create_fn = reinterpret_cast<extension_create_func>(
         find_symbol(handle.get(), "create_extension"));
     if (!create_fn) {
-        console::error("extension_loader: no 'create_extension' symbol in '%s'",
+        console::error("extension/loader", "no \"create_extension\" symbol in \"%s\"",
                        path.c_str());
         return result;
     }
 
     extension* ext = create_fn();
     if (!ext) {
-        console::error("extension_loader: create_extension() returned null from '%s'",
+        console::error("extension/loader", "create_extension() returned null from \"%s\"",
                        path.c_str());
         return result;
     }
@@ -112,13 +103,9 @@ extension_loader::load_result extension_loader::load_extension_from(const std::s
     result.handle = std::move(handle);
     result.instance = ext;
 
-    console::info("extension_loader: loaded extension '%s' v%s from '%s'",
+    console::info("extension/loader", "loaded extension \"%s\" v%s from \"%s\"",
                   ext->name().c_str(), ext->version().c_str(), path.c_str());
     return result;
-}
-
-std::string extension_loader::last_error() {
-    return s_last_error;
 }
 
 std::string extension_loader::read_file_text(const std::string& path) {
@@ -150,14 +137,14 @@ extension_loader::load_result extension_loader::load_extension_from_dir(
                 if (result.instance) return result;
             }
         }
-        console::error("extension_loader: no extension.json or .dll/.so found in '%s'",
+        console::error("extension/loader", "no extension.json or .dll/.so found in '%s'",
                        dir_path.c_str());
         return result;
     }
 
     auto manifest = parse_extension_manifest(manifest_json);
     if (!manifest) {
-        console::error("extension_loader: failed to parse extension.json in '%s'",
+        console::error("extension/loader", "failed to parse extension.json in '%s'",
                        dir_path.c_str());
         return result;
     }

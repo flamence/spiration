@@ -6,6 +6,8 @@
 
 #pragma once
 
+#include <extension/extension_manager.h>
+
 #include <string>
 #include <vector>
 #include <memory>
@@ -17,7 +19,6 @@ namespace spiration {
 class renderer;
 class window;
 class tab;
-class root;
 class extension;
 
 /**
@@ -25,12 +26,7 @@ class extension;
  */
 class extension_api {
 public:
-    explicit extension_api(std::shared_ptr<window> win);
-
-    /**
-     * @brief 设置根控件引用。
-     */
-    void set_root(root* r) { root_ = r; }
+    explicit extension_api(std::string id);
 
     /**
      * @brief 获取渲染器实例。
@@ -85,6 +81,11 @@ public:
      * @brief 获取扩展数据目录。
      */
     std::string extension_data_dir(const std::string& extension_id) const;
+
+    /**
+     * @brief 获取本扩展所在的目录路径。
+     */
+    std::string extension_dir() const;
 
     /**
      * @brief 请求重绘窗口。
@@ -157,6 +158,22 @@ public:
      */
     void emit_event(const std::string& event, const std::string& data) const;
 
+    // ---- 拓展间服务查询 ----
+
+    /**
+     * @brief 查询其他拓展暴露的命名服务。
+     * @tparam T 期望的服务类型
+     * @param extension_id 目标拓展 ID
+     * @param name         服务名称
+     * @return 服务指针，不存在返回 nullptr
+     */
+    template<typename T>
+    T* get_service(const std::string& extension_id,
+                   const std::string& name) const {
+        return static_cast<T*>(
+            extension_manager::get_service(extension_id, name));
+    }
+
     /** @brief 扩展被加载事件名 */
     static constexpr const char* EVENT_EXTENSION_LOADED = "extension:loaded";
     /** @brief 扩展被卸载事件名 */
@@ -168,18 +185,12 @@ public:
     /** @brief 主题切换事件名 */
     static constexpr const char* EVENT_THEME_CHANGED = "theme:changed";
 
-    /**
-     * @brief 设置当前调用方扩展 ID。
-     */
-    void set_calling_extension(const std::string& id) const { current_ext_id_ = id; }
-
 private:
-    /** @brief 窗口实例。 */
-    std::shared_ptr<window> window_;
-    /** @brief 根控件指针。 */
-    root* root_ = nullptr;
     /** @brief 当前调用方扩展 ID。 */
-    mutable std::string current_ext_id_;
+    std::string id_;
+
+    std::string id() const;
+    std::string simple_id() const;
 };
 
 } // namespace spiration

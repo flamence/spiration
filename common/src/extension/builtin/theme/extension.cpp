@@ -5,16 +5,13 @@
  */
 
 #include <extension/builtin/theme/extension.h>
-#include <extension/extension_api.h>
-#include <ui/theme_manager.h>
-#include <utils/console.h>
 
 namespace spiration {
 namespace theme {
 
 bool extension::initialize() {
-    api_->register_theme_profile("dark");
-    api_->log_info("initialized (active: %s)", spiration::theme_manager::active().c_str());
+    api->register_theme_profile("dark");
+    api->log_info("initialized (active: %s)", spiration::theme_manager::active().c_str());
     return true;
 }
 

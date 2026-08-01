@@ -6,10 +6,16 @@
 
 #pragma once
 
+#include <utils/console.h>
+
+#include <cctype>
+#include <cstdlib>
 #include <string>
 #include <vector>
 #include <map>
 #include <optional>
+
+#include <nlohmann/json.hpp>
 
 namespace spiration {
 
@@ -28,9 +34,9 @@ struct manifest_data {
 };
 
 /**
- * @brief 解析 extension.json 文本为 manifest_data。
- * @param json extension.json 的 UTF-8 文本内容
- * @return 成功返回 manifest_data，失败返回 nullopt
+ * @brief 解析 extension.json 数据为 manifest_data。
+ * @param json extension.json 内容
+ * @return 成功返回 `manifest_data`，失败返回 `nullopt`
  */
 std::optional<manifest_data> parse_extension_manifest(const std::string& json);
 

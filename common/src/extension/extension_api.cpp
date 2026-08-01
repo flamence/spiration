@@ -1,6 +1,6 @@
 /**
- * @file extension_api_impl.cpp
- * @brief 扩展 API 上下文的默认实现。
+ * @file extension_api.cpp
+ * @brief 拓展 API 上下文。
  * @author clk
  */
 
@@ -10,35 +10,45 @@
 #include <ui/root.h>
 #include <ui/tab_bar.h>
 #include <ui/theme_manager.h>
-#include <utils/i18n.h>
+#include <extension/builtin/i18n/i18n.h>
 #include <utils/console.h>
 #include <utils/platform.h>
 #include <window/window.h>
 #include <renderer/renderer.h>
+#include <application.h>
 
 #include <cstdio>
 #include <cstdarg>
+#include <application.h>
 
 namespace spiration {
 
-extension_api::extension_api(std::shared_ptr<window> win)
-    : window_(std::move(win)) {}
+extension_api::extension_api(std::string id)
+    : id_(id) {}
 
 std::shared_ptr<renderer> extension_api::get_renderer() const {
     return nullptr;
 }
 
-std::shared_ptr<window> extension_api::get_window() const {
-    return window_;
-}
-
 std::string extension_api::tr(const std::string& key) const {
-    return i18n_manager::tr(key);
+    return i18n_manager::get().tr(key);
 }
 
 std::string extension_api::tr(const std::string& key,
                                     const std::vector<std::string>& args) const {
-    return i18n_manager::tr(key, args);
+    return i18n_manager::get().tr(key, args);
+}
+
+std::string extension_api::id() const {
+    return id_;
+}
+
+std::string extension_api::simple_id() const {
+    size_t pos = id().find_last_of('.');
+    if (pos != std::string::npos) {
+        return id().substr(pos + 1);
+    }
+    return id();
 }
 
 void extension_api::log_info(const char* fmt, ...) const {
@@ -46,8 +56,10 @@ void extension_api::log_info(const char* fmt, ...) const {
     va_start(args, fmt);
     char buf[1024];
     int n = vsnprintf(buf, sizeof(buf), fmt, args);
+    (void)n;
     va_end(args);
-    console::info("[%s] %s", current_ext_id_.c_str(), buf);
+    std::string tag = "extension/" + simple_id();
+    console::info(tag.c_str(), "%s", buf);
 }
 
 void extension_api::log_warning(const char* fmt, ...) const {
@@ -56,7 +68,8 @@ void extension_api::log_warning(const char* fmt, ...) const {
     char buf[1024];
     vsnprintf(buf, sizeof(buf), fmt, args);
     va_end(args);
-    console::warning("[%s] %s", current_ext_id_.c_str(), buf);
+    std::string tag = "extension/" + simple_id();
+    console::warning(tag.c_str(), "%s", buf);
 }
 
 void extension_api::log_error(const char* fmt, ...) const {
@@ -65,7 +78,8 @@ void extension_api::log_error(const char* fmt, ...) const {
     char buf[1024];
     vsnprintf(buf, sizeof(buf), fmt, args);
     va_end(args);
-    console::error("[%s] %s", current_ext_id_.c_str(), buf);
+    std::string tag = "extension/" + simple_id();
+    console::error(tag.c_str(), "%s", buf);
 }
 
 std::string extension_api::app_data_dir() const {
@@ -76,23 +90,28 @@ std::string extension_api::extension_data_dir(const std::string& extension_id) c
     return platform::join_path(platform::extension_directory(), extension_id);
 }
 
+std::string extension_api::extension_dir() const {
+    return extension_manager::extension_directory(id_);
+}
+
 void extension_api::request_repaint() const {
-    if (window_) {
-        window_->request_repaint();
+    auto window = spiration::application::instance()->window();
+    if (window) {
+        window->request_repaint();
     }
 }
 
 void extension_api::add_menu_item(const std::string& menu_name,
                                         const std::string& label,
                                         std::function<void()> callback) {
-    if (root_) {
-        root_->add_menu_item(menu_name, label, std::move(callback));
+    if (auto widget = dynamic_cast<spiration::root*>(spiration::application::instance()->widget())) {
+        widget->add_menu_item(menu_name, label, std::move(callback));
     }
 }
 
 void extension_api::open_tab(std::unique_ptr<tab> t) {
-    if (root_) {
-        root_->open_tab(std::move(t));
+    if (spiration::root* widget = dynamic_cast<spiration::root*>(spiration::application::instance()->widget())) {
+        widget->open_tab(std::move(t));
     }
 }
 

@@ -26,7 +26,6 @@ public:
     spiration::window* window() const;
 
 private:
-    std::unique_ptr<spiration::extension_manager> extension_;
     static std::unique_ptr<application> instance_;
     std::shared_ptr<spiration::window> window_;
     spiration::widget* widget_;

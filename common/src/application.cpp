@@ -12,7 +12,7 @@ namespace spiration {
 std::unique_ptr<application> application::instance_ = nullptr;
 
 void application::initialize() {
-    extension_ = std::make_unique<spiration::extension_manager>();
+    spiration::extension_manager::instance();
     std::string extDir = spiration::platform::extension_directory();
     size_t extCount = spiration::extension_manager::load_extensions_from(extDir);
     spiration::console::info("extension/manager", "loaded %zu extension(s)", extCount);
@@ -40,7 +40,7 @@ std::shared_ptr<spiration::window> application::create_window() {
 }
 
 spiration::extension_manager* application::extension() const {
-    return extension_.get();
+    return &spiration::extension_manager::instance();
 }
 
 application* application::instance() {

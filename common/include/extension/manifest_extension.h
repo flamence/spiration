@@ -1,6 +1,6 @@
 /**
  * @file manifest_extension.h
- * @brief 基于 extension.json 清单的扩展基类。
+ * @brief 带清单的拓展。
  * @author clk
  */
 
@@ -18,8 +18,8 @@ namespace spiration {
 class manifest_extension : public extension {
 public:
     /**
-     * @brief 从 manifest JSON 文本构造。
-     * @param manifest_json extension.json 的文件内容
+     * @brief 从 JSON 文本构造。
+     * @param manifest_json 清单内容
      */
     explicit manifest_extension(const std::string& manifest_json);
 
