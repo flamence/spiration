@@ -9,9 +9,9 @@
 #include <extension/builtin/agent/chat.h>
 
 #include <ui/button.h>
+#include <ui/container.h>
 #include <ui/layout.h>
 #include <ui/markdown.h>
-#include <ui/scroll_view.h>
 #include <ui/tab_bar.h>
 #include <ui/text_field.h>
 #include <ui/theme_manager.h>
@@ -50,7 +50,7 @@ public:
 
 private:
     chat_client* client_ = nullptr;
-    scroll_view* scroll_ = nullptr;
+    container*   scroll_ = nullptr;
     container*    msg_list_ = nullptr;
     text_field*   input_ = nullptr;
     button*       send_btn_ = nullptr;
