@@ -797,6 +797,14 @@ void metal_renderer::draw_image_subregion(const std::string& image_path, const r
     }
 }
 
+bool metal_renderer::query_image_size(const std::string& image_path, uint32_t& width, uint32_t& height) {
+    id<MTLTexture> texture = load_image_texture(image_path);
+    if (!texture) return false;
+    width = static_cast<uint32_t>(texture.width);
+    height = static_cast<uint32_t>(texture.height);
+    return true;
+}
+
 void metal_renderer::push_transform(float x, float y, float rotation, float scale_x, float scale_y) {
     m_TransformStack.push_back(m_CurrentTransform);
 

@@ -101,7 +101,7 @@ GLuint compile_shader_source(GLenum type, const char* source) {
     if (!compiled) {
         char info[512];
         glGetShaderInfoLog(shader, sizeof(info), nullptr, info);
-        console::error("OpenGL shader compilation failed (%d): %s", type, info);
+        console::error("opengl_renderer", "OpenGL shader compilation failed (%d): %s", type, info);
         glDeleteShader(shader);
         return 0;
     }
@@ -120,7 +120,7 @@ GLuint link_shader_program(GLuint vs, GLuint fs) {
     if (!linked) {
         char info[512];
         glGetProgramInfoLog(program, sizeof(info), nullptr, info);
-        console::error("OpenGL program link failed: %s", info);
+        console::error("opengl_renderer", "OpenGL program link failed: %s", info);
         glDeleteProgram(program);
         return 0;
     }
@@ -289,7 +289,7 @@ opengl_renderer& opengl_renderer::operator=(opengl_renderer&& other) noexcept {
 bool opengl_renderer::initialize(void* native_window_handle) {
     display_ = static_cast<Display*>(native_window_handle);
     if (!display_) {
-        console::error("opengl_renderer: invalid Display handle");
+        console::error("opengl_renderer", "invalid Display handle");
         return false;
     }
 
@@ -297,17 +297,17 @@ bool opengl_renderer::initialize(void* native_window_handle) {
     height_ = 600;
 
     if (!compile_shaders()) {
-        console::error("opengl_renderer: failed to compile shaders");
+        console::error("opengl_renderer", "failed to compile shaders");
         return false;
     }
 
     if (!create_buffers()) {
-        console::error("opengl_renderer: failed to create buffers");
+        console::error("opengl_renderer", "failed to create buffers");
         return false;
     }
 
     if (!init_freetype()) {
-        console::warning("opengl_renderer: FreeType init failed, text rendering disabled");
+        console::warning("opengl_renderer", "FreeType init failed, text rendering disabled");
     } else {
         init_cjk_fallback_font();
     }
@@ -320,7 +320,7 @@ bool opengl_renderer::initialize(void* native_window_handle) {
     mat4_ortho(proj_matrix_, 0.0f, static_cast<float>(width_),
                static_cast<float>(height_), 0.0f);
 
-    console::info("opengl_renderer initialized (%ux%u)", width_, height_);
+    console::info("opengl_renderer", "initialized (%ux%u)", width_, height_);
     return true;
 }
 
@@ -359,7 +359,7 @@ void opengl_renderer::shutdown() {
     destroy_shaders();
 
     display_ = nullptr;
-    console::info("opengl_renderer shutdown");
+    console::info("opengl_renderer", "shutdown");
 }
 
 void opengl_renderer::resize(uint32_t width, uint32_t height) {
@@ -452,7 +452,7 @@ void opengl_renderer::draw_text(const std::string& text, const point& position, 
 
     font_face* fface = get_font_face(font_family.empty() ? "DejaVuSans" : font_family, font_size);
     if (!fface || !fface->face) {
-        console::warning("draw_text: font face null for '%s'", font_family.c_str());
+        console::warning("text", "font face null for '%s'", font_family.c_str());
         return;
     }
 
@@ -628,6 +628,14 @@ void opengl_renderer::draw_image_subregion(const std::string& image_path, const 
     glDrawArrays(GL_TRIANGLES, 0, 6);
 
     glUniform1i(shape_shader_.u_use_texture, 0);
+}
+
+bool opengl_renderer::query_image_size(const std::string& image_path, uint32_t& width, uint32_t& height) {
+    image_resource* img = load_image(image_path);
+    if (!img) return false;
+    width = img->width;
+    height = img->height;
+    return true;
 }
 
 void opengl_renderer::push_transform(float x, float y, float rotation, float scale_x, float scale_y) {
@@ -945,16 +953,16 @@ bool opengl_renderer::init_cjk_fallback_font() {
     };
     std::string path = find_font_file(cjk_paths);
     if (path.empty()) {
-        console::warning("opengl_renderer: no CJK fallback font found");
+        console::warning("opengl_renderer", "no CJK fallback font found");
         return false;
     }
     FT_Face ft_face = nullptr;
     if (FT_New_Face(ft_library_, path.c_str(), 0, &ft_face) != 0) {
-        console::warning("opengl_renderer: failed to load CJK font: %s", path.c_str());
+        console::warning("opengl_renderer", "failed to load CJK font: %s", path.c_str());
         return false;
     }
     cjk_fallback_ = new font_face{ft_face, 0.0f};
-    console::info("opengl_renderer: loaded CJK fallback font from %s", path.c_str());
+    console::info("opengl_renderer", "loaded CJK fallback font from %s", path.c_str());
     return true;
 }
 
@@ -1013,12 +1021,12 @@ opengl_renderer::font_face* opengl_renderer::get_font_face(const std::string& fa
     }
 
     if (!font_faces_[key].face) {
-        console::warning("opengl_renderer: no font found for '%s'", family.c_str());
+        console::warning("opengl_renderer", "no font found for '%s'", family.c_str());
         font_faces_.erase(key);
         return nullptr;
     }
 
-    console::info("opengl_renderer: loaded font '%s' from %s",
+    console::info("opengl_renderer", "loaded font '%s' from %s",
                   family.c_str(), font_path.c_str());
 
     font_faces_[key].size = size;
@@ -1062,7 +1070,7 @@ opengl_renderer::glyph_info* opengl_renderer::get_glyph(font_face* face, char32_
         glyph_atlas_.row_height = 0;
     }
     if (glyph_atlas_.cursor_y + gh + 1 >= glyph_atlas_.height) {
-        console::warning("opengl_renderer: glyph atlas full");
+        console::warning("opengl_renderer", "glyph atlas full");
         return nullptr;
     }
 
@@ -1138,7 +1146,7 @@ opengl_renderer::image_resource* opengl_renderer::load_image(const std::string& 
     stbi_set_flip_vertically_on_load(1);
     unsigned char* data = stbi_load(path.c_str(), &w, &h, &channels, 4);
     if (!data) {
-        console::warning("opengl_renderer: failed to load image: %s", path.c_str());
+        console::warning("opengl_renderer", "failed to load image: %s", path.c_str());
         return nullptr;
     }
 

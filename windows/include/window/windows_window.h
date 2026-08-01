@@ -63,6 +63,8 @@ public:
     void request_repaint() override;
     void request_layout() override;
 
+    void set_cursor(cursor_type c) override;
+
     void set_on_close(void_function callback) override;
     void set_on_resize(void_function callback) override;
     void set_on_key(void_function callback) override;
@@ -70,6 +72,8 @@ public:
     void set_mouse_capture(bool capture) override;
 
     void set_widget(std::unique_ptr<widget> widget) override;
+
+    std::shared_ptr<class renderer> get_renderer() const override { return m_Renderer; }
 
     bool initialize(const window_params& params) override;
 
@@ -96,7 +100,7 @@ private:
     bool m_NeedsRepaint = true;
     bool m_NeedsLayout = true;
 
-    RECT m_WindowRectBeforeFullscreen = {0};
+    RECT m_WindowRectBeforeFullscreen = {};
     DWORD m_WindowStyleBeforeFullscreen = 0;
     DWORD m_WindowExStyleBeforeFullscreen = 0;
 

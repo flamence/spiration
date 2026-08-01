@@ -16,7 +16,9 @@ chat_tab::chat_tab(chat_client* client) : client_(client) {
     title_ = i18n_manager::get().tr("agent.chat_title");
     widget_style.background_color = theme_manager::get(theme_manager::CONTENT_BG);
 
-    auto sv = std::make_unique<scroll_view>();
+    auto sv = std::make_unique<container>();
+    sv->widget_style.overflow_y = true;
+    sv->widget_style.background_color = color::transparent();
     scroll_ = sv.get();
 
     auto ml = std::make_unique<container>();
@@ -120,7 +122,7 @@ void chat_tab::relayout_scroll_repaint() {
         w->layout();
         w = w->parent();
     }
-    if (scroll_) scroll_->scroll_to(99999.0f);
+    if (scroll_) scroll_->scroll_to_y(99999.0f);
     if (request_repaint_) request_repaint_();
 }
 
@@ -160,7 +162,7 @@ void chat_tab::process_stream_events() {
 void chat_tab::on_activate() {
     if (scroll_ && scroll_->width > 0) {
         scroll_->layout();
-        scroll_->scroll_to(99999.0f);
+        scroll_->scroll_to_y(99999.0f);
     }
     if (request_repaint_) request_repaint_();
 }

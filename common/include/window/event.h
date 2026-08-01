@@ -41,6 +41,7 @@ struct mouse_event_data {
     mouse_action action = mouse_action::move;
     bool consumed = false;
     int wheel_delta = 0;
+    bool shift = false;  // Shift 是否按住（Shift+滚轮 → 水平滚动）
 };
 
 

@@ -34,6 +34,7 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
     dwmapi
     comdlg32
     imm32
+    winhttp
 )
 
 if(WINDOWS_SOURCES MATCHES "\\.rc$")
@@ -73,3 +74,7 @@ set_target_properties(spiration PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/../bin
     WIN32_EXECUTABLE $<IF:$<CONFIG:Debug>,FALSE,TRUE>
 )
+
+if(MINGW)
+    target_link_options(spiration PRIVATE -Wl,--export-all-symbols)
+endif()

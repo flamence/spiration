@@ -112,7 +112,7 @@ static GLuint compile_shader(GLenum type, const char* src) {
     if (!ok) {
         char log[512];
         glGetShaderInfoLog(s, sizeof(log), nullptr, log);
-        console::error("ohos_renderer: shader compile error (%d): %s", type, log);
+        console::error("ohos_renderer", "shader compile error (%d): %s", type, log);
         glDeleteShader(s);
         return 0;
     }
@@ -128,7 +128,7 @@ static GLuint link_program(GLuint vs, GLuint fs) {
     if (!ok) {
         char log[512];
         glGetProgramInfoLog(p, sizeof(log), nullptr, log);
-        console::error("ohos_renderer: link error: %s", log);
+        console::error("ohos_renderer", "link error: %s", log);
         glDeleteProgram(p);
         return 0;
     }
@@ -145,22 +145,22 @@ ohos_renderer::~ohos_renderer() { shutdown(); }
 
 bool ohos_renderer::initialize(void* native_window_handle) {
     if (!init_egl(native_window_handle)) {
-        console::error("ohos_renderer: EGL init failed");
+        console::error("ohos_renderer", "EGL init failed");
         return false;
     }
     if (!init_shaders()) {
-        console::error("ohos_renderer: shader init failed");
+        console::error("ohos_renderer", "shader init failed");
         return false;
     }
     if (!create_buffers()) {
-        console::error("ohos_renderer: buffer init failed");
+        console::error("ohos_renderer", "buffer init failed");
         return false;
     }
 
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
-    console::info("ohos_renderer: initialized (%dx%d)", viewport_width_, viewport_height_);
+    console::info("ohos_renderer", "initialized (%dx%d)", viewport_width_, viewport_height_);
     return true;
 }
 
@@ -212,6 +212,9 @@ void ohos_renderer::check_resize() {
     last_egl_w_ = uw;
     last_egl_h_ = uh;
     if (uw == 0 || uh == 0) return;
+
+    physical_width_ = uw;
+    physical_height_ = uh;
 
     uint32_t vp_w = static_cast<uint32_t>(uw / density_);
     uint32_t vp_h = static_cast<uint32_t>(uh / density_);
@@ -494,6 +497,12 @@ void ohos_renderer::draw_text(const std::string& text, const point& position,
                               bool word_wrap) {
     if (text.empty()) return;
 
+    // 调试：打印文本渲染参数（已禁用）
+    // if (text.size() < 50) {
+    //     console::info("text", "draw \"%s\" at (%.1f,%.1f) size=%.1f",
+    //                   text.c_str(), position.x, position.y, font_size);
+    // }
+
     float dpi = density_ > 0.0f ? density_ : 1.0f;
 
     OH_Drawing_TypographyStyle* style = OH_Drawing_CreateTypographyStyle();
@@ -610,7 +619,7 @@ ohos_renderer::image_resource* ohos_renderer::load_image(const std::string& path
     int w = 0, h = 0, channels = 0;
     unsigned char* data = stbi_load(path.c_str(), &w, &h, &channels, 4);
     if (!data) {
-        console::warning("ohos_renderer: failed to load image: %s", path.c_str());
+        console::warning("ohos_renderer", "failed to load image: %s", path.c_str());
         return nullptr;
     }
 
@@ -695,9 +704,11 @@ void ohos_renderer::pop_transform() {
 void ohos_renderer::push_clip(const rectangle& rect) {
     if (!batch_.empty()) flush_batch();
 
+    // 变换到屏幕坐标（UI 坐标系）
     float x1 = rect.x, y1 = rect.y, x2 = rect.x + rect.width, y2 = rect.y + rect.height;
     transform_point(x1, y1);
     transform_point(x2, y2);
+    
     if (x1 > x2) std::swap(x1, x2);
     if (y1 > y2) std::swap(y1, y2);
 
@@ -706,24 +717,35 @@ void ohos_renderer::push_clip(const rectangle& rect) {
     if (iw < 0) iw = 0;
     if (ih < 0) ih = 0;
 
+    // 获取前一个 clip 区域（UI 坐标系）
     rectangle prev = clip_stack_.empty()
         ? rectangle{0.0f, 0.0f, static_cast<float>(viewport_width_), static_cast<float>(viewport_height_)}
         : clip_stack_.back();
     int px = static_cast<int>(prev.x), py = static_cast<int>(prev.y);
     int pw = static_cast<int>(prev.width), ph = static_cast<int>(prev.height);
 
+    // 计算交集
     int cx = std::max(ix, px), cy = std::max(iy, py);
     int cw = std::min(ix + iw, px + pw) - cx;
     int ch = std::min(iy + ih, py + ph) - cy;
     if (cw < 0) cw = 0; if (ch < 0) ch = 0;
 
+    // 存储 UI 坐标系，glScissor 时转换
     clip_stack_.push_back({static_cast<float>(cx), static_cast<float>(cy),
                            static_cast<float>(cw), static_cast<float>(ch)});
     if (clip_stack_.size() == 1) glEnable(GL_SCISSOR_TEST);
     auto& c = clip_stack_.back();
-    glScissor(static_cast<GLint>(c.x),
-              static_cast<GLint>(static_cast<float>(viewport_height_) - c.y - c.height),
-              static_cast<GLsizei>(c.width), static_cast<GLsizei>(c.height));
+
+    // UI 坐标系 → OpenGL 坐标系（像素坐标）
+    // glScissor 使用窗口坐标（像素），需要乘以 density_
+    float density = density_ > 0.0f ? density_ : 1.0f;
+    GLint gl_x = static_cast<GLint>(c.x * density);
+    // 使用物理像素高度进行 Y 轴翻转
+    GLint gl_y = static_cast<GLint>(physical_height_ - (c.y + c.height) * density_);
+    GLsizei gl_w = static_cast<GLsizei>(c.width * density);
+    GLsizei gl_h = static_cast<GLsizei>(c.height * density);
+
+    glScissor(gl_x, gl_y, gl_w, gl_h);
 }
 
 void ohos_renderer::pop_clip() {
@@ -734,9 +756,13 @@ void ohos_renderer::pop_clip() {
         glDisable(GL_SCISSOR_TEST);
     } else {
         auto& c = clip_stack_.back();
-        glScissor(static_cast<GLint>(c.x),
-                  static_cast<GLint>(static_cast<float>(viewport_height_) - c.y - c.height),
-                  static_cast<GLsizei>(c.width), static_cast<GLsizei>(c.height));
+        // UI 坐标系 → OpenGL 坐标系（像素坐标）
+        float density = density_ > 0.0f ? density_ : 1.0f;
+        // 使用物理像素高度进行 Y 轴翻转
+        glScissor(static_cast<GLint>(c.x * density),
+                  static_cast<GLint>(physical_height_ - (c.y + c.height) * density),
+                  static_cast<GLsizei>(c.width * density),
+                  static_cast<GLsizei>(c.height * density));
     }
 }
 
@@ -749,9 +775,17 @@ void ohos_renderer::draw_rounded_rectangle(const rectangle& rect, const color& f
     float rc = fill_color.r, gc = fill_color.g, bc = fill_color.b, ac = fill_color.a * current_alpha_;
     if (batch_has_texture_) flush_batch();
 
-    push_rect_verts(x + r2, y, w - r2 * 2.0f, h, rc, gc, bc, ac);
-    push_rect_verts(x, y + r2, r2, h - r2 * 2.0f, rc, gc, bc, ac);
-    push_rect_verts(x + w - r2, y + r2, r2, h - r2 * 2.0f, rc, gc, bc, ac);
+    // 应用变换到矩形的四个角点
+    float x1 = x + r2, y1 = y;
+    float x2 = x + w - r2, y2 = y + h;
+    transform_point(x1, y1);
+    transform_point(x2, y2);
+    float tw = x2 - x1, th = y2 - y1;
+    float tr2 = r2; // 圆角半径在变换后保持不变（假设无缩放）
+
+    push_rect_verts(x1 + tr2, y1, tw - tr2 * 2.0f, th, rc, gc, bc, ac);
+    push_rect_verts(x1, y1 + tr2, tr2, th - tr2 * 2.0f, rc, gc, bc, ac);
+    push_rect_verts(x2 - tr2, y1 + tr2, tr2, th - tr2 * 2.0f, rc, gc, bc, ac);
 
     constexpr int SEGS = 8;
     float cxs[4] = {x + r2, x + w - r2, x + w - r2, x + r2};
@@ -764,8 +798,8 @@ void ohos_renderer::draw_rounded_rectangle(const rectangle& rect, const color& f
             float a0 = sa[q] + 1.5708f * (i - 1) / SEGS;
             float a1 = sa[q] + 1.5708f * i / SEGS;
             batch_.push_back({cx, cy, 0, 0, rc, gc, bc, ac});
-            batch_.push_back({cx + r2 * std::cos(a0), cy + r2 * std::sin(a0), 0, 0, rc, gc, bc, ac});
-            batch_.push_back({cx + r2 * std::cos(a1), cy + r2 * std::sin(a1), 0, 0, rc, gc, bc, ac});
+            batch_.push_back({cx + tr2 * std::cos(a0), cy + tr2 * std::sin(a0), 0, 0, rc, gc, bc, ac});
+            batch_.push_back({cx + tr2 * std::cos(a1), cy + tr2 * std::sin(a1), 0, 0, rc, gc, bc, ac});
         }
     }
     if (batch_.size() >= MAX_BATCH_VERTS) flush_batch();
@@ -780,10 +814,17 @@ void ohos_renderer::draw_rounded_rectangle_outline(const rectangle& rect, const 
     float hw = stroke_width * 0.5f;
     float rc = stroke_color.r, gc = stroke_color.g, bc = stroke_color.b, ac = stroke_color.a * current_alpha_;
 
-    push_rect_verts(x + r2, y - hw, w - r2 * 2.0f, stroke_width, rc, gc, bc, ac);
-    push_rect_verts(x + r2, y + h - hw, w - r2 * 2.0f, stroke_width, rc, gc, bc, ac);
-    push_rect_verts(x - hw, y + r2, stroke_width, h - r2 * 2.0f, rc, gc, bc, ac);
-    push_rect_verts(x + w - hw, y + r2, stroke_width, h - r2 * 2.0f, rc, gc, bc, ac);
+    // 应用变换到矩形的四个角点
+    float x1 = x, y1 = y;
+    float x2 = x + w, y2 = y + h;
+    transform_point(x1, y1);
+    transform_point(x2, y2);
+    float tw = x2 - x1, th = y2 - y1;
+
+    push_rect_verts(x1 + r2, y1 - hw, tw - r2 * 2.0f, stroke_width, rc, gc, bc, ac);
+    push_rect_verts(x1 + r2, y2 - hw, tw - r2 * 2.0f, stroke_width, rc, gc, bc, ac);
+    push_rect_verts(x1 - hw, y1 + r2, stroke_width, th - r2 * 2.0f, rc, gc, bc, ac);
+    push_rect_verts(x2 - hw, y1 + r2, stroke_width, th - r2 * 2.0f, rc, gc, bc, ac);
 }
 
 void ohos_renderer::set_blend_mode(bool enabled) {
@@ -805,6 +846,15 @@ float ohos_renderer::measure_text_width(const std::string& text, float font_size
                                         const std::string& font_family) {
     if (text.empty()) return 0.0f;
     return text.length() * font_size * 0.5f;
+}
+
+float ohos_renderer::measure_text_height(const std::string& text, float font_size,
+                                          const std::string& font_family,
+                                          float wrap_width) {
+    // 简单实现：假设单行文本，高度等于字体大小
+    // TODO: 实现多行文本高度计算（考虑 wrap_width）
+    if (text.empty()) return 0.0f;
+    return font_size;
 }
 
 } // namespace spiration

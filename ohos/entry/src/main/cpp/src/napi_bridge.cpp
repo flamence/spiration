@@ -7,7 +7,7 @@
 #include "napi_bridge.h"
 
 #include <utils/platform.h>
-#include <utils/i18n.h>
+#include <extension/builtin/i18n/i18n.h>
 #include <utils/console.h>
 #include <extension/extension_manager.h>
 #include <extension/extension_api.h>
@@ -18,17 +18,21 @@
 namespace spiration {
 namespace bridge {
 
+using spiration::i18n_manager;
+using spiration::console;
+using spiration::platform;
+
 static std::shared_ptr<extension_api> s_api_context = nullptr;
 
 bool initialize_runtime(const std::string& data_dir) {
     std::string langDir = data_dir + "/lang";
     std::string sysLocale = platform::system_locale();
 
-    i18n::load("zh-CN", langDir + "/zh-CN.txt");
-    i18n::load(sysLocale, langDir + "/" + sysLocale + ".txt");
-    i18n::set_locale(sysLocale);
+    i18n_manager::get().load("zh-CN", langDir + "/zh-CN.properties");
+    i18n_manager::get().load(sysLocale, langDir + "/" + sysLocale + ".properties");
+    i18n_manager::get().set_locale(sysLocale);
 
-    console::info("Spiration OHOS runtime initialized, locale: %s",
+    console::info("napi", "Spiration OHOS runtime initialized, locale: %s",
                   sysLocale.c_str());
 
     s_api_context = nullptr;
@@ -40,7 +44,7 @@ void shutdown_runtime() {
     if (s_api_context) {
         s_api_context.reset();
     }
-    console::info("Spiration OHOS runtime shutdown");
+    console::info("napi", "Spiration OHOS runtime shutdown");
 }
 
 static napi_value CreateString(napi_env env, const std::string& str) {
@@ -87,7 +91,7 @@ napi_value NapiTr(napi_env env, napi_callback_info info) {
     napi_value args[1];
     napi_get_cb_info(env, info, &argc, args, nullptr, nullptr);
     std::string key = GetStringArg(env, args[0]);
-    return CreateString(env, i18n::tr(key));
+    return CreateString(env, i18n_manager::get().tr(key));
 }
 
 napi_value NapiSetLocale(napi_env env, napi_callback_info info) {
@@ -95,12 +99,12 @@ napi_value NapiSetLocale(napi_env env, napi_callback_info info) {
     napi_value args[1];
     napi_get_cb_info(env, info, &argc, args, nullptr, nullptr);
     std::string locale = GetStringArg(env, args[0]);
-    i18n::set_locale(locale);
+    i18n_manager::get().set_locale(locale);
     return CreateString(env, locale);
 }
 
 napi_value NapiGetCurrentLocale(napi_env env, napi_callback_info info) {
-    return CreateString(env, i18n::get_locale());
+    return CreateString(env, i18n_manager::get().get_locale());
 }
 
 napi_value NapiLoadTranslation(napi_env env, napi_callback_info info) {
@@ -109,7 +113,7 @@ napi_value NapiLoadTranslation(napi_env env, napi_callback_info info) {
     napi_get_cb_info(env, info, &argc, args, nullptr, nullptr);
     std::string locale = GetStringArg(env, args[0]);
     std::string filepath = GetStringArg(env, args[1]);
-    bool ok = i18n::load(locale, filepath);
+    bool ok = i18n_manager::get().load(locale, filepath);
     napi_value result;
     napi_get_boolean(env, ok, &result);
     return result;

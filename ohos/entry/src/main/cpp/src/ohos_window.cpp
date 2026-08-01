@@ -136,4 +136,38 @@ void ohos_window::on_touch_event(float x, float y, int action) {
     }
 }
 
+void ohos_window::on_mouse_event(float x, float y, int action, int button) {
+    if (!root_widget_) return;
+
+    mouse_event_data mouse;
+    mouse.position.x = x;
+    mouse.position.y = y;
+
+    // 转换按钮：0=左键, 1=中键, 2=右键
+    switch (button) {
+        case 0: mouse.button = mouse_button::left; break;
+        case 1: mouse.button = mouse_button::middle; break;
+        case 2: mouse.button = mouse_button::right; break;
+        default: mouse.button = mouse_button::none; break;
+    }
+
+    // 转换动作：0=press, 1=release
+    mouse.action = (action == 0) ? mouse_action::down : mouse_action::up;
+
+    root_widget_->handle_event(event_type::mouse, &mouse);
+}
+
+void ohos_window::on_key_event(int key_code, unsigned int codepoint, bool ctrl, bool shift, bool alt, bool is_down) {
+    if (!root_widget_ || !is_down) return;  // 只处理按键按下事件
+
+    key_event_data key;
+    key.key_code = key_code;
+    key.codepoint = codepoint;
+    key.ctrl = ctrl;
+    key.shift = shift;
+    key.alt = alt;
+
+    root_widget_->handle_event(event_type::keyboard, &key);
+}
+
 } // namespace spiration

@@ -148,6 +148,7 @@ static int cocoa_key_to_vk(unsigned short keyCode) {
     data.position = { static_cast<float>(loc.x), static_cast<float>(loc.y) };
     data.button = mouse_button::left;
     data.action = mouse_action::down;
+    data.shift = ([event modifierFlags] & NSEventModifierFlagShift) != 0;
     if (win->get_widget()) {
         win->get_widget()->handle_event(event_type::mouse, &data);
     }
@@ -165,6 +166,7 @@ static int cocoa_key_to_vk(unsigned short keyCode) {
     data.position = { static_cast<float>(loc.x), static_cast<float>(loc.y) };
     data.button = mouse_button::left;
     data.action = mouse_action::up;
+    data.shift = ([event modifierFlags] & NSEventModifierFlagShift) != 0;
     if (win->get_widget()) {
         win->get_widget()->handle_event(event_type::mouse, &data);
     }
@@ -179,6 +181,7 @@ static int cocoa_key_to_vk(unsigned short keyCode) {
     data.position = { static_cast<float>(loc.x), static_cast<float>(loc.y) };
     data.button = mouse_button::right;
     data.action = mouse_action::down;
+    data.shift = ([event modifierFlags] & NSEventModifierFlagShift) != 0;
     if (win->get_widget()) {
         win->get_widget()->handle_event(event_type::mouse, &data);
     }
@@ -193,6 +196,7 @@ static int cocoa_key_to_vk(unsigned short keyCode) {
     data.position = { static_cast<float>(loc.x), static_cast<float>(loc.y) };
     data.button = mouse_button::right;
     data.action = mouse_action::up;
+    data.shift = ([event modifierFlags] & NSEventModifierFlagShift) != 0;
     if (win->get_widget()) {
         win->get_widget()->handle_event(event_type::mouse, &data);
     }
@@ -212,6 +216,7 @@ static int cocoa_key_to_vk(unsigned short keyCode) {
     mouse_event_data data;
     data.position = { static_cast<float>(loc.x), static_cast<float>(loc.y) };
     data.action = mouse_action::move;
+    data.shift = ([event modifierFlags] & NSEventModifierFlagShift) != 0;
     if (win->get_widget()) {
         win->get_widget()->handle_event(event_type::mouse, &data);
     }
@@ -264,6 +269,7 @@ static int cocoa_key_to_vk(unsigned short keyCode) {
     mouse_event_data data;
     data.position = { static_cast<float>(loc.x), static_cast<float>(loc.y) };
     data.action = mouse_action::move;
+    data.shift = ([event modifierFlags] & NSEventModifierFlagShift) != 0;
     if (win->get_widget()) {
         win->get_widget()->handle_event(event_type::mouse, &data);
     }
@@ -278,6 +284,7 @@ static int cocoa_key_to_vk(unsigned short keyCode) {
     data.position = { static_cast<float>(loc.x), static_cast<float>(loc.y) };
     data.action = mouse_action::wheel;
     data.wheel_delta = static_cast<int>([event scrollingDeltaY] * 10);
+    data.shift = ([event modifierFlags] & NSEventModifierFlagShift) != 0;
     if (win->get_widget()) {
         win->get_widget()->handle_event(event_type::mouse, &data);
     }
@@ -687,6 +694,26 @@ void Window::request_layout() {
     m_NeedsLayout = true;
 }
 
+void Window::set_cursor(cursor_type c) {
+    @autoreleasepool {
+        NSCursor* cur = [NSCursor arrowCursor];
+        switch (c) {
+        case cursor_type::text:        cur = [NSCursor IBeamCursor]; break;
+        case cursor_type::pointer:     cur = [NSCursor pointingHandCursor]; break;
+        case cursor_type::crosshair:   cur = [NSCursor crosshairCursor]; break;
+        case cursor_type::move:        cur = [NSCursor openHandCursor]; break;
+        case cursor_type::resize_h:    cur = [NSCursor resizeLeftRightCursor]; break;
+        case cursor_type::resize_v:    cur = [NSCursor resizeUpDownCursor]; break;
+        case cursor_type::resize_nwse: cur = [NSCursor closedHandCursor]; break;
+        case cursor_type::resize_nesw: cur = [NSCursor closedHandCursor]; break;
+        case cursor_type::forbidden:   cur = [NSCursor operationNotAllowedCursor]; break;
+        case cursor_type::default_cursor:
+        default:                       break;
+        }
+        [cur set];
+    }
+}
+
 void Window::set_on_close(void_function callback) { m_OnClose = callback; }
 void Window::set_on_resize(void_function callback) { m_OnResize = callback; }
 void Window::set_on_key(void_function callback) { m_OnKey = callback; }
@@ -704,7 +731,21 @@ void Window::set_mouse_capture(bool capture) {
 
 void Window::set_widget(std::unique_ptr<widget> widget) {
     m_Widget = std::move(widget);
+    if (m_Widget) {
+        m_Widget->set_repaint_callback([this]() { request_repaint(); });
+        m_Widget->set_window_action_callback([this](int action) {
+            switch (action) {
+                case widget::action_minimize: minimize(); break;
+                case widget::action_maximize:
+                    if (is_maximized()) restore(); else maximize();
+                    break;
+                case widget::action_restore:  restore();  break;
+                case widget::action_close:   close();     break;
+            }
+        });
+    }
     notify_widget_resize();
+    request_repaint();
 }
 
 bool Window::initialize(const window_params& params) {

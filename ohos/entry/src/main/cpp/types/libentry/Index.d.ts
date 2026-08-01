@@ -1,8 +1,9 @@
 /**
  * 初始化原生渲染器。
- * @param surfaceId XComponent 的 surface ID
+ * @param surfaceId XComponent 的 surface ID (字符串格式)
+ * @param density 屏幕像素密度
  */
-export function initNativeWindow(surfaceId: number, density: number): boolean;
+export function initNativeWindow(surfaceId: string, density: number): boolean;
 
 /**
  * 传递触摸事件到 C++ widget 树。
@@ -11,6 +12,33 @@ export function initNativeWindow(surfaceId: number, density: number): boolean;
  * @param action 触摸动作
  */
 export function onTouchEvent(x: number, y: number, action: number): void;
+
+/**
+ * 传递鼠标事件到 C++ widget 树。
+ * @param x 鼠标 X 坐标
+ * @param y 鼠标 Y 坐标
+ * @param action 动作（0=press, 1=release）
+ * @param button 按钮（0=左键, 1=中键, 2=右键）
+ */
+export function onMouseEvent(x: number, y: number, action: number, button: number): void;
+
+/**
+ * 传递键盘事件到 C++ widget 树。
+ * @param keyCode 键码（HarmonyOS KeyCode）
+ * @param codepoint Unicode 码点（文本输入）
+ * @param ctrl Ctrl 键是否按下
+ * @param shift Shift 键是否按下
+ * @param alt Alt 键是否按下
+ * @param isDown 是否按下（true=down, false=up）
+ */
+export function onKeyEvent(
+  keyCode: number,
+  codepoint: number,
+  ctrl: boolean,
+  shift: boolean,
+  alt: boolean,
+  isDown: boolean
+): void;
 
 export function onWindowResize(width: number, height: number, density: number): void;
 

@@ -23,7 +23,7 @@ uint32_t linux_window::next_window_id_ = 1;
 static int x11_error_handler(Display* display, XErrorEvent* event) {
     char buf[256];
     XGetErrorText(display, event->error_code, buf, sizeof(buf));
-    spiration::console::warning("X11 error: %s (request: %d, minor: %d)",
+    spiration::console::warning("x11", "error: %s (request: %d, minor: %d)",
                      buf, event->request_code, event->minor_code);
     return 0;
 }
@@ -393,6 +393,28 @@ void linux_window::request_layout() {
     needs_layout_ = true;
 }
 
+void linux_window::set_cursor(cursor_type c) {
+    if (!display_ || !window_) return;
+    unsigned int shape = XC_left_ptr;
+    switch (c) {
+    case cursor_type::text:        shape = XC_xterm; break;
+    case cursor_type::pointer:     shape = XC_hand1; break;
+    case cursor_type::crosshair:   shape = XC_crosshair; break;
+    case cursor_type::move:        shape = XC_fleur; break;
+    case cursor_type::resize_h:    shape = XC_sb_h_double_arrow; break;
+    case cursor_type::resize_v:    shape = XC_sb_v_double_arrow; break;
+    case cursor_type::resize_nwse: shape = XC_bottom_right_corner; break;
+    case cursor_type::resize_nesw: shape = XC_bottom_left_corner; break;
+    case cursor_type::forbidden:   shape = XC_X_cursor; break;
+    case cursor_type::default_cursor:
+    default:                       shape = XC_left_ptr; break;
+    }
+    Cursor cur = XCreateFontCursor(display_, shape);
+    XDefineCursor(display_, window_, cur);
+    XFreeCursor(display_, cur);
+    XFlush(display_);
+}
+
 void linux_window::set_on_close(void_function callback) { on_close_ = callback; }
 void linux_window::set_on_resize(void_function callback) { on_resize_ = callback; }
 void linux_window::set_on_key(void_function callback) { on_key_ = callback; }
@@ -410,8 +432,7 @@ void linux_window::set_mouse_capture(bool capture) {
 
 void linux_window::set_widget(std::unique_ptr<widget> widget) {
     widget_ = std::move(widget);
-    widget_->set_repaint_callback([this]() {
-    });
+    widget_->set_repaint_callback([this]() { request_repaint(); });
     widget_->set_window_action_callback([this](int action) {
         switch (action) {
             case widget::action_minimize: minimize(); break;
@@ -490,7 +511,7 @@ bool linux_window::initialize(const window_params& params) {
                             static_cast<int>(icon_data.size()));
             stbi_image_free(rgba);
         } else {
-            console::warning("Failed to load app icon from %s", iconPath.c_str());
+            console::warning("window", "Failed to load app icon from %s", iconPath.c_str());
         }
     }
 
@@ -547,7 +568,7 @@ void linux_window::shutdown() {
 bool linux_window::connect_to_x11() {
     auto* display = XOpenDisplay(nullptr);
     if (!display) {
-        console::error("Failed to open X11 display");
+        console::error("x11", "Failed to open X11 display");
         return false;
     }
     display_ = display;
@@ -558,7 +579,7 @@ bool linux_window::connect_to_x11() {
 
 bool linux_window::create_x11_window(const window_params& params) {
     if (!glx_visual_) {
-        console::error("create_x11_window: GLX visual not selected");
+        console::error("x11", "GLX visual not selected");
         return false;
     }
 
@@ -581,7 +602,7 @@ bool linux_window::create_x11_window(const window_params& params) {
                             &swa);
 
     if (!window_) {
-        console::error("Failed to create X11 window with GLX visual");
+        console::error("x11", "Failed to create X11 window with GLX visual");
         return false;
     }
 
@@ -655,7 +676,7 @@ bool linux_window::select_fb_config() {
     GLXFBConfig* fb_configs = glXChooseFBConfig(display, screen_number_,
                                                   visual_attrs, &fb_count);
     if (!fb_configs || fb_count == 0) {
-        console::error("No suitable GLX framebuffer config found");
+        console::error("x11", "No suitable GLX framebuffer config found");
         return false;
     }
 
@@ -665,7 +686,7 @@ bool linux_window::select_fb_config() {
     XFree(fb_configs);
 
     if (!glx_visual_) {
-        console::error("Failed to get XVisualInfo from GLX FB config");
+        console::error("x11", "Failed to get XVisualInfo from GLX FB config");
         return false;
     }
 
@@ -709,12 +730,12 @@ bool linux_window::create_gl_context() {
     }
 
     if (!gl_context_) {
-        console::error("Failed to create GLX context");
+        console::error("x11", "Failed to create GLX context");
         return false;
     }
 
     if (!glXMakeCurrent(display, window_, static_cast<GLXContext>(gl_context_))) {
-        console::error("Failed to make GLX context current");
+        console::error("x11", "Failed to make GLX context current");
         return false;
     }
 
@@ -1028,6 +1049,7 @@ void linux_window::handle_button_press(XButtonEvent* event) {
     data.position = { xDIP, yDIP };
     data.button = btn;
     data.action = mouse_action::down;
+    data.shift = (event->state & ShiftMask) != 0;
     data.consumed = false;
 
     if (widget_) {
@@ -1103,6 +1125,7 @@ void linux_window::handle_button_release(XButtonEvent* event) {
     data.position = { xDIP, yDIP };
     data.button = btn;
     data.action = mouse_action::up;
+    data.shift = (event->state & ShiftMask) != 0;
     data.consumed = false;
 
     if (widget_) {
@@ -1190,6 +1213,7 @@ void linux_window::handle_mouse_motion(XMotionEvent* event) {
     data.position = { xDIP, yDIP };
     data.button = mouse_button::none;
     data.action = mouse_action::move;
+    data.shift = (event->state & ShiftMask) != 0;
     data.consumed = false;
 
     if (widget_) {
@@ -1209,6 +1233,7 @@ void linux_window::handle_mouse_wheel(XButtonEvent* event, bool up) {
     data.button = mouse_button::none;
     data.action = mouse_action::wheel;
     data.wheel_delta = up ? 120 : -120;
+    data.shift = (event->state & ShiftMask) != 0;
     data.consumed = false;
 
     if (widget_) {

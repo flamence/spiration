@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <ui/cursor.h>
 #include <ui/widget.h>
 #include <memory>
 #include <string>
@@ -89,6 +90,11 @@ public:
      * @brief 请求在下一帧重新布局。
      */
     virtual void request_layout() {}
+
+    /**
+     * @brief 设置鼠标光标形状（平台实现；默认无操作）。
+     */
+    virtual void set_cursor(cursor_type c) { (void)c; }
     
     virtual void set_on_close(void_function callback) = 0;
     virtual void set_on_resize(void_function callback) = 0;
@@ -98,6 +104,11 @@ public:
     virtual void set_mouse_capture(bool capture) = 0;
 
     virtual void set_widget(std::unique_ptr<widget> widget) = 0;
+
+    /**
+     * @brief 获取当前平台渲染器，供子 widget 在布局阶段测量文本等使用。
+     */
+    virtual std::shared_ptr<class renderer> get_renderer() const = 0;
     
 protected:
     window();
@@ -107,6 +118,7 @@ private:
     virtual void shutdown() = 0;
     
     static std::shared_ptr<window> create_window(const window_params& params) {
+        (void)params;
         return nullptr;
     };
 };

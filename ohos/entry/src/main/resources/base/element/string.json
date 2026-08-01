@@ -11,6 +11,10 @@
     {
       "name": "EntryAbility_label",
       "value": "Spiration"
+    },
+    {
+      "name": "read_pasteboard_reason",
+      "value": "用于从剪贴板粘贴文本内容"
     }
   ]
 }
