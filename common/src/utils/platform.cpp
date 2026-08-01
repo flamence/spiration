@@ -13,6 +13,7 @@
 #ifdef _WIN32
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
+#include <shellapi.h>
 #elif defined(__OHOS__)
 #include <unistd.h>
 #include <sys/stat.h>
@@ -49,9 +50,11 @@ std::string platform::os_name() {
 #ifdef _WIN32
     typedef LONG (WINAPI* RtlGetVersionPtr)(PRTL_OSVERSIONINFOW);
     auto RtlGetVersion = reinterpret_cast<RtlGetVersionPtr>(
-        GetProcAddress(GetModuleHandleW(L"ntdll"), "RtlGetVersion"));
+        reinterpret_cast<void*>(
+            GetProcAddress(GetModuleHandleW(L"ntdll"), "RtlGetVersion")));
     if (RtlGetVersion) {
-        RTL_OSVERSIONINFOW vi = { sizeof(vi) };
+        RTL_OSVERSIONINFOW vi = {};
+        vi.dwOSVersionInfoSize = sizeof(vi);
         if (RtlGetVersion(&vi) == 0) {
             return "Windows " + std::to_string(vi.dwMajorVersion) +
                    "." + std::to_string(vi.dwMinorVersion) +
@@ -80,9 +83,11 @@ std::string platform::os_version() {
 #ifdef _WIN32
     typedef LONG (WINAPI* RtlGetVersionPtr)(PRTL_OSVERSIONINFOW);
     auto RtlGetVersion = reinterpret_cast<RtlGetVersionPtr>(
-        GetProcAddress(GetModuleHandleW(L"ntdll"), "RtlGetVersion"));
+        reinterpret_cast<void*>(
+            GetProcAddress(GetModuleHandleW(L"ntdll"), "RtlGetVersion")));
     if (RtlGetVersion) {
-        RTL_OSVERSIONINFOW vi = { sizeof(vi) };
+        RTL_OSVERSIONINFOW vi = {};
+        vi.dwOSVersionInfoSize = sizeof(vi);
         if (RtlGetVersion(&vi) == 0) {
             return std::to_string(vi.dwBuildNumber);
         }
@@ -288,7 +293,7 @@ std::vector<std::string> platform::list_directory(const std::string& path) {
 }
 
 std::string platform::extension_directory() {
-    return join_path(app_data_dir(), "extension");
+    return app_data_dir();
 }
 
 std::string platform::system_locale() {
@@ -354,6 +359,37 @@ std::string platform::system_locale() {
     }
 #endif
     return "zh-CN";
+}
+
+void platform::open_url(const std::string& url) {
+    if (url.empty()) return;
+#ifdef _WIN32
+    int wlen = MultiByteToWideChar(CP_UTF8, 0, url.c_str(), -1, nullptr, 0);
+    std::wstring wurl(static_cast<size_t>(wlen), L'\0');
+    MultiByteToWideChar(CP_UTF8, 0, url.c_str(), -1, &wurl[0], wlen);
+    HINSTANCE hr = ShellExecuteW(nullptr, L"open", wurl.c_str(),
+                                 nullptr, nullptr, SW_SHOWNORMAL);
+    if (reinterpret_cast<INT_PTR>(hr) <= 32)
+        console::warning("platform", "open_url failed: %s", url.c_str());
+#elif defined(__APPLE__)
+    std::string cmd = "open '";
+    for (char c : url) {
+        if (c == '\'') cmd += "'\\''";
+        else cmd += c;
+    }
+    cmd += "' >/dev/null 2>&1 &";
+    std::system(cmd.c_str());
+#elif defined(__linux__) && !defined(__OHOS__)
+    std::string cmd = "xdg-open '";
+    for (char c : url) {
+        if (c == '\'') cmd += "'\\''";
+        else cmd += c;
+    }
+    cmd += "' >/dev/null 2>&1 &";
+    std::system(cmd.c_str());
+#else
+    console::warning("platform", "open_url not supported on this platform: %s", url.c_str());
+#endif
 }
 
 } // namespace spiration
