@@ -38,27 +38,31 @@ public:
 
     /**
      * @brief 输出调试日志。
+     * @param tag 日志标签。
      */
-    static void debug(const char* format, ...);
+    static void debug(const char* tag, const char* format, ...);
 
     /**
      * @brief 输出普通信息日志。
+     * @param tag 日志标签。
      */
-    static void info(const char* format, ...);
+    static void info(const char* tag, const char* format, ...);
 
     /**
      * @brief 输出警告日志。
+     * @param tag 日志标签。
      */
-    static void warning(const char* format, ...);
+    static void warning(const char* tag, const char* format, ...);
 
     /**
      * @brief 输出错误日志。
+     * @param tag 日志标签。
      */
-    static void error(const char* format, ...);
+    static void error(const char* tag, const char* format, ...);
 
 private:
     static log_level s_level;
-    static void vprint(const char* prefix, const char* format, va_list args);
+    static void vprint(log_level level, const char* tag, const char* format, va_list args);
 };
 
 } 
