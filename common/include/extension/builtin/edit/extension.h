@@ -6,9 +6,10 @@
 
 #pragma once
 
+#include <application.h>
 #include <extension/builtin/edit/edit_tab.h>
+#include <extension/builtin/i18n/i18n.h>
 #include <extension/extension.h>
-#include <utils/i18n.h>
 #include <string>
 
 namespace spiration {
@@ -19,13 +20,15 @@ namespace edit {
  */
 class extension : public spiration::extension {
 public:
-    std::string id() const override          { return "com.flamence.spiration.edit"; }
-    std::string name() const override        { return i18n_manager::tr("extension.edit.name"); }
-    std::string version() const override     { return "0.1"; }
-    std::string description() const override { return i18n_manager::tr("extension.edit.description"); }
+    std::string id() const override          { return ID; }
+    std::string name() const override        { return api->tr("extension.edit.name"); }
+    std::string version() const override     { return "0.2"; }
+    std::string description() const override { return api->tr("extension.edit.description"); }
 
     bool initialize() override;
     void shutdown() override;
+
+    static inline std::string ID = "com.flamence.spiration.edit";
 
 private:
     /** @brief 所有打开的编辑器标签页指针列表。 */

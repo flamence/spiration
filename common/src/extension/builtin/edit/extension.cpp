@@ -1,34 +1,31 @@
-/**
- * @file extension.cpp
- * @brief 拓展入口。
- * @author clk
- */
-
 #include <extension/builtin/edit/extension.h>
 #include <extension/extension_api.h>
 #include <io/file_dialog.h>
+#include <ui/root.h>
+#include <ui/tab_bar.h>
 #include <ui/theme_manager.h>
 #include <utils/console.h>
+#include <application.h>
 
 namespace spiration {
 namespace edit {
 
 bool extension::initialize() {
-    if (!api_) return false;
+    if (!api) return false;
 
-    api_->add_menu_item("file", i18n_manager::tr("menu.file.new"), [this]() {
+    api->add_menu_item("menu.file", i18n_manager::get().tr("menu.file.new"), [this]() {
         new_editor_tab();
     });
 
-    api_->add_menu_item("file", i18n_manager::tr("menu.file.open"), [this]() {
+    api->add_menu_item("menu.file", i18n_manager::get().tr("menu.file.open"), [this]() {
         open_editor_tab();
     });
 
-    api_->add_menu_item("file", i18n_manager::tr("menu.file.save"), [this]() {
+    api->add_menu_item("menu.file", i18n_manager::get().tr("menu.file.save"), [this]() {
         save_current();
     });
 
-    api_->add_menu_item("file", i18n_manager::tr("menu.file.save_as"), [this]() {
+    api->add_menu_item("menu.file", i18n_manager::get().tr("menu.file.save_as"), [this]() {
         save_current_as();
     });
 
@@ -46,7 +43,7 @@ edit_tab* extension::active_editor() {
 }
 
 void extension::setup_editor_callbacks(edit_tab* tab) {
-    tab->set_repaint_callback([this]() { api_->request_repaint(); });
+    tab->set_repaint_callback([this]() { api->request_repaint(); });
     tab->set_save_callback([this]() { save_current(); });
     tab->set_activate_callback([this, tab]() {
     });
@@ -58,8 +55,8 @@ void extension::new_editor_tab() {
 
     auto* raw = tab.get();
     setup_editor_callbacks(raw);
-    api_->log_info("created new tab");
-    api_->open_tab(std::move(tab));
+    api->log_info("created new tab");
+    api->open_tab(std::move(tab));
 }
 
 void extension::open_editor_tab() {
@@ -70,8 +67,22 @@ void extension::open_editor_tab() {
     );
 
     if (path.empty()) {
-        api_->log_info("file dialog cancelled");
+        api->log_info("file dialog cancelled");
         return;
+    }
+
+    spiration::root* root = dynamic_cast<spiration::root*>(
+        spiration::application::instance()->widget());
+    if (root) {
+        auto* tb = root->get_tab_bar();
+        for (int i = 0; i < tb->tab_count(); ++i) {
+            auto* existing = dynamic_cast<edit_tab*>(tb->get_tab(i));
+            if (existing && existing->file_path() == path) {
+                tb->activate_tab(i);
+                api->log_info("switched to already-open tab: %s", path.c_str());
+                return;
+            }
+        }
     }
 
     std::string filename = path;
@@ -85,29 +96,29 @@ void extension::open_editor_tab() {
 
     auto* raw = tab.get();
     setup_editor_callbacks(raw);
-    api_->log_info("opened file: %s", path);
-    api_->open_tab(std::move(tab));
+    api->log_info("opened file: %s", path.c_str());
+    api->open_tab(std::move(tab));
 }
 
 void extension::save_current() {
     auto* editor = active_editor();
     if (!editor) {
-        api_->log_info("no active editor to save");
+        api->log_info("no active editor to save");
         return;
     }
     if (editor->save()) {
-        api_->log_info("saved: %s", editor->file_path());
+        api->log_info("saved: %s", editor->file_path().c_str());
     } else if (editor->file_path().empty()) {
         save_current_as();
     } else {
-        api_->log_warning("save failed: %s", editor->file_path());
+        api->log_warning("save failed: %s", editor->file_path().c_str());
     }
 }
 
 void extension::save_current_as() {
     auto* editor = active_editor();
     if (!editor) {
-        api_->log_info("no active editor to save");
+        api->log_info("no active editor to save");
         return;
     }
 
@@ -118,14 +129,14 @@ void extension::save_current_as() {
     );
 
     if (path.empty()) {
-        api_->log_info("save-as cancelled");
+        api->log_info("save-as cancelled");
         return;
     }
 
     if (editor->save_as(path)) {
-        api_->log_info("saved as: %s", path);
+        api->log_info("saved as: %s", path.c_str());
     } else {
-        api_->log_warning("save-as failed: %s", path);
+        api->log_warning("save-as failed: %s", path.c_str());
     }
 }
 
