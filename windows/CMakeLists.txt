@@ -78,3 +78,5 @@ set_target_properties(spiration PROPERTIES
 if(MINGW)
     target_link_options(spiration PRIVATE -Wl,--export-all-symbols)
 endif()
+
+spiration_setup_runtime(spiration)

@@ -66,3 +66,5 @@ set_target_properties(${PROJECT_NAME} PROPERTIES
 )
 
 target_link_options(${PROJECT_NAME} PRIVATE -rdynamic)
+
+spiration_setup_runtime(${PROJECT_NAME})
