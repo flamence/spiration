@@ -910,6 +910,35 @@ float metal_renderer::measure_text_width(const std::string& text, float font_siz
     }
 }
 
+float metal_renderer::measure_text_height(const std::string& text, float font_size,
+                                           const std::string& font_family,
+                                           float wrap_width) {
+    if (text.empty()) return 0.0f;
+
+    @autoreleasepool {
+        NSString* nsText = [NSString stringWithUTF8String:text.c_str()];
+        NSString* nsFontFamily = font_family.empty()
+            ? @"Arial" : [NSString stringWithUTF8String:font_family.c_str()];
+
+        NSFont* font = [NSFont fontWithName:nsFontFamily size:font_size];
+        if (!font) {
+            font = [NSFont systemFontOfSize:font_size];
+        }
+
+        NSDictionary* attrs = @{ NSFontAttributeName: font };
+        NSAttributedString* attrStr = [[NSAttributedString alloc] initWithString:nsText
+                                                                      attributes:attrs];
+        CTFramesetterRef framesetter = CTFramesetterCreateWithAttributedString(
+            (__bridge CFAttributedStringRef)attrStr);
+        CGSize constraints = CGSizeMake(wrap_width > 0.0f ? wrap_width : CGFLOAT_MAX,
+                                        CGFLOAT_MAX);
+        CGSize size = CTFramesetterSuggestFrameSizeWithConstraints(
+            framesetter, CFRangeMake(0, 0), nullptr, constraints, nullptr);
+        CFRelease(framesetter);
+        return static_cast<float>(size.height);
+    }
+}
+
 bool metal_renderer::init_metal() {
     @autoreleasepool {
         m_Device = MTLCreateSystemDefaultDevice();
