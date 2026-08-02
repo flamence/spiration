@@ -6,7 +6,9 @@ project(spiration VERSION 0.63 LANGUAGES C CXX)
 
 include(FetchContent)
 
-cmake_policy(SET CMP0135 NEW)
+if(POLICY CMP0135)
+    cmake_policy(SET CMP0135 NEW)
+endif()
 
 FetchContent_Declare(
   json
