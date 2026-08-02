@@ -61,10 +61,7 @@ static napi_value NapiRegisterStartMoveCallback(napi_env env, napi_callback_info
  */
 EXTERN_C_START
 static napi_value Init(napi_env env, napi_value exports) {
-    // 使用 ohos_application 单例初始化
-    spiration::ohos_application::instance()->initialize_early();
 
-    // 初始化剪贴板 NAPI 环境
     spiration::set_clipboard_napi_env(env);
 
     napi_value spirationNs;

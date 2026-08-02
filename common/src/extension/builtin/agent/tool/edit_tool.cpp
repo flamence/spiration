@@ -13,34 +13,15 @@
 #include <fstream>
 #include <string>
 
-#if defined(_WIN32) || defined(_WIN64)
-#ifndef WIN32_LEAN_AND_MEAN
-#define WIN32_LEAN_AND_MEAN
-#endif
-#ifndef NOMINMAX
-#define NOMINMAX
-#endif
-#include <windows.h>
-#endif
+#include <utils/path.h>
 
 namespace spiration {
 namespace agent {
 
 namespace {
 
-std::filesystem::path u8path(const std::string& s) {
-#ifdef _WIN32
-    int wlen = MultiByteToWideChar(CP_UTF8, 0, s.c_str(), -1, nullptr, 0);
-    std::wstring w(wlen - 1, L'\0');
-    MultiByteToWideChar(CP_UTF8, 0, s.c_str(), -1, &w[0], wlen);
-    return std::filesystem::path(w);
-#else
-    return std::filesystem::path(s);
-#endif
-}
-
 bool write_file(const std::string& path, const std::string& content) {
-    auto p = u8path(path);
+    auto p = path::u8path(path);
     std::error_code ec;
     if (p.has_parent_path()) std::filesystem::create_directories(p.parent_path(), ec);
     std::ofstream f(p, std::ios::binary | std::ios::trunc);
@@ -50,7 +31,7 @@ bool write_file(const std::string& path, const std::string& content) {
 }
 
 bool read_file(const std::string& path, std::string& out) {
-    std::ifstream f(u8path(path), std::ios::binary);
+    std::ifstream f(path::u8path(path), std::ios::binary);
     if (!f) return false;
     std::string buf;
     char chunk[65536];
@@ -128,7 +109,7 @@ std::string create_directory_tool::execute(const std::string& args_json) {
     }
     if (path.empty()) return "[error] missing 'path'";
     std::error_code ec;
-    std::filesystem::create_directories(u8path(path), ec);
+    std::filesystem::create_directories(path::u8path(path), ec);
     if (ec) return "[error] create_directory failed: " + path + " (" + ec.message() + ")";
     console::info("edit_tool", "created directory: %s", path.c_str());
     return "ok";
@@ -251,7 +232,7 @@ std::string rename_tool::execute(const std::string& args_json) {
     }
     if (path.empty() || new_path.empty()) return "[error] missing 'path' or 'new_path'";
     std::error_code ec;
-    std::filesystem::rename(u8path(path), u8path(new_path), ec);
+    std::filesystem::rename(path::u8path(path), path::u8path(new_path), ec);
     if (ec) return "[error] rename failed: " + path + " -> " + new_path + " (" + ec.message() + ")";
     console::info("edit_tool", "renamed: %s -> %s", path.c_str(), new_path.c_str());
     return "ok";
@@ -284,7 +265,7 @@ std::string delete_tool::execute(const std::string& args_json) {
     }
     if (path.empty()) return "[error] missing 'path'";
     std::error_code ec;
-    auto p = u8path(path);
+    auto p = path::u8path(path);
     bool is_dir = std::filesystem::is_directory(p, ec);
     if (ec) return "[error] delete failed (stat): " + path + " (" + ec.message() + ")";
     if (is_dir) std::filesystem::remove_all(p, ec);

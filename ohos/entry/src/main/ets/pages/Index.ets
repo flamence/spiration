@@ -26,10 +26,23 @@ struct Index {
   private isInputMethodAttached: boolean = false;
 
   aboutToAppear(): void {
+    this.initDataDir();
     this.registerWindowActions();
     this.loadSystemInfo();
     this.initLangResources();
     this.initInputMethod();
+  }
+
+  /**
+   * 通过 Context API 向 C++ 侧注入沙箱数据目录（替代硬编码路径）。
+   * 必须在任何 platform::app_data_dir() 使用之前调用。
+   */
+  private initDataDir(): void {
+    try {
+      const ctx = GlobalContext.getInstance().getValue('abilityContext') as AbilityContext;
+      nativeEntry.spiration.platform.setDataDir(ctx.filesDir);
+    } catch (err) {
+    }
   }
 
   private registerWindowActions(): void {

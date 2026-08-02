@@ -15,12 +15,6 @@
 namespace spiration {
 namespace agent {
 
-#ifdef OHOS_PLATFORM
-std::unique_ptr<terminal_session> create_terminal_session(const std::string&) {
-    return nullptr;
-}
-#endif
-
 terminal_manager& terminal_manager::instance() {
     static terminal_manager inst;
     return inst;
