@@ -43,12 +43,6 @@ cmake --build ./build
 > 目前仅通过 [Release](https://github.com/flamence/spiration/releases) 发布。
 > [CoolCLK/build-hap](#) 由于构建需要 Git LFS、Cache 而被放弃。
 
-## 拓展功能
-
-|名称|说明|仓库|
-|---|---|---|
-|`edit`|提供编辑文件的功能。|[flamence/spiration-edit](https://github/flamence/spiration-edit)|
-
 ## 贡献支持
 
 详见 [CONTRIBUTING.md](CONTRIBUTION.md)
@@ -56,7 +50,3 @@ cmake --build ./build
 ## 协议许可
 
 详见 [LICENSE](LICENSE)。
-
-同时提供了简体中文版本 [LICENSE.zh-CN](LICENSE.zh-CN)，
-参考自 [【英译中】Apache-2.0](https://openatom.org/journalism/article/rYJ6HgQ5vxex)，
-仅为便于阅读、理解、研讨而翻译。
