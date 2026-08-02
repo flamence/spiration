@@ -22,7 +22,7 @@ class extension : public spiration::extension {
 public:
     std::string id() const override          { return ID; }
     std::string name() const override        { return api->tr("extension.edit.name"); }
-    std::string version() const override     { return "0.2"; }
+    std::string version() const override     { return "0.3"; }
     std::string description() const override { return api->tr("extension.edit.description"); }
 
     bool initialize() override;

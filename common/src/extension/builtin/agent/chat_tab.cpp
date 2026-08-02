@@ -13,7 +13,7 @@ namespace spiration {
 namespace agent {
 
 chat_tab::chat_tab(chat_client* client) : client_(client) {
-    title_ = i18n_manager::get().tr("agent.chat_title");
+    title_ = i18n_manager::get().tr("tab.agent");
     widget_style.background_color = theme_manager::get(theme_manager::CONTENT_BG);
 
     auto sv = std::make_unique<container>();
@@ -40,14 +40,14 @@ chat_tab::chat_tab(chat_client* client) : client_(client) {
     bar->add_child(std::move(lp));
 
     auto tf = std::make_unique<text_field>();
-    tf->placeholder = i18n_manager::get().tr("agent.input_placeholder");
+    tf->placeholder = i18n_manager::get().tr("tab.agent.input_placeholder");
     tf->font_size = 13.0f;
     tf->on_submit = [this](const std::string&) { send(); };
     input_ = tf.get();
     bar->add_child(std::move(tf));
 
     auto btn = std::make_unique<button>();
-    btn->text = i18n_manager::get().tr("agent.send");
+    btn->text = i18n_manager::get().tr("tab.agent.send");
     btn->width = 56.0f;
     btn->widget_style.width = 56;
     btn->hover_color = theme_manager::get(theme_manager::BUTTON_HOVER);
@@ -62,10 +62,6 @@ chat_tab::chat_tab(chat_client* client) : client_(client) {
     bar->add_child(std::move(rp));
 
     add_child(std::move(bar));
-
-    if (client_ && false) {
-        add_message("assistant", i18n_manager::get().tr("agent.welcome"));
-    }
 }
 
 void chat_tab::paint(std::shared_ptr<renderer> renderer) {
@@ -148,11 +144,11 @@ void chat_tab::process_stream_events() {
             }
             case stream_event::type::tool_call:
                 stream_label_ = nullptr;
-                add_message("assistant", "[工具调用: " + ev.text + "]");
+                add_message("assistant", i18n_manager::get().tr("chat.tool_call", {ev.text}));
                 break;
             case stream_event::type::tool_result:
                 stream_label_ = nullptr;
-                add_message("tool", ev.text.empty() ? "[无输出]" : ev.text);
+                add_message("tool", ev.text.empty() ? i18n_manager::get().tr("chat.no_output") : ev.text);
                 break;
         }
     }
@@ -219,7 +215,7 @@ void chat_tab::send() {
             ev.t = stream_event::type::tool_result;
             ev.text = ex.result;
             if (ev.text.size() > 300)
-                ev.text = ev.text.substr(0, 300) + "\n...（结果已截断）";
+                ev.text = ev.text.substr(0, 300) + "\n" + i18n_manager::get().tr("chat.result_truncated");
             stream_events_.push_back(std::move(ev));
         };
 
@@ -227,7 +223,7 @@ void chat_tab::send() {
             return client_->run(10, events);
         });
     } else {
-        add_message("assistant", "[测试回显] " + text);
+        add_message("assistant", i18n_manager::get().tr("chat.echo") + " " + text);
     }
 
     if (request_repaint_) request_repaint_();
@@ -248,7 +244,7 @@ void chat_tab::tick(float dt_ms) {
                 if (send_btn_) send_btn_->enabled = true;
                 std::string err = e.what();
                 if (err.size() > 200) err = err.substr(0, 200);
-                add_message("assistant", "[请求失败] " + err);
+                add_message("assistant", i18n_manager::get().tr("chat.request_failed") + " " + err);
                 if (request_repaint_) request_repaint_();
                 return;
             }
@@ -267,7 +263,7 @@ void chat_tab::tick(float dt_ms) {
             }
 
             if (resp.content.empty() && resp.executions.empty()) {
-                add_message("assistant", "[未收到回复]");
+                add_message("assistant", i18n_manager::get().tr("chat.no_reply"));
             }
             stream_label_ = nullptr;
             if (request_repaint_) request_repaint_();

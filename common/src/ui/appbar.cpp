@@ -50,7 +50,7 @@ void appbar::init() {
               }
           }
       }});
-      m.sub_items.push_back({i18n_manager::get().tr("extensions"), [mbar = mbar.get()](){
+      m.sub_items.push_back({i18n_manager::get().tr("tab.extensions"), [mbar = mbar.get()](){
           for (auto* p = mbar->parent(); p; p = p->parent()) {
               if (auto* r = dynamic_cast<root*>(p)) {
                   auto et = std::make_unique<extension_tab>();

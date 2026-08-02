@@ -79,7 +79,7 @@ void extension_tab::paint(std::shared_ptr<renderer> renderer) {
     renderer->push_transform(0, -scroll_offset_y());
 
     renderer->draw_text_aligned(
-        i18n_manager::get().tr("extensions_title"),
+        i18n_manager::get().tr("tab.extensions.title"),
         {left_margin, top_margin, width - left_margin * 2, title_h},
         theme_manager::get(theme_manager::POPUP_TEXT),
         text_alignment::left, vertical_alignment::center, 18.0f);
@@ -89,7 +89,7 @@ void extension_tab::paint(std::shared_ptr<renderer> renderer) {
     if (extensions_.empty()) {
         float empty_h = lh(14.0f);
         renderer->draw_text_aligned(
-            i18n_manager::get().tr("no_extensions"),
+            i18n_manager::get().tr("tab.extensions.empty"),
             {left_margin, draw_y, width - left_margin * 2, empty_h},
             theme_manager::get(theme_manager::TEXT_MUTED),
             text_alignment::left, vertical_alignment::center, 14.0f);
@@ -98,23 +98,23 @@ void extension_tab::paint(std::shared_ptr<renderer> renderer) {
 
         float hint_h = lh(12.0f);
         renderer->draw_text_aligned(
-            i18n_manager::get().tr("extensions_hint"),
+            i18n_manager::get().tr("tab.extensions.hint"),
             {left_margin, draw_y, width - left_margin * 2, hint_h},
             theme_manager::get(theme_manager::TEXT_MUTED),
             text_alignment::left, vertical_alignment::center, 12.0f);
     } else {
         renderer->draw_text_aligned(
-            i18n_manager::get().tr("ext_name"),
+            i18n_manager::get().tr("tab.extension.name"),
             {left_margin, draw_y, name_col, header_h},
             theme_manager::get(theme_manager::SEPARATOR),
             text_alignment::left, vertical_alignment::center, 13.0f);
         renderer->draw_text_aligned(
-            i18n_manager::get().tr("ext_version"),
+            i18n_manager::get().tr("tab.extension.version"),
             {left_margin + name_col, draw_y, ver_col, header_h},
             theme_manager::get(theme_manager::SEPARATOR),
             text_alignment::left, vertical_alignment::center, 13.0f);
         renderer->draw_text_aligned(
-            i18n_manager::get().tr("ext_description"),
+            i18n_manager::get().tr("tab.extension.description"),
             {left_margin + name_col + ver_col, draw_y, desc_col, header_h},
             theme_manager::get(theme_manager::SEPARATOR),
             text_alignment::left, vertical_alignment::center, 13.0f);

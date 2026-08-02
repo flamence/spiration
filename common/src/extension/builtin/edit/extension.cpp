@@ -51,7 +51,7 @@ void extension::setup_editor_callbacks(edit_tab* tab) {
 }
 
 void extension::new_editor_tab() {
-    auto tab = std::make_unique<edit_tab>("Untitled");
+    auto tab = std::make_unique<edit_tab>(api->tr("edit.untitled"));
 
     auto* raw = tab.get();
     setup_editor_callbacks(raw);
@@ -61,8 +61,8 @@ void extension::new_editor_tab() {
 
 void extension::open_editor_tab() {
     std::string path = spiration::io::open_file(
-        "选择要编辑的文件",
-        "All Files (*.*)",
+        api->tr("file_dialog.open_title"),
+        api->tr("file_dialog.all_files"),
         {"*"}
     );
 
@@ -123,8 +123,8 @@ void extension::save_current_as() {
     }
 
     std::string path = spiration::io::save_file(
-        "另存为",
-        "All Files (*.*)",
+        api->tr("file_dialog.save_title"),
+        api->tr("file_dialog.all_files"),
         {"*"}
     );
 

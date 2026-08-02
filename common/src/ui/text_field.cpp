@@ -6,6 +6,7 @@
 
 #include <ui/text_field.h>
 #include <ui/context_menu.h>
+#include <extension/builtin/i18n/i18n.h>
 #include <window/event.h>
 #include <utils/clipboard.h>
 #include <algorithm>
@@ -389,17 +390,17 @@ void text_field::ensure_cursor_visible() {
 void text_field::open_context_menu(float mx, float my) {
     auto menu = std::make_unique<context_menu>();
     if (has_selection()) {
-        menu->add_item("复制", [this]() { clipboard::copy(selected_text()); });
-        menu->add_item("剪切", [this]() {
+        menu->add_item(i18n_manager::get().tr("context.copy"), [this]() { clipboard::copy(selected_text()); });
+        menu->add_item(i18n_manager::get().tr("context.cut"), [this]() {
             clipboard::copy(selected_text());
             delete_selection();
         });
     }
-    menu->add_item("粘贴", [this]() {
+    menu->add_item(i18n_manager::get().tr("context.paste"), [this]() {
         std::string t = clipboard::paste();
         if (!t.empty()) insert_at_cursor(t);
     });
-    menu->add_item("全选", [this]() {
+    menu->add_item(i18n_manager::get().tr("context.select_all"), [this]() {
         sel_anchor_ = 0;
         cursor_pos_ = text.size();
         selecting_ = true;
