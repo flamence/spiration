@@ -10,10 +10,12 @@
 #include <utils/console.h>
 #include <utils/platform.h>
 #include <stb_image.h>
+#include <clocale>
 #include <cmath>
 #include <chrono>
 #include <thread>
 #include <vector>
+#include <X11/Xutil.h>
 #include <X11/cursorfont.h>
 
 namespace spiration {
@@ -454,6 +456,21 @@ bool linux_window::initialize(const window_params& params) {
     XSetErrorHandler(x11_error_handler);
 
     if (!connect_to_x11()) return false;
+
+    // Atom 须在 create_x11_window（设 _NET_WM_NAME 标题）之前初始化，
+    // 否则 XChangeProperty 传入 0 触发 BadAtom (request: 18)
+    {
+        auto* display = display_;
+        delete_atom_ = XInternAtom(display, "WM_DELETE_WINDOW", False);
+        wm_state_atom_ = XInternAtom(display, "_NET_WM_STATE", False);
+        wm_state_fullscreen_atom_ = XInternAtom(display, "_NET_WM_STATE_FULLSCREEN", False);
+        wm_state_max_v_atom_ = XInternAtom(display, "_NET_WM_STATE_MAXIMIZED_VERT", False);
+        wm_state_max_h_atom_ = XInternAtom(display, "_NET_WM_STATE_MAXIMIZED_HORZ", False);
+        net_wm_name_atom_ = XInternAtom(display, "_NET_WM_NAME", False);
+        net_wm_icon_atom_ = XInternAtom(display, "_NET_WM_ICON", False);
+        utf8_string_atom_ = XInternAtom(display, "UTF8_STRING", False);
+    }
+
     if (!select_fb_config()) return false;
     if (!create_x11_window(params)) return false;
     if (!create_gl_context()) return false;
@@ -467,16 +484,7 @@ bool linux_window::initialize(const window_params& params) {
                  PointerMotionMask |
                  FocusChangeMask | VisibilityChangeMask);
 
-    delete_atom_ = XInternAtom(display, "WM_DELETE_WINDOW", False);
     XSetWMProtocols(display_, window_, &delete_atom_, 1);
-
-    wm_state_atom_ = XInternAtom(display, "_NET_WM_STATE", False);
-    wm_state_fullscreen_atom_ = XInternAtom(display, "_NET_WM_STATE_FULLSCREEN", False);
-    wm_state_max_v_atom_ = XInternAtom(display, "_NET_WM_STATE_MAXIMIZED_VERT", False);
-    wm_state_max_h_atom_ = XInternAtom(display, "_NET_WM_STATE_MAXIMIZED_HORZ", False);
-    net_wm_name_atom_ = XInternAtom(display, "_NET_WM_NAME", False);
-    net_wm_icon_atom_ = XInternAtom(display, "_NET_WM_ICON", False);
-    utf8_string_atom_ = XInternAtom(display, "UTF8_STRING", False);
 
     on_close_ = params.on_close;
     on_resize_ = params.on_resize;
@@ -605,6 +613,11 @@ bool linux_window::create_x11_window(const window_params& params) {
         console::error("x11", "Failed to create X11 window with GLX visual");
         return false;
     }
+
+    XClassHint class_hint = {};
+    class_hint.res_name = const_cast<char*>("spiration");
+    class_hint.res_class = const_cast<char*>("Spiration");
+    XSetClassHint(display_, window_, &class_hint);
 
     if (!params.title.empty()) {
         XStoreName(display_, window_, params.title.c_str());
@@ -956,10 +969,14 @@ void linux_window::handle_key_press(XKeyEvent* event) {
         static XIM xim = nullptr;
         static XIC xic = nullptr;
         if (!xim) {
+            // XIM 需要 locale 才能加载输入法；必须先 setlocale + XSetLocaleModifiers
+            setlocale(LC_ALL, "");
+            XSetLocaleModifiers("");
             xim = XOpenIM(display_, nullptr, nullptr, nullptr);
         }
         if (xim && !xic) {
-            xic = XCreateIC(xim, XNInputStyle, XIMPreeditNothing | XIMStatusNothing, nullptr);
+            xic = XCreateIC(xim, XNInputStyle, XIMPreeditNothing | XIMStatusNothing,
+                            XNClientWindow, window_, XNFocusWindow, window_, nullptr);
         }
         if (xic) {
             Status status;
@@ -968,6 +985,13 @@ void linux_window::handle_key_press(XKeyEvent* event) {
             if (len > 0 && status == XLookupChars) {
                 ked.codepoint = static_cast<unsigned int>(buf[0]);
             }
+        }
+        if (ked.codepoint == 0) {
+            // 无输入法时回退到 XLookupString，保证 ASCII 输入可用
+            char ascii_buf[8] = {};
+            KeySym ks;
+            int len = XLookupString(event, ascii_buf, sizeof(ascii_buf), &ks, nullptr);
+            if (len > 0) ked.codepoint = static_cast<unsigned char>(ascii_buf[0]);
         }
 
         widget_->handle_event(event_type::keyboard, &ked);

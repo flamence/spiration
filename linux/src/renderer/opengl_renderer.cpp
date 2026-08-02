@@ -459,8 +459,9 @@ void opengl_renderer::draw_text(const std::string& text, const point& position, 
     if (!batch_has_texture_ && !batch_.empty()) flush_batch();
 
     float r = text_color.r, g = text_color.g, b = text_color.b, a = text_color.a * alpha_;
+    float ascent = static_cast<float>(fface->face->size->metrics.ascender) / 64.0f;
     float cursor_x = position.x;
-    float cursor_y = position.y;
+    float cursor_y = position.y + ascent;
     transform_point(cursor_x, cursor_y);
     float line_start_x = cursor_x;
 
@@ -540,6 +541,10 @@ void opengl_renderer::draw_text_aligned(const std::string& text, const rectangle
 
     float text_width = measure_text_width(text, font_size, font_family);
     float text_height = font_size;
+    if (fface && fface->face && fface->face->size) {
+        text_height = (static_cast<float>(fface->face->size->metrics.ascender) -
+                       static_cast<float>(fface->face->size->metrics.descender)) / 64.0f;
+    }
 
     float x = bounds.x;
     switch (h_align) {
@@ -550,9 +555,9 @@ void opengl_renderer::draw_text_aligned(const std::string& text, const rectangle
 
     float y = bounds.y;
     switch (v_align) {
-        case vertical_alignment::top:    y = bounds.y + font_size; break;
-        case vertical_alignment::center: y = bounds.y + (bounds.height - text_height) * 0.5f + font_size; break;
-        case vertical_alignment::bottom: y = bounds.y + bounds.height - text_height + font_size; break;
+        case vertical_alignment::top:    y = bounds.y; break;
+        case vertical_alignment::center: y = bounds.y + (bounds.height - text_height) * 0.5f; break;
+        case vertical_alignment::bottom: y = bounds.y + bounds.height - text_height; break;
     }
 
     draw_text(text, point(x, y), text_color, font_size, font_family);
@@ -1126,8 +1131,13 @@ opengl_renderer::glyph_info* opengl_renderer::get_glyph(font_face* face, char32_
         glyph_atlas_.row_height = 0;
     }
     if (glyph_atlas_.cursor_y + gh + 1 >= glyph_atlas_.height) {
-        console::warning("opengl_renderer", "glyph atlas full");
-        return nullptr;
+        glyph_cache_.clear();
+        glDeleteTextures(1, &glyph_atlas_.texture_id);
+        glyph_atlas_.texture_id = 0;
+        glyph_atlas_.cursor_x = 1;
+        glyph_atlas_.cursor_y = 1;
+        glyph_atlas_.row_height = 0;
+        if (!init_glyph_atlas(&glyph_atlas_)) return nullptr;
     }
 
     if (gh > glyph_atlas_.row_height) {
