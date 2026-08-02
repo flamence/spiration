@@ -61,10 +61,14 @@ set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 
 function(spiration_setup_runtime target)
+    if(MINGW)
+        get_filename_component(MINGW_BIN_DIR ${CMAKE_CXX_COMPILER} DIRECTORY)
+    endif()
     add_custom_command(TARGET ${target} POST_BUILD
         COMMAND ${CMAKE_COMMAND}
             -DTARGET_EXE=$<TARGET_FILE:${target}>
             -DOUTPUT_DIR=$<TARGET_FILE_DIR:${target}>
+            -DMINGW_BIN_DIR=${MINGW_BIN_DIR}
             -P ${CMAKE_SOURCE_DIR}/cmake/CopyRuntimeDeps.cmake
     )
     if(APPLE)
