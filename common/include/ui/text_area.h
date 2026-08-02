@@ -161,7 +161,7 @@ private:
     ///< 水平滚动条是否可见。
     bool h_scroll_visible() const { return scroll_max_x() > 0.0f; }
 
-    void open_context_menu(float mx, float my);
+    void open_context_menu(float mx, float my) override;
 
     bool is_on_scrollbar(float px, float py) const;
     bool is_on_scrollbar_thumb(float px, float py) const;

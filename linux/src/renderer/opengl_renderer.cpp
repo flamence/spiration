@@ -822,6 +822,62 @@ float opengl_renderer::measure_text_width(const std::string& text, float font_si
     return width;
 }
 
+float opengl_renderer::measure_text_height(const std::string& text, float font_size,
+                                            const std::string& font_family,
+                                            float wrap_width) {
+    if (!ft_library_ || text.empty()) return 0.0f;
+
+    font_face* fface = get_font_face(font_family.empty() ? "DejaVuSans" : font_family, font_size);
+    if (!fface || !fface->face) return 0.0f;
+
+    float line_width = 0.0f;
+    float lines = 1.0f;
+    size_t i = 0;
+    while (i < text.size()) {
+        char32_t codepoint;
+        unsigned char c = static_cast<unsigned char>(text[i]);
+        if (c < 0x80) {
+            codepoint = c;
+            i += 1;
+        } else if ((c & 0xE0) == 0xC0 && i + 1 < text.size()) {
+            codepoint = (c & 0x1F) << 6 | (static_cast<unsigned char>(text[i + 1]) & 0x3F);
+            i += 2;
+        } else if ((c & 0xF0) == 0xE0 && i + 2 < text.size()) {
+            codepoint = (c & 0x0F) << 12 |
+                        (static_cast<unsigned char>(text[i + 1]) & 0x3F) << 6 |
+                        (static_cast<unsigned char>(text[i + 2]) & 0x3F);
+            i += 3;
+        } else if ((c & 0xF8) == 0xF0 && i + 3 < text.size()) {
+            codepoint = (c & 0x07) << 18 |
+                        (static_cast<unsigned char>(text[i + 1]) & 0x3F) << 12 |
+                        (static_cast<unsigned char>(text[i + 2]) & 0x3F) << 6 |
+                        (static_cast<unsigned char>(text[i + 3]) & 0x3F);
+            i += 4;
+        } else {
+            ++i;
+            continue;
+        }
+
+        if (codepoint == '\n') {
+            ++lines;
+            line_width = 0.0f;
+            continue;
+        }
+
+        glyph_info* gi = get_glyph(fface, codepoint);
+        float adv = gi ? gi->advance_x : font_size * 0.5f;
+
+        if (wrap_width > 0.0f && line_width + adv > wrap_width && line_width > 0.0f) {
+            ++lines;
+            line_width = adv;
+        } else {
+            line_width += adv;
+        }
+    }
+
+    return lines * font_size * 1.4f;
+}
+
 bool opengl_renderer::compile_shaders() {
     GLuint vs = compile_shader_source(GL_VERTEX_SHADER, SHAPE_VERTEX_SOURCE);
     if (!vs) return false;

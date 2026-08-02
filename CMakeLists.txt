@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.16)
-project(spiration VERSION 0.55 LANGUAGES C CXX)
+project(spiration VERSION 0.56 LANGUAGES C CXX)
 
 include(FetchContent)
 
@@ -41,7 +41,9 @@ endif()
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -frtti")
+if(NOT MSVC)
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -frtti")
+endif()
 
 if(WIN32)
     add_definitions(-DUNICODE -D_UNICODE)

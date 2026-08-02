@@ -61,7 +61,7 @@ private:
     void move_cursor(int delta);
     void ensure_cursor_visible();
     size_t hit_to_cursor(float mx, std::shared_ptr<renderer> r = nullptr) const;
-    void open_context_menu(float mx, float my);
+    void open_context_menu(float mx, float my) override;
 };
 
 }
