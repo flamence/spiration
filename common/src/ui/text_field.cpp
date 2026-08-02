@@ -286,7 +286,6 @@ void text_field::insert_at_cursor(const std::string& s) {
 
 void text_field::delete_before_cursor() {
     if (cursor_pos_ == 0) return;
-    // 回退到完整 UTF-8 字符起点（跳过连续字节后含前导字节），一次性删除整个字符
     size_t start = cursor_pos_;
     while (start > 0 &&
            (static_cast<unsigned char>(text[start - 1]) & 0xC0) == 0x80)
@@ -299,6 +298,7 @@ void text_field::delete_before_cursor() {
     selecting_ = false;
     cursor_blink_ = 0.0f;
     cursor_visible_ = true;
+    ensure_cursor_visible();
     if (on_changed) on_changed(text);
     if (request_repaint_) request_repaint_();
 }
@@ -313,6 +313,7 @@ void text_field::delete_after_cursor() {
             ++del;
     }
     text.erase(cursor_pos_, del);
+    ensure_cursor_visible();
     if (on_changed) on_changed(text);
     if (request_repaint_) request_repaint_();
 }
@@ -384,6 +385,15 @@ void text_field::ensure_cursor_visible() {
     } else if (cursor_px > scroll_x_ + avail_w) {
         scroll_x_ = cursor_px - avail_w;
     }
+    float total_w = 0.0f;
+    if (cached_renderer_) {
+        total_w = cached_renderer_->measure_text_width(
+            text, font_size, theme_manager::get_str(theme_manager::INPUT_FONT));
+    } else {
+        total_w = static_cast<float>(text.size()) * font_size * 0.60f;
+    }
+    float max_scroll = std::max(0.0f, total_w - avail_w);
+    if (scroll_x_ > max_scroll) scroll_x_ = max_scroll;
     if (scroll_x_ < 0) scroll_x_ = 0;
 }
 
