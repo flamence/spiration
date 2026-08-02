@@ -55,8 +55,14 @@ jobs:
         if: runner.os == 'Linux'
         shell: bash
         run: |
-          sudo apt-get update
-          sudo apt-get install -y libssl-dev libx11-dev libgl1-mesa-dev libfreetype-dev libxcb1-dev libxcb-randr0-dev
+          apt-get update
+          apt-get install -y wget lsb-release software-properties-common g++-10 python3-pip libssl-dev libx11-dev libgl1-mesa-dev libfreetype-dev libxcb1-dev libxcb-randr0-dev
+          pip3 install cmake
+          wget -q https://apt.llvm.org/llvm.sh
+          chmod +x llvm.sh
+          ./llvm.sh 18 clang
+          ln -sf /usr/bin/clang-18 /usr/local/bin/clang
+          ln -sf /usr/bin/clang++-18 /usr/local/bin/clang++
 
       - name: 设置复用变量
         id: strings
