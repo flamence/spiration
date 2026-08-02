@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.16)
 if(APPLE)
     set(CMAKE_OSX_DEPLOYMENT_TARGET "10.15" CACHE STRING "Minimum macOS deployment target")
 endif()
-project(spiration VERSION 0.58 LANGUAGES C CXX)
+project(spiration VERSION 0.59 LANGUAGES C CXX)
 
 include(FetchContent)
 
@@ -35,6 +35,10 @@ if(NOT CURL_FOUND)
     set(CURL_ENABLE_SSL ON CACHE BOOL "" FORCE)
     set(CURL_USE_SCHANNEL ON CACHE BOOL "" FORCE)
     set(CURL_WINDOWS_SSPI ON CACHE BOOL "" FORCE)
+    if(UNIX AND NOT APPLE)
+        set(OPENSSL_USE_STATIC_LIBS TRUE CACHE BOOL "" FORCE)
+        set(CURL_USE_OPENSSL ON CACHE BOOL "" FORCE)
+    endif()
     set(BUILD_CURL_EXE OFF CACHE BOOL "" FORCE)
     set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
     set(BUILD_TESTING OFF CACHE BOOL "" FORCE)
@@ -55,6 +59,24 @@ endif()
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
+
+function(spiration_setup_runtime target)
+    add_custom_command(TARGET ${target} POST_BUILD
+        COMMAND ${CMAKE_COMMAND}
+            -DTARGET_EXE=$<TARGET_FILE:${target}>
+            -DOUTPUT_DIR=$<TARGET_FILE_DIR:${target}>
+            -P ${CMAKE_SOURCE_DIR}/cmake/CopyRuntimeDeps.cmake
+    )
+    if(APPLE)
+        set_target_properties(${target} PROPERTIES
+            BUILD_RPATH "@loader_path"
+            INSTALL_RPATH "@loader_path")
+    elseif(UNIX)
+        set_target_properties(${target} PROPERTIES
+            BUILD_RPATH "$ORIGIN"
+            INSTALL_RPATH "$ORIGIN")
+    endif()
+endfunction()
 
 add_subdirectory(common)
 if(WIN32)
