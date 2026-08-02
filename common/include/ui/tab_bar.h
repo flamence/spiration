@@ -96,6 +96,7 @@ public:
     void paint(std::shared_ptr<renderer> renderer) override;
     void handle_event(const event_type& type, void* data) override;
     void tick(float dt_ms) override;
+    widget* hit_test_hover(float x, float y) const override;
 
     void add_tab(std::unique_ptr<tab> t);
     void activate_tab(int index);

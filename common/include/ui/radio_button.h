@@ -19,6 +19,9 @@ namespace spiration {
  */
 class radio_button : public widget {
 public:
+    radio_button() {
+        widget_style.cursor = cursor_type::pointer;
+    }
     std::string text;
     bool selected = false;
     std::function<void(bool)> on_changed;

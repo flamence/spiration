@@ -30,6 +30,7 @@ public:
     void paint(std::shared_ptr<renderer> renderer) override;
     void tick(float dt_ms) override;
     void handle_event(const event_type& type, void* data) override;
+    widget* hit_test_hover(float x, float y) const override;
 
     void show_popup(float x, float y, std::unique_ptr<popup_menu> popup);
     void dismiss_popup();

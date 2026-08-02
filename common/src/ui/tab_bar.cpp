@@ -162,6 +162,25 @@ void tab_bar::tick(float dt_ms) {
     container::tick(dt_ms);
 }
 
+widget* tab_bar::hit_test_hover(float x, float y) const {
+    if (!enabled) return nullptr;
+    if (x < 0.0f || x > width || y < 0.0f || y > height) return nullptr;
+
+    if (header_row_) {
+        if (widget* h = header_row_->hit_test_hover(x - header_row_->x,
+                                                    y - header_row_->y)) {
+            return h;
+        }
+    }
+    if (active_index_ >= 0 && active_index_ < static_cast<int>(tabs_.size())) {
+        const auto* t = tabs_[static_cast<size_t>(active_index_)].get();
+        if (widget* h = t->hit_test_hover(x - t->x, y - t->y)) {
+            return h;
+        }
+    }
+    return const_cast<tab_bar*>(this);
+}
+
 void tab_bar::handle_event(const event_type& type, void* data) {
     if (type == event_type::mouse) {
         auto* md = static_cast<mouse_event_data*>(data);

@@ -17,6 +17,10 @@ namespace spiration {
  */
 class toggle_switch : public widget {
 public:
+    toggle_switch() {
+        widget_style.cursor = cursor_type::pointer;
+    }
+
     bool active = false;
     std::function<void(bool)> on_changed;
 
