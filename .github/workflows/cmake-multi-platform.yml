@@ -57,7 +57,7 @@ jobs:
         run: |
           export DEBIAN_FRONTEND=noninteractive
           apt-get update
-          apt-get install -y wget lsb-release software-properties-common g++-10 python3-pip libssl-dev libx11-dev libgl1-mesa-dev libfreetype-dev libxcb1-dev libxcb-randr0-dev
+          apt-get install -y git wget lsb-release software-properties-common g++-10 python3-pip libssl-dev libx11-dev libgl1-mesa-dev libfreetype-dev libxcb1-dev libxcb-randr0-dev
           pip3 install cmake
           wget -q https://apt.llvm.org/llvm.sh
           chmod +x llvm.sh
