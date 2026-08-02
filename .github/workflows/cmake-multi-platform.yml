@@ -64,9 +64,9 @@ jobs:
           ./llvm.sh 18 clang
           ln -sf /usr/bin/clang-18 /usr/local/bin/clang
           ln -sf /usr/bin/clang++-18 /usr/local/bin/clang++
-          wget -q https://www.openssl.org/source/openssl-3.0.15.tar.gz
-          tar xzf openssl-3.0.15.tar.gz
-          cd openssl-3.0.15
+          wget -q https://www.openssl.org/source/openssl-3.5.7.tar.gz
+          tar xzf openssl-3.5.7.tar.gz
+          cd openssl-3.5.7
           ./config --prefix=/usr/local --libdir=lib
           make -j2
           make install_sw
