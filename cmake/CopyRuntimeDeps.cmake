@@ -2,12 +2,21 @@ if(NOT EXISTS "${TARGET_EXE}")
     return()
 endif()
 
-if(WIN32)
-    return()
-endif()
-
 if(NOT EXISTS "${OUTPUT_DIR}")
     file(MAKE_DIRECTORY "${OUTPUT_DIR}")
+endif()
+
+if(WIN32)
+    if(NOT MINGW_BIN_DIR)
+        return()
+    endif()
+    foreach(_dll libstdc++-6.dll libwinpthread-1.dll
+                 libgcc_s_seh-1.dll libgcc_s_sjlj-1.dll libgcc_s_dw2-1.dll)
+        if(EXISTS "${MINGW_BIN_DIR}/${_dll}")
+            file(COPY "${MINGW_BIN_DIR}/${_dll}" DESTINATION "${OUTPUT_DIR}")
+        endif()
+    endforeach()
+    return()
 endif()
 
 if(APPLE)
@@ -40,9 +49,11 @@ else()
         string(STRIP "${line}" line)
         if(line MATCHES "=> (/[^ ]+)")
             set(lib "${CMAKE_MATCH_1}")
-            if(NOT lib MATCHES "^/usr/" AND
-               NOT lib MATCHES "^/lib/" AND
-               NOT lib MATCHES "^/lib64/")
+            if(lib MATCHES "libstdc\\+\\+\\.so|libgcc_s\\.so")
+                file(COPY "${lib}" DESTINATION "${OUTPUT_DIR}")
+            elseif(NOT lib MATCHES "^/usr/" AND
+                   NOT lib MATCHES "^/lib/" AND
+                   NOT lib MATCHES "^/lib64/")
                 file(COPY "${lib}" DESTINATION "${OUTPUT_DIR}")
             endif()
         endif()
