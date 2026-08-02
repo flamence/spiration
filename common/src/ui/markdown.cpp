@@ -7,6 +7,7 @@
 #include <ui/markdown.h>
 #include <ui/theme_manager.h>
 #include <application.h>
+#include <extension/builtin/i18n/i18n.h>
 #include <utils/platform.h>
 
 #include <algorithm>
@@ -772,7 +773,7 @@ float markdown::draw_image_run(std::shared_ptr<renderer> r, const run& img, floa
         return dw;
     }
 
-    std::string label = "[图片]";
+    std::string label = i18n_manager::get().tr("markdown.image");
     if (!img.text.empty()) label += " " + img.text;
     float lw = r ? r->measure_text_width(label, font_size, mono_font())
                  : approx_width(label, font_size);

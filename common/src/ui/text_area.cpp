@@ -6,6 +6,7 @@
 
 #include <ui/text_area.h>
 #include <ui/context_menu.h>
+#include <extension/builtin/i18n/i18n.h>
 #include <utils/clipboard.h>
 #include <window/event.h>
 
@@ -334,11 +335,11 @@ void text_area::handle_event(const event_type& type, void* data) {
 void text_area::open_context_menu(float mx, float my) {
     auto menu = std::make_unique<context_menu>();
     if (has_selection()) {
-        menu->add_item("复制", [this]() { copy(); });
-        menu->add_item("剪切", [this]() { cut(); });
+        menu->add_item(i18n_manager::get().tr("context.copy"), [this]() { copy(); });
+        menu->add_item(i18n_manager::get().tr("context.cut"), [this]() { cut(); });
     }
-    menu->add_item("粘贴", [this]() { paste(); });
-    menu->add_item("全选", [this]() {
+    menu->add_item(i18n_manager::get().tr("context.paste"), [this]() { paste(); });
+    menu->add_item(i18n_manager::get().tr("context.select_all"), [this]() {
         select_all();
         if (request_repaint_) request_repaint_();
     });

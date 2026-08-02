@@ -70,7 +70,7 @@ bool extension::initialize() {
         api->log_info("agent extension initialized (no config at %s)", config_path.c_str());
     }
 
-    api->add_menu_item("menu.help", i18n_manager::get().tr("agent.menu_chat"), [this]() {
+    api->add_menu_item("menu.help", i18n_manager::get().tr("menu.help.agent"), [this]() {
         open_chat_tab();
     });
 

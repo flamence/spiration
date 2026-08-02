@@ -8,6 +8,7 @@
 #include <ui/theme_manager.h>
 #include <ui/context_menu.h>
 #include <application.h>
+#include <extension/builtin/i18n/i18n.h>
 #include <utils/clipboard.h>
 
 #include <algorithm>
@@ -195,22 +196,15 @@ void label::clear_selection() {
 
 void label::open_context_menu(float mx, float my) {
     auto menu = std::make_unique<context_menu>();
-    menu->add_item("复制", [this]() {
+    menu->add_item(i18n_manager::get().tr("context.copy"), [this]() {
         if (has_selection()) clipboard::copy(selected_text());
     });
-    menu->add_item("全选", [this]() {
+    menu->add_item(i18n_manager::get().tr("context.select_all"), [this]() {
         sel_anchor_ = 0;
         sel_pos_ = text.size();
         selecting_ = true;
         if (request_repaint_) request_repaint_();
     });
-    if (has_selection()) {
-        menu->add_separator();
-        menu->add_item("清除选择", [this]() {
-            clear_selection();
-            if (request_repaint_) request_repaint_();
-        });
-    }
     point sp = to_screen(mx, my);
     request_context_menu(sp.x, sp.y, std::move(menu));
 }

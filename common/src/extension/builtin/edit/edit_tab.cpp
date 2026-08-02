@@ -1,4 +1,5 @@
 #include <extension/builtin/edit/edit_tab.h>
+#include <extension/builtin/i18n/i18n.h>
 #include <ui/theme_manager.h>
 #include <utils/console.h>
 #include <algorithm>
@@ -20,7 +21,7 @@ namespace edit {
 #endif
 
 edit_tab::edit_tab() {
-    base_title_ = "Untitled";
+    base_title_ = i18n_manager::get().tr("edit.untitled");
     title_ = base_title_;
     widget_style.background_color = theme_manager::get(theme_manager::WINDOW_BG);
 
