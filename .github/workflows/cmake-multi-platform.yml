@@ -34,6 +34,7 @@ jobs:
       matrix:
         include:
           - os: ubuntu-latest
+            container: ubuntu:20.04
             build_type: Release
             c_compiler: clang
             cpp_compiler: clang++
