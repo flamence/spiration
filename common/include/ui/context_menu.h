@@ -27,6 +27,10 @@ struct context_menu_item {
  */
 class context_menu : public widget {
 public:
+    context_menu() {
+        widget_style.cursor = cursor_type::pointer;
+    }
+
     void add_item(const std::string& text, std::function<void()> callback);
     void add_separator();
 

@@ -19,6 +19,10 @@ namespace spiration {
  */
 class checkbox : public widget {
 public:
+    checkbox() {
+        widget_style.cursor = cursor_type::pointer;
+    }
+
     std::string text;
     bool checked = false;
     std::function<void(bool)> on_changed;

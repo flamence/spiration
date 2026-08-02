@@ -15,6 +15,10 @@ namespace spiration {
  */
 class window_controls : public container {
 public:
+    window_controls() {
+        widget_style.cursor = cursor_type::pointer;
+    }
+
     void init() override;
     void paint(std::shared_ptr<renderer> renderer) override;
     bool hit_test(float x, float y) const override;

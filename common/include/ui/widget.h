@@ -145,7 +145,7 @@ public:
      * @brief 命中测试：返回包含 (x, y) 的最深层 enabled 控件。
      *        坐标为本控件的局部坐标；递归时自动补偿各层滚动偏移。
      */
-    widget* hit_test_hover(float x, float y) const {
+    virtual widget* hit_test_hover(float x, float y) const {
         if (!enabled) return nullptr;
         if (x < 0.0f || x > width || y < 0.0f || y > height) return nullptr;
         const float sox = scroll_offset_x_for_children();

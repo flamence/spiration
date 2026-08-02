@@ -26,6 +26,10 @@ struct popup_item {
  */
 class popup_menu : public container {
 public:
+    popup_menu() {
+        widget_style.cursor = cursor_type::pointer;
+    }
+
     void init() override;
     void paint(std::shared_ptr<renderer> renderer) override;
     void handle_event(const event_type& type, void* data) override;

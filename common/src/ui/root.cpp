@@ -34,6 +34,21 @@ void root::set_mouse_capture(widget* w) {
     if (m_window) m_window->set_mouse_capture(w != nullptr);
 }
 
+widget* root::hit_test_hover(float x, float y) const {
+    if (m_context_menu && m_context_menu->visible()) {
+        if (widget* h = m_context_menu->hit_test_hover(x - m_context_menu->x,
+                                                      y - m_context_menu->y)) {
+            return h;
+        }
+    }
+    if (m_popup) {
+        if (widget* h = m_popup->hit_test_hover(x - m_popup->x, y - m_popup->y)) {
+            return h;
+        }
+    }
+    return container::hit_test_hover(x, y);
+}
+
 void root::handle_event(const event_type& type, void* data) {
     if (type == event_type::window_resize) {
         layout();

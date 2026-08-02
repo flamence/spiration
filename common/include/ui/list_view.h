@@ -19,6 +19,10 @@ namespace spiration {
  */
 class list_view : public widget {
 public:
+    list_view() {
+        widget_style.cursor = cursor_type::pointer;
+    }
+
     std::vector<std::string> items;
     int selected_index = -1;
     std::function<void(int)> on_selected;
