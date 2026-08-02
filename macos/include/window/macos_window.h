@@ -83,7 +83,6 @@ public:
     void set_widget(std::unique_ptr<widget> widget) override;
     widget* get_widget() const { return m_Widget.get(); }
 
-    // get_renderer() 通过 window 基类虚接口提供
     std::shared_ptr<class renderer> get_renderer() const override { return m_Renderer; }
 
     void_function on_mouse() const { return m_OnMouse; }
@@ -98,7 +97,6 @@ public:
     NSWindow* get_ns_window() const { return m_NSWindow; }
     NSView* get_ns_view() const { return m_NSView; }
     CAMetalLayer* get_metal_layer() const { return m_MetalLayer; }
-    std::shared_ptr<renderer> get_renderer() const { return m_Renderer; }
     void_function on_resize() const { return m_OnResize; }
     void notify_widget_resize_public() { notify_widget_resize(); }
 
