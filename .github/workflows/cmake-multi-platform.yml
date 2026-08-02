@@ -69,11 +69,11 @@ jobs:
         id: strings
         shell: bash
         run: |
-          echo "build-output-dir=${{ github.workspace }}/build" >> "$GITHUB_OUTPUT"
+          echo "build-output-dir=$GITHUB_WORKSPACE/build" >> "$GITHUB_OUTPUT"
           if [ "${{ matrix.os }}" == "windows-latest" ]; then
-            echo "build-bin-dir=${{ github.workspace }}/build/bin/${{ matrix.build_type }}" >> "$GITHUB_OUTPUT"
+            echo "build-bin-dir=$GITHUB_WORKSPACE/build/bin/${{ matrix.build_type }}" >> "$GITHUB_OUTPUT"
           else
-            echo "build-bin-dir=${{ github.workspace }}/build/bin" >> "$GITHUB_OUTPUT"
+            echo "build-bin-dir=$GITHUB_WORKSPACE/build/bin" >> "$GITHUB_OUTPUT"
           fi
           if [ "${{ github.event_name }}" == "release" ]; then
             VERSION="${{ github.event.release.tag_name }}"
@@ -89,7 +89,7 @@ jobs:
           -DCMAKE_CXX_COMPILER=${{ matrix.cpp_compiler }}
           -DCMAKE_C_COMPILER=${{ matrix.c_compiler }}
           -DCMAKE_BUILD_TYPE=${{ matrix.build_type }}
-          -S ${{ github.workspace }}
+          -S $GITHUB_WORKSPACE
 
       - name: 编译项目
         run: cmake --build ${{ steps.strings.outputs.build-output-dir }} --config ${{ matrix.build_type }}
