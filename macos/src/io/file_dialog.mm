@@ -4,7 +4,7 @@
  * @author clk
  */
 
-#include <extension/builtin/edit/file_dialog.h>
+#include <io/file_dialog.h>
 #include <string>
 #include <vector>
 
