@@ -2,7 +2,7 @@ name: CMake 跨平台构建
 
 on:
   push:
-    branches: [ "gui" ]
+    branches: [ "main" ]
     paths:
       - 'CMakeLists.txt'
       - 'common/**'
@@ -11,7 +11,7 @@ on:
       - 'macos/**'
       - '.github/workflows/**'
   pull_request:
-    branches: [ "gui" ]
+    branches: [ "main" ]
     paths:
       - 'CMakeLists.txt'
       - 'common/**'
