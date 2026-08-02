@@ -15,16 +15,13 @@
 #include <utility>
 #include <vector>
 
-#ifndef OHOS_PLATFORM
 #include <curl/curl.h>
-#endif
 
 namespace spiration {
 namespace agent {
 
 namespace {
 
-#ifndef OHOS_PLATFORM
 size_t fetch_write_cb(void* contents, size_t size, size_t nmemb, void* userp) {
     size_t total = size * nmemb;
     auto* out = static_cast<std::string*>(userp);
@@ -55,7 +52,6 @@ std::string upper_copy(std::string s) {
     for (auto& c : s) c = static_cast<char>(std::toupper(static_cast<unsigned char>(c)));
     return s;
 }
-#endif
 
 } // namespace
 
@@ -113,9 +109,6 @@ std::string fetch_tool::parameters_json() const {
 }
 
 std::string fetch_tool::execute(const std::string& args_json) {
-#ifdef OHOS_PLATFORM
-    return "[error] web fetch not supported on this platform";
-#else
     std::string url, method = "GET", body;
     long timeout = 30;
     std::vector<std::pair<std::string, std::string>> headers, params;
@@ -206,7 +199,6 @@ std::string fetch_tool::execute(const std::string& args_json) {
     if (out.size() > 65536) out = out.substr(0, 65536) + "\n[output truncated]";
     console::info("web_tool", "fetch %s -> status %ld, %zu bytes", full_url.c_str(), status, response.size());
     return out;
-#endif
 }
 
 } // namespace agent

@@ -1,11 +1,12 @@
 /**
  * @file napi_bridge.cpp
- * @brief Spiration OHOS NAPI 桥接实现。
+ * @brief NAPI 桥接实现。
  * @author clk
  */
 
 #include "napi_bridge.h"
 
+#include <ohos_application.h>
 #include <utils/platform.h>
 #include <extension/builtin/i18n/i18n.h>
 #include <utils/console.h>
@@ -16,6 +17,9 @@
 #include <vector>
 
 namespace spiration {
+
+void set_ohos_data_dir(const std::string& dir);
+
 namespace bridge {
 
 using spiration::i18n_manager;
@@ -84,6 +88,24 @@ napi_value NapiGetAppDataDir(napi_env env, napi_callback_info info) {
 
 napi_value NapiGetExecutableDir(napi_env env, napi_callback_info info) {
     return CreateString(env, platform::executable_directory());
+}
+
+/**
+ * @brief 通过 Context API 注入应用沙箱数据目录。
+ */
+napi_value NapiSetDataDir(napi_env env, napi_callback_info info) {
+    size_t argc = 1;
+    napi_value args[1];
+    napi_get_cb_info(env, info, &argc, args, nullptr, nullptr);
+    if (argc < 1) return CreateString(env, "");
+
+    std::string dir = GetStringArg(env, args[0]);
+    spiration::set_ohos_data_dir(dir);
+    console::info("napi", "data dir injected via Context API: %s", dir.c_str());
+
+    // 注入完成后再初始化运行时（i18n / 扩展），确保使用真实沙箱路径
+    ohos_application::instance()->initialize_early();
+    return CreateString(env, dir);
 }
 
 napi_value NapiTr(napi_env env, napi_callback_info info) {
@@ -192,6 +214,7 @@ napi_value CreatePlatformNamespace(napi_env env) {
         { "getSystemLocale", nullptr, NapiGetSystemLocale, nullptr, nullptr, nullptr, napi_default, nullptr },
         { "getAppDataDir", nullptr, NapiGetAppDataDir, nullptr, nullptr, nullptr, napi_default, nullptr },
         { "getExecutableDir", nullptr, NapiGetExecutableDir, nullptr, nullptr, nullptr, napi_default, nullptr },
+        { "setDataDir", nullptr, NapiSetDataDir, nullptr, nullptr, nullptr, napi_default, nullptr },
     };
 
     napi_define_properties(env, ns, sizeof(props) / sizeof(props[0]), props);

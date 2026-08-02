@@ -15,6 +15,7 @@ file(GLOB_RECURSE COMMON_SOURCES
 
 # 排除依赖 curl 的文件和桌面平台 application
 list(FILTER COMMON_SOURCES EXCLUDE REGEX ".*chat\\.cpp$")
+list(FILTER COMMON_SOURCES EXCLUDE REGEX ".*web_tool\\.cpp$")
 list(FILTER COMMON_SOURCES EXCLUDE REGEX ".*/common/src/application\\.cpp$")
 # 排除 Windows 版本的 clipboard 实现
 list(FILTER COMMON_SOURCES EXCLUDE REGEX ".*/common/src/utils/clipboard\\.cpp$")

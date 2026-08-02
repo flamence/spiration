@@ -2,6 +2,7 @@
 #include <extension/builtin/i18n/i18n.h>
 #include <ui/theme_manager.h>
 #include <utils/console.h>
+#include <utils/path.h>
 #include <algorithm>
 #include <filesystem>
 #include <fstream>
@@ -9,16 +10,6 @@
 
 namespace spiration {
 namespace edit {
-
-#if defined(_WIN32) || defined(_WIN64)
-#ifndef WIN32_LEAN_AND_MEAN
-#define WIN32_LEAN_AND_MEAN
-#endif
-#ifndef NOMINMAX
-#define NOMINMAX
-#endif
-#include <windows.h>
-#endif
 
 edit_tab::edit_tab() {
     base_title_ = i18n_manager::get().tr("edit.untitled");
@@ -69,14 +60,7 @@ void edit_tab::set_text(const std::string& text) {
 }
 
 void edit_tab::load_file(const std::string& path) {
-#ifdef _WIN32
-    int wlen = MultiByteToWideChar(CP_UTF8, 0, path.c_str(), -1, nullptr, 0);
-    std::wstring wpath(wlen - 1, L'\0');
-    MultiByteToWideChar(CP_UTF8, 0, path.c_str(), -1, &wpath[0], wlen);
-    std::ifstream file(std::filesystem::path(wpath), std::ios::binary);
-#else
-    std::ifstream file(path, std::ios::binary);
-#endif
+    std::ifstream file(path::u8path(path), std::ios::binary);
     if (!file) {
         spiration::console::warning("edit", "failed to open: %s", path.c_str());
         return;
@@ -113,18 +97,10 @@ bool edit_tab::save() {
 bool edit_tab::save_as(const std::string& path) {
     std::string save_path = path;
 
-#ifdef _WIN32
-    int wlen = MultiByteToWideChar(CP_UTF8, 0, save_path.c_str(), -1, nullptr, 0);
-    std::wstring wpath(wlen - 1, L'\0');
-    MultiByteToWideChar(CP_UTF8, 0, save_path.c_str(), -1, &wpath[0], wlen);
-    std::filesystem::path fs_path(wpath);
+    std::filesystem::path fs_path = path::u8path(save_path);
     std::filesystem::path tmp_fs_path = fs_path;
-    tmp_fs_path += L".tmp";
+    tmp_fs_path += ".tmp";
     std::ofstream file(tmp_fs_path, std::ios::binary | std::ios::trunc);
-#else
-    std::string tmp_path = save_path + ".tmp";
-    std::ofstream file(tmp_path, std::ios::binary | std::ios::trunc);
-#endif
     if (!file) {
         spiration::console::warning("edit", "save_as: cannot open for write: %s", save_path.c_str());
         return false;
@@ -138,11 +114,7 @@ bool edit_tab::save_as(const std::string& path) {
         file.write(editor_->text.data() + offset, static_cast<std::streamsize>(to_write));
         if (!file) {
             file.close();
-#ifdef _WIN32
             std::filesystem::remove(tmp_fs_path);
-#else
-            std::remove(tmp_path.c_str());
-#endif
             spiration::console::warning("edit", "save_as: write error at offset %zu", offset);
             return false;
         }
@@ -152,7 +124,6 @@ bool edit_tab::save_as(const std::string& path) {
 
     file.close();
 
-#ifdef _WIN32
     std::error_code ec;
     std::filesystem::rename(tmp_fs_path, fs_path, ec);
     if (ec) {
@@ -160,15 +131,6 @@ bool edit_tab::save_as(const std::string& path) {
         std::filesystem::remove(tmp_fs_path);
         return false;
     }
-#else
-    std::error_code ec;
-    std::filesystem::rename(tmp_path, save_path, ec);
-    if (ec) {
-        spiration::console::warning("edit", "save_as: rename failed: %s", ec.message().c_str());
-        std::remove(tmp_path.c_str());
-        return false;
-    }
-#endif
 
     file_path_ = std::move(save_path);
 
