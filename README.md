@@ -8,6 +8,29 @@
 
 或是在 [Actions](https://github.com/flamence/spiration/actions) 中找到最近一次成功的构建。
 
+## 运行要求
+
+### Windows
+
+推荐使用 Windows 10+ 系统运行，
+需要确保设备支持 Direct2D。
+
+*(Windows 11 通过测试)*
+
+### Mac OS
+
+确保系统版本不低于 10.15。
+
+### Linux
+
+需要支持 X11 桌面，Wayland 暂未测试。
+
+*(Ubuntu 20.04.6 LTS 通过测试)*
+
+### Open Harmony / Harmony OS
+
+确保系统版本不低于 6.0.2。
+
 ## 构建编译
 
 ### Windows / Mac OS / Linux
@@ -33,7 +56,7 @@ cmake --build ./build
 或是在分支仓库的主页面找到 [Release](#) 并创建一个新版本，
 稍等片刻，即可下载相关二进制文件。
 
-### Harmony OS
+### Open Harmony / Harmony OS
 
 通过 [DevEco Studio](https://developer.huawei.com/consumer/cn/deveco-studio/) 打开 [ohos](ohos/) 文件夹。
 
