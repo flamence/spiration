@@ -15,19 +15,6 @@
 #include <cmath>
 #include <cctype>
 
-#if defined(_WIN32) || defined(_WIN64)
-#ifndef WIN32_LEAN_AND_MEAN
-#define WIN32_LEAN_AND_MEAN
-#endif
-#ifndef NOMINMAX
-#define NOMINMAX
-#endif
-#include <windows.h>
-static bool is_mouse_left_down() { return (GetAsyncKeyState(VK_LBUTTON) & 0x8000) != 0; }
-#else
-static bool is_mouse_left_down() { return false; }
-#endif
-
 namespace spiration {
 
 namespace {
@@ -178,11 +165,6 @@ void text_area::cut()        { handle_cut(); }
 void text_area::paste()      { handle_paste(); }
 
 void text_area::tick(float dt_ms) {
-    if (mouse_down_ && !is_mouse_left_down()) {
-        mouse_down_ = false;
-        selecting_ = false;
-    }
-
     bool repaint = false;
     repaint |= scrollbar_thumb_bg_.update(dt_ms);
     repaint |= h_scrollbar_thumb_bg_.update(dt_ms);
@@ -254,6 +236,8 @@ void text_area::handle_event(const event_type& type, void* data) {
             selecting_ = false;
             pending_is_drag_ = false;
             drag_resolved_ = false;
+            press_x_ = mouse->position.x;
+            press_y_ = mouse->position.y;
             pending_click_.x = mouse->position.x;
             pending_click_.y = mouse->position.y;
             pending_click_.shift = mouse->shift;
@@ -669,22 +653,21 @@ void text_area::ensure_cursor_visible() {
     scroll_x_ = std::max(0.0f, scroll_x_);
 }
 
-void text_area::resolve_click(std::shared_ptr<renderer> r) {
-    pending_click_.active = false;
-
-    float click_y = pending_click_.y - text_pad_top + scroll_y_;
-    float click_x = pending_click_.x - text_x() + scroll_x_;
+void text_area::resolve_position(float px, float py, size_t& out_line, size_t& out_col,
+                                 std::shared_ptr<renderer> r) const {
+    float click_y = py - text_pad_top + scroll_y_;
+    float click_x = px - text_x() + scroll_x_;
 
     size_t n = line_count();
-    size_t resolved_line = 0;
+    out_line = 0;
     if (click_y > 0) {
-        resolved_line = static_cast<size_t>(click_y / line_height);
-        if (resolved_line >= n) resolved_line = n > 0 ? n - 1 : 0;
+        out_line = static_cast<size_t>(click_y / line_height);
+        if (out_line >= n) out_line = n > 0 ? n - 1 : 0;
     }
 
-    size_t resolved_col = 0;
+    out_col = 0;
     if (click_x > 0) {
-        std::string_view sv = line_text(resolved_line);
+        std::string_view sv = line_text(out_line);
         std::string line_str(sv.data(), sv.size());
 
         size_t best_col = 0;
@@ -706,8 +689,15 @@ void text_area::resolve_click(std::shared_ptr<renderer> r) {
             else if ((c & 0xC0) == 0xC0) char_bytes = 2;
             pos += char_bytes;
         }
-        resolved_col = best_col;
+        out_col = best_col;
     }
+}
+
+void text_area::resolve_click(std::shared_ptr<renderer> r) {
+    pending_click_.active = false;
+
+    size_t resolved_line = 0, resolved_col = 0;
+    resolve_position(pending_click_.x, pending_click_.y, resolved_line, resolved_col, r);
 
     if (pending_click_.dbl) {
         cursor_line_ = resolved_line;
@@ -719,6 +709,8 @@ void text_area::resolve_click(std::shared_ptr<renderer> r) {
         if (!drag_resolved_) {
             drag_resolved_ = true;
             selecting_ = true;
+            // 拖选锚点固定为按下位置（避免首次 resolve 已是拖选时 anchor 丢失）
+            resolve_position(press_x_, press_y_, sel_anchor_line_, sel_anchor_col_, r);
         }
         cursor_line_ = resolved_line;
         cursor_col_ = resolved_col;

@@ -114,6 +114,8 @@ private:
     bool shift_pressed_ = false;
 
     bool mouse_down_ = false;
+    float press_x_ = 0.0f;
+    float press_y_ = 0.0f;
     bool drag_resolved_ = false;
     bool pending_is_drag_ = false;
     bool suppress_char_after_enter_ = false;
@@ -188,6 +190,8 @@ private:
     void cursor_word_left();
     void cursor_word_right();
     void select_word_at(size_t line, size_t col, std::string_view sv);
+    void resolve_position(float px, float py, size_t& out_line, size_t& out_col,
+                          std::shared_ptr<renderer> r) const;
     void resolve_click(std::shared_ptr<renderer> r);
 };
 

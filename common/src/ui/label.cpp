@@ -223,6 +223,7 @@ void label::handle_event(const event_type& type, void* data) {
                 selecting_ = true;
                 sel_anchor_ = hit_test_text(mx, my);
                 sel_pos_ = sel_anchor_;
+                set_mouse_capture(this);
                 if (request_repaint_) request_repaint_();
             } else if (md->action == mouse_action::down && md->button == mouse_button::right && inside) {
                 md->consumed = true;
@@ -233,6 +234,7 @@ void label::handle_event(const event_type& type, void* data) {
             } else if (md->action == mouse_action::up && mouse_down_) {
                 mouse_down_ = false;
                 sel_pos_ = hit_test_text(mx, my);
+                set_mouse_capture(nullptr);
                 if (request_repaint_) request_repaint_();
             }
         } else if (type == event_type::keyboard) {
