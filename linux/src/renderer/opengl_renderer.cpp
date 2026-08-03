@@ -1131,6 +1131,8 @@ opengl_renderer::glyph_info* opengl_renderer::get_glyph(font_face* face, char32_
         glyph_atlas_.row_height = 0;
     }
     if (glyph_atlas_.cursor_y + gh + 1 >= glyph_atlas_.height) {
+        // 先提交当前批次（其 UV 引用旧图集），再清缓存重建，避免同帧新旧 UV 混乱
+        flush_batch();
         glyph_cache_.clear();
         glDeleteTextures(1, &glyph_atlas_.texture_id);
         glyph_atlas_.texture_id = 0;
