@@ -1,10 +1,10 @@
 /**
- * @file chat_tab.cpp
- * @brief 智能体标签页实现。
+ * @file agent_tab.cpp
+ * @brief 智能体标签页实现�?
  * @author clk
  */
 
-#include <extension/builtin/agent/chat_tab.h>
+#include <extension/builtin/agent/agent_tab.h>
 #include <extension/builtin/i18n/i18n.h>
 
 #include <exception>
@@ -12,7 +12,7 @@
 namespace spiration {
 namespace agent {
 
-chat_tab::chat_tab(chat_client* client) : client_(client) {
+agent_tab::agent_tab(chat_client* client) : client_(client) {
     title_ = i18n_manager::get().tr("tab.agent");
     widget_style.background_color = theme_manager::get(theme_manager::CONTENT_BG);
 
@@ -64,14 +64,14 @@ chat_tab::chat_tab(chat_client* client) : client_(client) {
     add_child(std::move(bar));
 }
 
-void chat_tab::paint(std::shared_ptr<renderer> renderer) {
+void agent_tab::paint(std::shared_ptr<renderer> renderer) {
     if (widget_style.background_color.a > 0.0f) {
         renderer->draw_rectangle({0, 0, width, height}, widget_style.background_color);
     }
     widget::paint(renderer);
 }
 
-void chat_tab::handle_event(const event_type& type, void* data) {
+void agent_tab::handle_event(const event_type& type, void* data) {
     if (type == event_type::keyboard) {
         if (input_) input_->handle_event(type, data);
         if (!static_cast<key_event_data*>(data)->consumed && msg_list_)
@@ -87,7 +87,7 @@ void chat_tab::handle_event(const event_type& type, void* data) {
     container::handle_event(type, data);
 }
 
-void chat_tab::layout() {
+void agent_tab::layout() {
     float bar_h = 46.0f;
     float pad = 12.0f;
     for (auto& child : children()) {
@@ -107,12 +107,12 @@ void chat_tab::layout() {
     }
 }
 
-void chat_tab::add_message(const std::string& role, const std::string& content) {
+void agent_tab::add_message(const std::string& role, const std::string& content) {
     messages_.push_back({role, content});
     last_label_ = append_bubble(messages_.back());
 }
 
-void chat_tab::relayout_scroll_repaint() {
+void agent_tab::relayout_scroll_repaint() {
     widget* w = this;
     while (w) {
         w->layout();
@@ -122,7 +122,7 @@ void chat_tab::relayout_scroll_repaint() {
     if (request_repaint_) request_repaint_();
 }
 
-void chat_tab::process_stream_events() {
+void agent_tab::process_stream_events() {
     std::deque<stream_event> events;
     {
         std::lock_guard<std::mutex> lock(stream_mutex_);
@@ -155,7 +155,7 @@ void chat_tab::process_stream_events() {
     relayout_scroll_repaint();
 }
 
-void chat_tab::on_activate() {
+void agent_tab::on_activate() {
     if (scroll_ && scroll_->width > 0) {
         scroll_->layout();
         scroll_->scroll_to_y(99999.0f);
@@ -163,7 +163,7 @@ void chat_tab::on_activate() {
     if (request_repaint_) request_repaint_();
 }
 
-markdown* chat_tab::append_bubble(const display_message& msg) {
+markdown* agent_tab::append_bubble(const display_message& msg) {
     bool is_user = (msg.role == "user");
 
     auto md = std::make_unique<markdown>();
@@ -180,7 +180,7 @@ markdown* chat_tab::append_bubble(const display_message& msg) {
     return raw;
 }
 
-void chat_tab::send() {
+void agent_tab::send() {
     if (!input_ || input_->text.empty()) return;
     if (waiting_) return;
 
@@ -229,7 +229,7 @@ void chat_tab::send() {
     if (request_repaint_) request_repaint_();
 }
 
-void chat_tab::tick(float dt_ms) {
+void agent_tab::tick(float dt_ms) {
     if (waiting_)
         process_stream_events();
 

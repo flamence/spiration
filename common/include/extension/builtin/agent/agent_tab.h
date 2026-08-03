@@ -1,5 +1,5 @@
 /**
- * @file chat_tab.h
+ * @file agent_tab.h
  * @brief 智能体标签页控件。
  * @author clk
  */
@@ -35,9 +35,9 @@ struct display_message {
 /**
  * @brief 智能体标签页。
  */
-class chat_tab : public tab {
+class agent_tab : public tab {
 public:
-    explicit chat_tab(chat_client* client = nullptr);
+    explicit agent_tab(chat_client* client = nullptr);
 
     void paint(std::shared_ptr<renderer> renderer) override;
     void handle_event(const event_type& type, void* data) override;
@@ -71,7 +71,7 @@ private:
 
     /** @brief 创建一条消息气泡并添加到列表，返回气泡控件指针。 */
     markdown* append_bubble(const display_message& msg);
-    /** @brief 处理积压的流式事件。 */
+    /** @brief 处理积压的流式事件。*/
     void process_stream_events();
     void relayout_scroll_repaint();
     /** @brief 发送当前输入内容。 */

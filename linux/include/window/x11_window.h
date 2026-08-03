@@ -1,6 +1,6 @@
 /**
- * @file linux_window.h
- * @brief Linux 平台窗口实现（X11 / xcb）。
+ * @file x11_window.h
+ * @brief X11 窗口实现。
  * @author clk
  */
 
@@ -22,25 +22,18 @@
 namespace spiration {
 
 /**
- * @brief Linux 平台窗口实现。
- *
- * 基于 X11 (Xlib) 实现窗口框架，支持：
- * - GLX OpenGL 上下文
- * - DPI 感知
- * - 全屏切换
- * - OpenGL 渲染器绑定
- * - Widget 树绑定与消息分发
+ * @brief X11 窗口实现。
  */
-class linux_window : public window {
+class x11_window : public window {
 public:
-    linux_window() = default;
-    ~linux_window() override;
+    x11_window() = default;
+    ~x11_window() override;
 
-    linux_window(const linux_window&) = delete;
-    linux_window& operator=(const linux_window&) = delete;
+    x11_window(const x11_window&) = delete;
+    x11_window& operator=(const x11_window&) = delete;
 
-    linux_window(linux_window&& other) noexcept;
-    linux_window& operator=(linux_window&& other) noexcept;
+    x11_window(x11_window&& other) noexcept;
+    x11_window& operator=(x11_window&& other) noexcept;
 
     void show() override;
     void hide() override;
@@ -113,6 +106,8 @@ private:
 
     Display* display_ = nullptr;
     ::Window window_ = 0;
+    XIM xim_ = nullptr;
+    XIC xic_ = nullptr;
     Atom delete_atom_ = 0;
     Atom wm_state_atom_ = 0;
     Atom wm_state_fullscreen_atom_ = 0;
