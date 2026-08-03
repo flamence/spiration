@@ -1,6 +1,6 @@
 /**
  * @file agent_tab.cpp
- * @brief 智能体标签页实现�?
+ * @brief 智能体标签页实现。
  * @author clk
  */
 
