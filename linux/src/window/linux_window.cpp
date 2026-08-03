@@ -495,7 +495,7 @@ bool linux_window::initialize(const window_params& params) {
     update_dpi();
 
     {
-        std::string iconPath = platform::executable_directory() + "/res/spiration.png";
+        std::string iconPath = platform::executable_directory() + "/spiration.png";
         int w = 0, h = 0, channels = 0;
         unsigned char* rgba = stbi_load(iconPath.c_str(), &w, &h, &channels, 4);
         if (rgba) {

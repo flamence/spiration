@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.16)
 if(APPLE)
     set(CMAKE_OSX_DEPLOYMENT_TARGET "10.15" CACHE STRING "Minimum macOS deployment target")
 endif()
-project(spiration VERSION 0.63 LANGUAGES C CXX)
+project(spiration VERSION 0.64 LANGUAGES C CXX)
 
 include(FetchContent)
 
