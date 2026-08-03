@@ -7,6 +7,10 @@ file(GLOB_RECURSE COMMON_HEADERS
     "include/*.hpp"
 )
 
+if(NOT (UNIX AND NOT APPLE))
+    list(FILTER COMMON_SOURCES EXCLUDE REGEX ".*opengl_renderer\\.cpp$")
+endif()
+
 add_library(spiration-common STATIC ${COMMON_SOURCES} ${COMMON_HEADERS})
 
 set_target_properties(spiration-common PROPERTIES

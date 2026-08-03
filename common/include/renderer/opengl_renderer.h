@@ -1,6 +1,6 @@
 /**
  * @file opengl_renderer.h
- * @brief OpenGL 3.3 Core Profile 渲染器实现。
+ * @brief OpenGL 渲染器。
  * @author clk
  */
 
@@ -8,12 +8,19 @@
 
 #include <renderer/renderer.h>
 
+#if defined(__OHOS__)
+#include <GLES3/gl3.h>
+#include <EGL/egl.h>
+#else
 #define GL_GLEXT_PROTOTYPES 1
 #include <GL/gl.h>
 #include <GL/glext.h>
-#include <GL/glx.h>
+#endif
+
+#if !defined(__OHOS__)
 #include <ft2build.h>
 #include FT_FREETYPE_H
+#endif
 #include <unordered_map>
 #include <vector>
 #include <string>
@@ -74,6 +81,13 @@ public:
 
     void get_viewport_size(uint32_t& width, uint32_t& height) const override;
 
+#if defined(__OHOS__)
+    void set_density(float density);
+    void set_physical_size(uint32_t width, uint32_t height);
+    void set_logical_size(uint32_t width, uint32_t height);
+    void check_resize();
+#endif
+
     float measure_text_width(const std::string& text, float font_size = 16.0f,
                              const std::string& font_family = "Consolas") override;
     float measure_text_height(const std::string& text, float font_size = 16.0f,
@@ -102,6 +116,7 @@ private:
     bool compile_shaders();
     void destroy_shaders();
 
+#if !defined(__OHOS__)
     struct glyph_info {
         float s0, t0, s1, t1;
         float bearing_x, bearing_y;
@@ -128,6 +143,7 @@ private:
     font_face* get_font_face(const std::string& family, float size);
     glyph_info* get_glyph(font_face* face, char32_t codepoint);
     bool init_glyph_atlas(glyph_atlas* atlas);
+#endif
 
     struct image_resource {
         GLuint texture_id = 0;
@@ -158,8 +174,6 @@ private:
     void apply_clip();
 
 private:
-    Display* display_ = nullptr;
-
     uint32_t width_ = 0;
     uint32_t height_ = 0;
 
@@ -168,11 +182,13 @@ private:
     GLuint vbo_ = 0;
     std::vector<vertex> batch_;
 
+#if !defined(__OHOS__)
     FT_Library ft_library_ = nullptr;
     std::unordered_map<std::string, font_face> font_faces_;
     std::unordered_map<uint64_t, glyph_info> glyph_cache_;
     glyph_atlas glyph_atlas_;
     font_face* cjk_fallback_ = nullptr;
+#endif
 
     std::unordered_map<std::string, image_resource> images_;
 
@@ -186,6 +202,18 @@ private:
     bool blend_enabled_ = true;
     bool batch_has_texture_ = false;
     GLuint current_texture_ = 0;
+
+#if defined(__OHOS__)
+    float density_ = 1.0f;
+    uint32_t physical_width_ = 0;
+    uint32_t physical_height_ = 0;
+    EGLDisplay egl_display_ = EGL_NO_DISPLAY;
+    EGLSurface egl_surface_ = EGL_NO_SURFACE;
+    EGLContext egl_context_ = EGL_NO_CONTEXT;
+    EGLConfig egl_config_ = nullptr;
+    bool init_egl(void* native_window);
+    void destroy_egl();
+#endif
 
     static constexpr int CIRCLE_SEGMENTS = 48;
     static constexpr int MAX_BATCH_VERTICES = 8192;
