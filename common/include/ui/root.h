@@ -42,6 +42,11 @@ public:
 
     void set_mouse_capture(widget* w) override;
 
+    /**
+     * @brief 通知根控件。
+     */
+    void notify_selection_started(widget* w);
+
     tab_bar* get_tab_bar() const { return tab_bar_; }
     menu_bar* get_menu_bar() const { return menu_bar_; }
     std::shared_ptr<spiration::window> window() const { return m_window; }
@@ -63,6 +68,7 @@ private:
     menu_bar* menu_bar_ = nullptr;
     bool create_appbar_ = true;
     widget* captured_ = nullptr;
+    widget* selecting_widget_ = nullptr;
 };
 
 } 

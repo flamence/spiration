@@ -19,10 +19,22 @@ bool tool_available(const char* tool) {
     return std::system(cmd.c_str()) == 0;
 }
 
+void (*g_copy_fn)(const std::string&) = nullptr;
+std::string (*g_paste_fn)() = nullptr;
+
 } // namespace
+
+void x11_clipboard_bind(void (*copy_fn)(const std::string&), std::string (*paste_fn)()) {
+    g_copy_fn = copy_fn;
+    g_paste_fn = paste_fn;
+}
 
 void clipboard::copy(const std::string& text) {
     if (text.empty()) return;
+    if (g_copy_fn) {
+        g_copy_fn(text);
+        return;
+    }
     if (!tool_available("xclip")) {
         console::warning("clipboard",
                          "xclip not found; install with: sudo apt install xclip");
@@ -36,6 +48,7 @@ void clipboard::copy(const std::string& text) {
 }
 
 std::string clipboard::paste() {
+    if (g_paste_fn) return g_paste_fn();
     if (!tool_available("xclip")) {
         console::warning("clipboard",
                          "xclip not found; install with: sudo apt install xclip");

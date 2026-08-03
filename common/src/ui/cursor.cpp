@@ -33,7 +33,7 @@ void cursor_manager::update(widget* root, float x, float y) {
     cursor_type c = cursor_type::default_cursor;
     if (root) {
         if (widget* hovered = root->hit_test_hover(x, y)) {
-            c = hovered->widget_style.cursor;
+            c = hovered->effective_cursor();
         }
     }
     apply(c);

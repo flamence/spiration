@@ -236,6 +236,16 @@ public:
      */
     virtual float scroll_offset_x_for_children() const { return 0.0f; }
 
+    /**
+     * @brief 清除控件的文本选区。
+     */
+    virtual void clear_text_selection() {}
+
+    /**
+     * @brief 控件悬停时应显示的光标。
+     */
+    virtual cursor_type effective_cursor() const { return widget_style.cursor; }
+
     void set_parent(widget* p) { parent_ = p; }
 
     virtual void set_mouse_capture(widget* w) {

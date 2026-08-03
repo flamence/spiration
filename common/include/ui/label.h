@@ -1,6 +1,6 @@
 /**
  * @file label.h
- * @brief 文本标签控件，用于显示不可交互的文本。
+ * @brief 文本标签控件。
  * @author clk
  */
 
@@ -34,6 +34,12 @@ public:
 
     /// @brief 清除当前选择。
     void clear_selection();
+
+    void clear_text_selection() override { clear_selection(); }
+
+    cursor_type effective_cursor() const override {
+        return selectable ? cursor_type::text : widget_style.cursor;
+    }
 
     void paint(std::shared_ptr<renderer> renderer) override;
 
@@ -73,6 +79,9 @@ private:
     std::shared_ptr<renderer> current_renderer() const;
     float align_x(float line_width, float wrap_width) const;
     float layout_lines(std::shared_ptr<renderer> r, std::vector<line_info>& out) const;
+
+    /// @brief 沿父链通知 root：本控件开始新的文本选择（清除其它控件的旧选区）。
+    void notify_root_selection_started();
 
     std::shared_ptr<renderer> cached_renderer_;
 };

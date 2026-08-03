@@ -34,6 +34,13 @@ void root::set_mouse_capture(widget* w) {
     if (m_window) m_window->set_mouse_capture(w != nullptr);
 }
 
+void root::notify_selection_started(widget* w) {
+    if (selecting_widget_ && selecting_widget_ != w) {
+        selecting_widget_->clear_text_selection();
+    }
+    selecting_widget_ = w;
+}
+
 widget* root::hit_test_hover(float x, float y) const {
     if (m_context_menu && m_context_menu->visible()) {
         if (widget* h = m_context_menu->hit_test_hover(x - m_context_menu->x,
@@ -84,8 +91,11 @@ void root::handle_event(const event_type& type, void* data) {
         point original = md->position;
         float ox = 0.0f, oy = 0.0f;
         for (widget* w = captured_; w && w != this; w = w->parent()) {
-            ox += w->x;
-            oy += w->y;
+            // 与 widget::to_screen 一致：每层都要减去滚动偏移，
+            // 否则捕获期间（拖选 move/up）坐标整体偏移 scroll_y_，
+            // 导致选区错位、单击也“选词”。
+            ox += w->x - w->scroll_offset_x_for_children();
+            oy += w->y - w->scroll_offset_for_children();
         }
         md->position.x = original.x - ox;
         md->position.y = original.y - oy;
