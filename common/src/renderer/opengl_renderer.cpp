@@ -1042,8 +1042,9 @@ float opengl_renderer::measure_text_height(const std::string& text, float font_s
     if (text.empty()) return 0.0f;
     return font_size;
 }
-#elsefloat opengl_renderer::measure_text_width(const std::string& text, float font_size,
-                                           const std::string& font_family) {
+#else
+float opengl_renderer::measure_text_width(const std::string& text, float font_size,
+                                          const std::string& font_family) {
     if (!ft_library_ || text.empty()) return 0.0f;
 
     font_face* fface = get_font_face(font_family.empty() ? "DejaVuSans" : font_family, font_size);
