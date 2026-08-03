@@ -116,8 +116,8 @@ private:
 
     struct glyph_atlas {
         GLuint texture_id = 0;
-        int width = 256;
-        int height = 256;
+        int width = 1024;
+        int height = 1024;
         int row_height = 0;
         int cursor_x = 0;
         int cursor_y = 0;
