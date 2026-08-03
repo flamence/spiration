@@ -1,6 +1,6 @@
 /**
  * @file chat.cpp
- * @brief OpenAI 兼容对话客户端实现�?
+ * @brief OpenAI 兼容对话客户端实现。
  * @author clk
  */
 
@@ -208,7 +208,7 @@ std::string chat_client::http_post(const std::string& url, const std::string& bo
                                     const std::string& api_key) const {
     CURL* curl = curl_easy_init();
     if (!curl) {
-        console::error("chat", "curl_easy_init failed");
+        console::error("extension/agent", "curl_easy_init failed");
         return {};
     }
 
@@ -233,7 +233,7 @@ std::string chat_client::http_post(const std::string& url, const std::string& bo
 
     CURLcode res = curl_easy_perform(curl);
     if (res != CURLE_OK) {
-        console::error("chat", "curl request failed: %s", curl_easy_strerror(res));
+        console::error("extension/agent", "curl request failed: %s", curl_easy_strerror(res));
         response.clear();
     }
 
@@ -262,23 +262,23 @@ chat_response chat_client::send_stream(const std::function<void(const std::strin
     try {
         body = build_request_body();
     } catch (const std::exception& e) {
-        console::error("chat", "build request body failed: %s", e.what());
+        console::error("extension/agent", "build request body failed: %s", e.what());
         return {};
     }
 
-    console::info("chat", "POST %s (stream=%d)", url.c_str(), cfg_.stream ? 1 : 0);
+    console::info("extension/agent", "POST %s (stream=%d)", url.c_str(), cfg_.stream ? 1 : 0);
 
     if (!cfg_.stream) {
         std::string response = http_post(url, body, cfg_.api_key);
         if (response.empty()) {
-            console::warning("chat", "empty response");
+            console::warning("extension/agent", "empty response");
             return {};
         }
         chat_response resp;
         try {
             resp = parse_response(response);
         } catch (const std::exception& e) {
-            console::error("chat", "parse response failed: %s", e.what());
+            console::error("extension/agent", "parse response failed: %s", e.what());
             return {};
         }
         if (on_delta && !resp.content.empty())
@@ -289,7 +289,7 @@ chat_response chat_client::send_stream(const std::function<void(const std::strin
 
     CURL* curl = curl_easy_init();
     if (!curl) {
-        console::error("chat", "curl_easy_init failed");
+        console::error("extension/agent", "curl_easy_init failed");
         return {};
     }
 
@@ -315,7 +315,7 @@ chat_response chat_client::send_stream(const std::function<void(const std::strin
 
     CURLcode res = curl_easy_perform(curl);
     if (res != CURLE_OK) {
-        console::error("chat", "curl stream request failed: %s", curl_easy_strerror(res));
+        console::error("extension/agent", "curl stream request failed: %s", curl_easy_strerror(res));
     }
 
     curl_slist_free_all(headers);
@@ -335,16 +335,16 @@ std::string chat_client::execute_tool(const tool_call& tc) {
     for (auto* t : tools_) {
         if (t && t->name() == tc.function_name) {
             try {
-                console::info("chat", "executing tool: %s", tc.function_name.c_str());
+                console::info("extension/agent", "executing tool: %s", tc.function_name.c_str());
                 return t->execute(tc.arguments);
             } catch (const std::exception& e) {
-                console::error("chat", "tool '%s' threw: %s",
+                console::error("extension/agent", "tool '%s' threw: %s",
                                tc.function_name.c_str(), e.what());
                 return "[error] tool execution failed: " + std::string(e.what());
             }
         }
     }
-    console::warning("chat", "tool not found: %s", tc.function_name.c_str());
+    console::warning("extension/agent", "tool not found: %s", tc.function_name.c_str());
     return "[error] tool not found: " + tc.function_name;
 }
 
