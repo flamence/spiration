@@ -1,10 +1,10 @@
 /**
- * @file linux_window.cpp
- * @brief Linux 平台窗口实现。
+ * @file x11_window.cpp
+ * @brief X11 窗口实现。
  * @author clk
  */
 
-#include <window/linux_window.h>
+#include <window/x11_window.h>
 #include <ui/point.h>
 #include <ui/size.h>
 #include <utils/console.h>
@@ -20,7 +20,7 @@
 
 namespace spiration {
 
-uint32_t linux_window::next_window_id_ = 1;
+uint32_t x11_window::next_window_id_ = 1;
 
 static int x11_error_handler(Display* display, XErrorEvent* event) {
     char buf[256];
@@ -30,11 +30,11 @@ static int x11_error_handler(Display* display, XErrorEvent* event) {
     return 0;
 }
 
-linux_window::~linux_window() {
+x11_window::~x11_window() {
     shutdown();
 }
 
-linux_window::linux_window(linux_window&& other) noexcept
+x11_window::x11_window(x11_window&& other) noexcept
     : display_(other.display_)
     , window_(other.window_)
     , delete_atom_(other.delete_atom_)
@@ -85,7 +85,7 @@ linux_window::linux_window(linux_window&& other) noexcept
     other.dpi_scale_ = 1.0f;
 }
 
-linux_window& linux_window::operator=(linux_window&& other) noexcept {
+x11_window& x11_window::operator=(x11_window&& other) noexcept {
     if (this != &other) {
         shutdown();
 
@@ -143,21 +143,21 @@ linux_window& linux_window::operator=(linux_window&& other) noexcept {
 }
 
 
-void linux_window::show() {
+void x11_window::show() {
     if (!display_ || !window_) return;
     XMapWindow(display_, window_);
     XFlush(display_);
     is_visible_ = true;
 }
 
-void linux_window::hide() {
+void x11_window::hide() {
     if (!display_ || !window_) return;
     XUnmapWindow(display_, window_);
     XFlush(display_);
     is_visible_ = false;
 }
 
-void linux_window::maximize() {
+void x11_window::maximize() {
     if (!display_ || !window_) return;
     if (is_maximized_) return;
 
@@ -181,14 +181,14 @@ void linux_window::maximize() {
     is_maximized_ = true;
 }
 
-void linux_window::minimize() {
+void x11_window::minimize() {
     if (!display_ || !window_) return;
     is_minimized_ = true;
     XIconifyWindow(display_, window_, screen_number_);
     XFlush(display_);
 }
 
-void linux_window::restore() {
+void x11_window::restore() {
     if (!display_ || !window_) return;
     is_minimized_ = false;
 
@@ -199,7 +199,6 @@ void linux_window::restore() {
 
     if (is_maximized_) {
         is_maximized_ = false;
-        // 使用 EWMH 取消最大化
         XEvent xev = {};
         xev.type = ClientMessage;
         xev.xclient.window = window_;
@@ -229,16 +228,16 @@ void linux_window::restore() {
     is_visible_ = true;
 }
 
-void linux_window::close() {
+void x11_window::close() {
     should_close_ = true;
     if (on_close_) on_close_(this);
 }
 
-std::string linux_window::title() const {
+std::string x11_window::title() const {
     return title_;
 }
 
-void linux_window::set_title(const std::string& title) {
+void x11_window::set_title(const std::string& title) {
     title_ = title;
     if (display_ && window_) {
         auto* display = display_;
@@ -251,12 +250,12 @@ void linux_window::set_title(const std::string& title) {
     }
 }
 
-void linux_window::get_size(int32_t& width, int32_t& height) const {
+void x11_window::get_size(int32_t& width, int32_t& height) const {
     width = width_;
     height = height_;
 }
 
-void linux_window::set_size(int32_t width, int32_t height) {
+void x11_window::set_size(int32_t width, int32_t height) {
     width_ = width;
     height_ = height;
     if (display_ && window_) {
@@ -273,12 +272,12 @@ void linux_window::set_size(int32_t width, int32_t height) {
     notify_widget_resize();
 }
 
-void linux_window::get_position(int32_t& x, int32_t& y) const {
+void x11_window::get_position(int32_t& x, int32_t& y) const {
     x = x_;
     y = y_;
 }
 
-void linux_window::set_position(int32_t x, int32_t y) {
+void x11_window::set_position(int32_t x, int32_t y) {
     x_ = x;
     y_ = y;
     if (display_ && window_) {
@@ -290,12 +289,12 @@ void linux_window::set_position(int32_t x, int32_t y) {
     }
 }
 
-bool linux_window::is_visible() const { return is_visible_; }
-bool linux_window::is_maximized() const { return is_maximized_; }
-bool linux_window::is_minimized() const { return is_minimized_; }
-bool linux_window::is_fullscreen() const { return is_fullscreen_; }
+bool x11_window::is_visible() const { return is_visible_; }
+bool x11_window::is_maximized() const { return is_maximized_; }
+bool x11_window::is_minimized() const { return is_minimized_; }
+bool x11_window::is_fullscreen() const { return is_fullscreen_; }
 
-void linux_window::set_fullscreen(bool fullscreen) {
+void x11_window::set_fullscreen(bool fullscreen) {
     if (fullscreen == is_fullscreen_) return;
 
     auto* display = display_;
@@ -347,11 +346,11 @@ void linux_window::set_fullscreen(bool fullscreen) {
     XFlush(display);
 }
 
-void* linux_window::native_handle() const {
+void* x11_window::native_handle() const {
     return reinterpret_cast<void*>(static_cast<uintptr_t>(window_));
 }
 
-void linux_window::loop() {
+void x11_window::loop() {
     if (!display_) return;
 
     bool had_events = process_events();
@@ -381,21 +380,21 @@ void linux_window::loop() {
     }
 }
 
-bool linux_window::should_close() const {
+bool x11_window::should_close() const {
     return should_close_;
 }
 
-void* linux_window::user_data() const { return user_data_; }
-void linux_window::set_user_data(void* data) { user_data_ = data; }
+void* x11_window::user_data() const { return user_data_; }
+void x11_window::set_user_data(void* data) { user_data_ = data; }
 
-void linux_window::request_repaint() {
+void x11_window::request_repaint() {
 }
 
-void linux_window::request_layout() {
+void x11_window::request_layout() {
     needs_layout_ = true;
 }
 
-void linux_window::set_cursor(cursor_type c) {
+void x11_window::set_cursor(cursor_type c) {
     if (!display_ || !window_) return;
     unsigned int shape = XC_left_ptr;
     switch (c) {
@@ -417,12 +416,12 @@ void linux_window::set_cursor(cursor_type c) {
     XFlush(display_);
 }
 
-void linux_window::set_on_close(void_function callback) { on_close_ = callback; }
-void linux_window::set_on_resize(void_function callback) { on_resize_ = callback; }
-void linux_window::set_on_key(void_function callback) { on_key_ = callback; }
-void linux_window::set_on_mouse(void_function callback) { on_mouse_ = callback; }
+void x11_window::set_on_close(void_function callback) { on_close_ = callback; }
+void x11_window::set_on_resize(void_function callback) { on_resize_ = callback; }
+void x11_window::set_on_key(void_function callback) { on_key_ = callback; }
+void x11_window::set_on_mouse(void_function callback) { on_mouse_ = callback; }
 
-void linux_window::set_mouse_capture(bool capture) {
+void x11_window::set_mouse_capture(bool capture) {
     if (capture) {
         XGrabPointer(display_, window_, True,
                      ButtonPressMask | ButtonReleaseMask | PointerMotionMask,
@@ -432,7 +431,7 @@ void linux_window::set_mouse_capture(bool capture) {
     }
 }
 
-void linux_window::set_widget(std::unique_ptr<widget> widget) {
+void x11_window::set_widget(std::unique_ptr<widget> widget) {
     widget_ = std::move(widget);
     widget_->set_repaint_callback([this]() { request_repaint(); });
     widget_->set_window_action_callback([this](int action) {
@@ -446,7 +445,7 @@ void linux_window::set_widget(std::unique_ptr<widget> widget) {
     notify_widget_resize();
 }
 
-bool linux_window::initialize(const window_params& params) {
+bool x11_window::initialize(const window_params& params) {
     window_id_ = next_window_id_++;
     dpi_scale_ = 1.0f;
     title_ = params.title;
@@ -457,8 +456,6 @@ bool linux_window::initialize(const window_params& params) {
 
     if (!connect_to_x11()) return false;
 
-    // Atom 须在 create_x11_window（设 _NET_WM_NAME 标题）之前初始化，
-    // 否则 XChangeProperty 传入 0 触发 BadAtom (request: 18)
     {
         auto* display = display_;
         delete_atom_ = XInternAtom(display, "WM_DELETE_WINDOW", False);
@@ -485,6 +482,17 @@ bool linux_window::initialize(const window_params& params) {
                  FocusChangeMask | VisibilityChangeMask);
 
     XSetWMProtocols(display_, window_, &delete_atom_, 1);
+
+    setlocale(LC_ALL, "");
+    XSetLocaleModifiers("");
+    xim_ = XOpenIM(display_, nullptr, nullptr, nullptr);
+    if (xim_) {
+        xic_ = XCreateIC(xim_, XNInputStyle, XIMPreeditNothing | XIMStatusNothing,
+                         XNClientWindow, window_, XNFocusWindow, window_, nullptr);
+    } else {
+        console::warning("x11",
+                         "XOpenIM failed (check XMODIFIERS, e.g. @im=fcitx/@im=ibus)");
+    }
 
     on_close_ = params.on_close;
     on_resize_ = params.on_resize;
@@ -531,7 +539,7 @@ bool linux_window::initialize(const window_params& params) {
     return true;
 }
 
-void linux_window::shutdown() {
+void x11_window::shutdown() {
     if (!initialized_) return;
 
     if (widget_) {
@@ -563,6 +571,15 @@ void linux_window::shutdown() {
         window_ = 0;
     }
 
+    if (xic_) {
+        XDestroyIC(xic_);
+        xic_ = nullptr;
+    }
+    if (xim_) {
+        XCloseIM(xim_);
+        xim_ = nullptr;
+    }
+
     if (display_) {
         auto* display = display_;
         XCloseDisplay(display);
@@ -573,7 +590,7 @@ void linux_window::shutdown() {
 }
 
 
-bool linux_window::connect_to_x11() {
+bool x11_window::connect_to_x11() {
     auto* display = XOpenDisplay(nullptr);
     if (!display) {
         console::error("x11", "Failed to open X11 display");
@@ -585,7 +602,7 @@ bool linux_window::connect_to_x11() {
 }
 
 
-bool linux_window::create_x11_window(const window_params& params) {
+bool x11_window::create_x11_window(const window_params& params) {
     if (!glx_visual_) {
         console::error("x11", "GLX visual not selected");
         return false;
@@ -664,7 +681,7 @@ bool linux_window::create_x11_window(const window_params& params) {
     return true;
 }
 
-bool linux_window::select_fb_config() {
+bool x11_window::select_fb_config() {
     auto* display = display_;
     if (!display) return false;
 
@@ -706,7 +723,7 @@ bool linux_window::select_fb_config() {
     return true;
 }
 
-bool linux_window::create_gl_context() {
+bool x11_window::create_gl_context() {
     auto* display = display_;
     if (!display || !glx_fb_config_) return false;
 
@@ -755,7 +772,7 @@ bool linux_window::create_gl_context() {
     return true;
 }
 
-bool linux_window::create_renderer() {
+bool x11_window::create_renderer() {
     if (renderer_) return true;
     renderer_ = renderer::create_opengl_renderer();
     if (!renderer_) return false;
@@ -771,7 +788,7 @@ bool linux_window::create_renderer() {
 }
 
 
-bool linux_window::process_events() {
+bool x11_window::process_events() {
     auto* display = display_;
     if (!display) return false;
 
@@ -799,6 +816,14 @@ bool linux_window::process_events() {
                     handle_resize(static_cast<uint32_t>(new_w),
                                   static_cast<uint32_t>(new_h));
                 }
+                break;
+            }
+            case FocusIn: {
+                if (xic_) XSetICFocus(xic_);
+                break;
+            }
+            case FocusOut: {
+                if (xic_) XUnsetICFocus(xic_);
                 break;
             }
             case KeyPress: {
@@ -866,9 +891,6 @@ bool linux_window::process_events() {
                 if (on_close_) on_close_(this);
                 break;
             }
-            case FocusIn:
-            case FocusOut:
-                break;
             case VisibilityNotify: {
                 is_visible_ = (event.xvisibility.state != VisibilityFullyObscured);
                 break;
@@ -886,7 +908,7 @@ bool linux_window::process_events() {
     return handled;
 }
 
-void linux_window::handle_expose() {
+void x11_window::handle_expose() {
     if (widget_ && renderer_) {
         renderer_->begin_frame();
         widget_->paint(renderer_);
@@ -895,7 +917,7 @@ void linux_window::handle_expose() {
     }
 }
 
-void linux_window::handle_resize(uint32_t width, uint32_t height) {
+void x11_window::handle_resize(uint32_t width, uint32_t height) {
     if (width == 0 || height == 0) return;
 
     width_ = static_cast<int32_t>(width);
@@ -943,7 +965,7 @@ static int keysym_to_vk(KeySym keysym) {
     }
 }
 
-void linux_window::handle_key_press(XKeyEvent* event) {
+void x11_window::handle_key_press(XKeyEvent* event) {
     if (!event) return;
 
     KeySym keysym = XLookupKeysym(event, 0);
@@ -966,28 +988,39 @@ void linux_window::handle_key_press(XKeyEvent* event) {
         ked.shift = (event->state & ShiftMask) != 0;
         ked.alt = (event->state & Mod1Mask) != 0;
 
-        static XIM xim = nullptr;
-        static XIC xic = nullptr;
-        if (!xim) {
-            // XIM 需要 locale 才能加载输入法；必须先 setlocale + XSetLocaleModifiers
+        if (!xim_) {
             setlocale(LC_ALL, "");
             XSetLocaleModifiers("");
-            xim = XOpenIM(display_, nullptr, nullptr, nullptr);
+            xim_ = XOpenIM(display_, nullptr, nullptr, nullptr);
         }
-        if (xim && !xic) {
-            xic = XCreateIC(xim, XNInputStyle, XIMPreeditNothing | XIMStatusNothing,
-                            XNClientWindow, window_, XNFocusWindow, window_, nullptr);
+        if (xim_ && !xic_) {
+            xic_ = XCreateIC(xim_, XNInputStyle, XIMPreeditNothing | XIMStatusNothing,
+                             XNClientWindow, window_, XNFocusWindow, window_, nullptr);
         }
-        if (xic) {
+        if (xic_) {
             Status status;
-            wchar_t buf[8] = {};
-            int len = XwcLookupString(xic, event, buf, 8, &keysym, &status);
-            if (len > 0 && status == XLookupChars) {
-                ked.codepoint = static_cast<unsigned int>(buf[0]);
+            char buf[16] = {};
+            int len = Xutf8LookupString(xic_, event, buf, sizeof(buf), &keysym, &status);
+            if (len > 0 && (status == XLookupChars || status == XLookupBoth)) {
+                unsigned char c = static_cast<unsigned char>(buf[0]);
+                if (c < 0x80) {
+                    ked.codepoint = c;
+                } else if ((c & 0xE0) == 0xC0 && len >= 2) {
+                    ked.codepoint = ((c & 0x1F) << 6) |
+                                    (static_cast<unsigned char>(buf[1]) & 0x3F);
+                } else if ((c & 0xF0) == 0xE0 && len >= 3) {
+                    ked.codepoint = ((c & 0x0F) << 12) |
+                                    ((static_cast<unsigned char>(buf[1]) & 0x3F) << 6) |
+                                    (static_cast<unsigned char>(buf[2]) & 0x3F);
+                } else if ((c & 0xF8) == 0xF0 && len >= 4) {
+                    ked.codepoint = ((c & 0x07) << 18) |
+                                    ((static_cast<unsigned char>(buf[1]) & 0x3F) << 12) |
+                                    ((static_cast<unsigned char>(buf[2]) & 0x3F) << 6) |
+                                    (static_cast<unsigned char>(buf[3]) & 0x3F);
+                }
             }
         }
         if (ked.codepoint == 0) {
-            // 无输入法时回退到 XLookupString，保证 ASCII 输入可用
             char ascii_buf[8] = {};
             KeySym ks;
             int len = XLookupString(event, ascii_buf, sizeof(ascii_buf), &ks, nullptr);
@@ -1000,40 +1033,40 @@ void linux_window::handle_key_press(XKeyEvent* event) {
     if (on_key_) on_key_(this);
 }
 
-void linux_window::handle_key_release(XKeyEvent* event) {
+void x11_window::handle_key_release(XKeyEvent* event) {
     if (!event) return;
     KeySym keysym = XLookupKeysym(event, 0);
     key_state_[keysym] = false;
     if (on_key_) on_key_(this);
 }
 
-int linux_window::hit_test_edge(float x, float y) const {
+int x11_window::hit_test_edge(float x, float y) const {
     if (is_maximized_ || is_fullscreen_) return 0;
     int flags = 0;
-    if (x < RESIZE_MARGIN)                flags |= 1; // 左
-    if (x > width_ - RESIZE_MARGIN)       flags |= 2; // 右
-    if (y < RESIZE_MARGIN)                flags |= 4; // 上
-    if (y > height_ - RESIZE_MARGIN)      flags |= 8; // 下
+    if (x < RESIZE_MARGIN)                flags |= 1; // 。
+    if (x > width_ - RESIZE_MARGIN)       flags |= 2; // 。
+    if (y < RESIZE_MARGIN)                flags |= 4; // 。
+    if (y > height_ - RESIZE_MARGIN)      flags |= 8; // 。
     return flags;
 }
 
 static void set_resize_cursor(Display* display, ::Window window, int edge_flags) {
     static const unsigned int shape_map[16] = {
-        0, // 无
-        XC_sb_h_double_arrow, // 左
-        XC_sb_h_double_arrow, // 右
+        0, // 。
+        XC_sb_h_double_arrow, // 。
+        XC_sb_h_double_arrow, // 。
         0, // 左右
-        XC_sb_v_double_arrow, // 上
+        XC_sb_v_double_arrow, // 。
         XC_top_left_corner, // 左上
         XC_top_right_corner,  // 右上
-        0, // 上 & 左右
-        XC_sb_v_double_arrow, // 下
+        0, // 。& 左右
+        XC_sb_v_double_arrow, // 。
         XC_bottom_left_corner, // 左下
         XC_bottom_right_corner, // 右下
-        0, // 下 & 左右
+        0, // 。& 左右
         0, // 上下
-        0, // 上下 & 左
-        0, // 上下 & 右
+        0, // 上下 & 。
+        0, // 上下 & 。
         0, // 全部
     };
     unsigned int shape = 0;
@@ -1058,7 +1091,7 @@ static void set_resize_cursor(Display* display, ::Window window, int edge_flags)
     }
 }
 
-void linux_window::handle_button_press(XButtonEvent* event) {
+void x11_window::handle_button_press(XButtonEvent* event) {
     if (!event) return;
 
     float xDIP = static_cast<float>(event->x) / dpi_scale_;
@@ -1131,7 +1164,7 @@ void linux_window::handle_button_press(XButtonEvent* event) {
     if (on_mouse_) on_mouse_(this);
 }
 
-void linux_window::handle_button_release(XButtonEvent* event) {
+void x11_window::handle_button_release(XButtonEvent* event) {
     if (!event) return;
 
     is_resizing_ = false;
@@ -1158,7 +1191,7 @@ void linux_window::handle_button_release(XButtonEvent* event) {
     if (on_mouse_) on_mouse_(this);
 }
 
-void linux_window::handle_mouse_motion(XMotionEvent* event) {
+void x11_window::handle_mouse_motion(XMotionEvent* event) {
     if (!event) return;
 
     float xDIP = static_cast<float>(event->x) / dpi_scale_;
@@ -1246,7 +1279,7 @@ void linux_window::handle_mouse_motion(XMotionEvent* event) {
     if (on_mouse_) on_mouse_(this);
 }
 
-void linux_window::handle_mouse_wheel(XButtonEvent* event, bool up) {
+void x11_window::handle_mouse_wheel(XButtonEvent* event, bool up) {
     if (!event) return;
 
     float xDIP = static_cast<float>(event->x) / dpi_scale_;
@@ -1267,7 +1300,7 @@ void linux_window::handle_mouse_wheel(XButtonEvent* event, bool up) {
 }
 
 
-void linux_window::update_dpi() {
+void x11_window::update_dpi() {
     auto* display = display_;
     if (!display) {
         dpi_scale_ = 1.0f;
@@ -1287,7 +1320,7 @@ void linux_window::update_dpi() {
     if (dpi_scale_ < 1.0f) dpi_scale_ = 1.0f;
 }
 
-void linux_window::notify_widget_resize() {
+void x11_window::notify_widget_resize() {
     if (!widget_) return;
 
     size sizeData = { static_cast<float>(width_), static_cast<float>(height_) };
@@ -1301,7 +1334,7 @@ std::shared_ptr<window> window::create() {
 }
 
 std::shared_ptr<window> window::create(const window_params& params) {
-    auto win = std::make_shared<linux_window>();
+    auto win = std::make_shared<x11_window>();
     if (!win->initialize(params)) return nullptr;
     return win;
 }
@@ -1312,10 +1345,3 @@ window::window(window&&) noexcept = default;
 window& window::operator=(window&&) noexcept = default;
 
 } // namespace spiration
-
-
-
-
-
-
-

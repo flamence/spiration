@@ -71,7 +71,7 @@ bool extension::initialize() {
     }
 
     api->add_menu_item("menu.help", i18n_manager::get().tr("menu.help.agent"), [this]() {
-        open_chat_tab();
+        open_agent_tab();
     });
 
     return true;
@@ -92,8 +92,8 @@ void extension::shutdown() {
     client_.reset();
 }
 
-void extension::open_chat_tab() {
-    auto tab = std::make_unique<chat_tab>(client_.get());
+void extension::open_agent_tab() {
+    auto tab = std::make_unique<agent_tab>(client_.get());
     tab->set_repaint_callback([this]() { if (api) api->request_repaint(); });
     api->open_tab(std::move(tab));
 }

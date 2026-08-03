@@ -7,7 +7,7 @@
 #pragma once
 
 #include <extension/builtin/agent/chat.h>
-#include <extension/builtin/agent/chat_tab.h>
+#include <extension/builtin/agent/agent_tab.h>
 #include <extension/builtin/agent/tool/terminal_tool.h>
 #include <extension/builtin/agent/tool/edit_tool.h>
 #include <extension/builtin/agent/tool/web_tool.h>
@@ -32,7 +32,7 @@ public:
     static inline std::string ID = "com.flamence.spiration.agent";
 
 private:
-    void open_chat_tab();
+    void open_agent_tab();
 
     std::unique_ptr<chat_client> client_;
     std::unique_ptr<create_terminal_tool> create_terminal_;
