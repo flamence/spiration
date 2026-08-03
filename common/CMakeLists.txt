@@ -17,6 +17,15 @@ target_link_libraries(spiration-common PUBLIC CppProperties::cppproperties)
 target_link_libraries(spiration-common PUBLIC nlohmann_json::nlohmann_json)
 target_link_libraries(spiration-common PUBLIC CURL::libcurl)
 
+if(UNIX AND NOT APPLE)
+    find_package(OpenGL REQUIRED)
+    find_package(Freetype REQUIRED)
+    target_include_directories(spiration-common PRIVATE
+        ${OPENGL_INCLUDE_DIR} ${FREETYPE_INCLUDE_DIRS} ${stb_SOURCE_DIR})
+    target_link_libraries(spiration-common PRIVATE
+        ${OPENGL_LIBRARIES} GLX ${FREETYPE_LIBRARIES})
+endif()
+
 target_include_directories(spiration-common
     PUBLIC 
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>

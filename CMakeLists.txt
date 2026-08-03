@@ -47,6 +47,13 @@ if(NOT CURL_FOUND)
     FetchContent_MakeAvailable(curl)
 endif()
 
+FetchContent_Declare(
+  stb
+  URL https://raw.githubusercontent.com/nothings/stb/master/stb_image.h
+  DOWNLOAD_NO_EXTRACT TRUE
+)
+FetchContent_MakeAvailable(stb)
+
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)

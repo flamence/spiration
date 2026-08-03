@@ -1,4 +1,4 @@
-set(STB_IMAGE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/deps/stb")
+set(STB_IMAGE_DIR "${stb_SOURCE_DIR}")
 
 find_package(PkgConfig REQUIRED)
 find_package(X11 REQUIRED)
