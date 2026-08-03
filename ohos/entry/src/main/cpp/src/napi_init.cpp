@@ -2,7 +2,7 @@
 #include "napi_bridge.h"
 
 #include <ohos_application.h>
-#include <ohos_renderer.h>
+#include <renderer/opengl_renderer.h>
 #include <ohos_window.h>
 #include <ohos_clipboard.h>
 #include <ui/root.h>
@@ -16,7 +16,7 @@
 #include <fstream>
 
 static std::shared_ptr<spiration::ohos_window> g_window;
-static std::shared_ptr<spiration::ohos_renderer> g_renderer;
+static std::shared_ptr<spiration::opengl_renderer> g_renderer;
 static NativeResourceManager* g_resourceMgr = nullptr;
 
 /* NAPI 回调注册辅助宏：声明存储 + invoke + NAPI 函数 */
@@ -204,7 +204,7 @@ static napi_value NapiInitNativeWindow(napi_env env, napi_callback_info info) {
         return ret;
     }
 
-    g_renderer = std::make_shared<spiration::ohos_renderer>();
+    g_renderer = std::make_shared<spiration::opengl_renderer>();
     if (!g_renderer->initialize(native_window)) {
         spiration::console::error("napi", "Failed to initialize OHOS renderer");
         napi_value ret;

@@ -5,7 +5,7 @@
  */
 
 #include "ohos_window.h"
-#include "ohos_renderer.h"
+#include <renderer/opengl_renderer.h>
 #include <utils/console.h>
 
 namespace spiration {
