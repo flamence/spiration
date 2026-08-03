@@ -102,6 +102,12 @@ private:
     void notify_widget_resize();
     int hit_test_edge(float x, float y) const;
 
+    void copy_to_clipboard(const std::string& text);
+    std::string paste_from_clipboard();
+    void handle_selection_request(const XSelectionRequestEvent& req);
+    void handle_selection_clear();
+    std::string read_selection_property(Atom property);
+
     bool needs_layout_ = true;
 
     Display* display_ = nullptr;
@@ -116,6 +122,10 @@ private:
     Atom net_wm_name_atom_ = 0;
     Atom net_wm_icon_atom_ = 0;
     Atom utf8_string_atom_ = 0;
+    Atom clipboard_atom_ = 0;
+    Atom targets_atom_ = 0;
+    Atom text_atom_ = 0;
+    std::string clipboard_text_;
 
     int screen_number_ = 0;
 
@@ -178,6 +188,7 @@ private:
     static constexpr float DRAG_AREA_HEIGHT = 34.0f;
 
     static uint32_t next_window_id_;
+    static x11_window* s_active_window_;  // 当前活动窗口（剪贴板后端无捕获 lambda 访问用）
 };
 
 } // namespace spiration

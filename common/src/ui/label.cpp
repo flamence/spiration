@@ -7,6 +7,7 @@
 #include <ui/label.h>
 #include <ui/theme_manager.h>
 #include <ui/context_menu.h>
+#include <ui/root.h>
 #include <application.h>
 #include <extension/builtin/i18n/i18n.h>
 #include <utils/clipboard.h>
@@ -192,6 +193,16 @@ void label::clear_selection() {
     selecting_ = false;
     sel_anchor_ = 0;
     sel_pos_ = 0;
+    if (request_repaint_) request_repaint_();
+}
+
+void label::notify_root_selection_started() {
+    for (widget* p = parent(); p; p = p->parent()) {
+        if (auto* r = dynamic_cast<root*>(p)) {
+            r->notify_selection_started(this);
+            break;
+        }
+    }
 }
 
 void label::open_context_menu(float mx, float my) {
@@ -200,6 +211,7 @@ void label::open_context_menu(float mx, float my) {
         if (has_selection()) clipboard::copy(selected_text());
     });
     menu->add_item(i18n_manager::get().tr("context.select_all"), [this]() {
+        notify_root_selection_started();
         sel_anchor_ = 0;
         sel_pos_ = text.size();
         selecting_ = true;
@@ -218,6 +230,7 @@ void label::handle_event(const event_type& type, void* data) {
             const bool inside = (mx >= 0.0f && mx <= width && my >= 0.0f && my <= height);
 
             if (md->action == mouse_action::down && md->button == mouse_button::left && inside) {
+                notify_root_selection_started();
                 md->consumed = true;
                 mouse_down_ = true;
                 selecting_ = true;
@@ -244,6 +257,7 @@ void label::handle_event(const event_type& type, void* data) {
                     clipboard::copy(selected_text());
                     kd->consumed = true;
                 } else if (kd->key_code == 65) {              // Ctrl+A
+                    notify_root_selection_started();
                     sel_anchor_ = 0;
                     sel_pos_ = text.size();
                     selecting_ = true;

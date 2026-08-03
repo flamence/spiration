@@ -1182,7 +1182,8 @@ bool opengl_renderer::create_buffers() {
     glBindVertexArray(vao_);
     glBindBuffer(GL_ARRAY_BUFFER, vbo_);
 
-    glBufferData(GL_ARRAY_BUFFER, MAX_BATCH_VERTICES * sizeof(vertex), nullptr, GL_DYNAMIC_DRAW);
+    const int vbo_capacity = MAX_BATCH_VERTICES + 512;
+    glBufferData(GL_ARRAY_BUFFER, vbo_capacity * sizeof(vertex), nullptr, GL_DYNAMIC_DRAW);
 
     glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, sizeof(vertex),
                           reinterpret_cast<const void*>(offsetof(vertex, x)));

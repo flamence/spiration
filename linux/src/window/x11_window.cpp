@@ -7,6 +7,7 @@
 #include <window/x11_window.h>
 #include <ui/point.h>
 #include <ui/size.h>
+#include <ui/cursor.h>
 #include <utils/console.h>
 #include <utils/platform.h>
 #include <stb_image.h>
@@ -20,7 +21,10 @@
 
 namespace spiration {
 
+void x11_clipboard_bind(void (*copy_fn)(const std::string&), std::string (*paste_fn)());
+
 uint32_t x11_window::next_window_id_ = 1;
+x11_window* x11_window::s_active_window_ = nullptr;
 
 static int x11_error_handler(Display* display, XErrorEvent* event) {
     char buf[256];
@@ -45,6 +49,9 @@ x11_window::x11_window(x11_window&& other) noexcept
     , net_wm_name_atom_(other.net_wm_name_atom_)
     , net_wm_icon_atom_(other.net_wm_icon_atom_)
     , utf8_string_atom_(other.utf8_string_atom_)
+    , clipboard_atom_(other.clipboard_atom_)
+    , targets_atom_(other.targets_atom_)
+    , text_atom_(other.text_atom_)
     , screen_number_(other.screen_number_)
     , gl_context_(other.gl_context_)
     , glx_visual_(other.glx_visual_)
@@ -68,6 +75,7 @@ x11_window::x11_window(x11_window&& other) noexcept
     , widget_(std::move(other.widget_))
     , user_data_(other.user_data_)
     , window_id_(other.window_id_)
+    , clipboard_text_(std::move(other.clipboard_text_))
 {
     other.display_ = nullptr;
     other.window_ = 0;
@@ -77,12 +85,16 @@ x11_window::x11_window(x11_window&& other) noexcept
     other.net_wm_name_atom_ = 0;
     other.net_wm_icon_atom_ = 0;
     other.utf8_string_atom_ = 0;
+    other.clipboard_atom_ = 0;
+    other.targets_atom_ = 0;
+    other.text_atom_ = 0;
     other.should_close_ = false;
     other.is_visible_ = false;
     other.initialized_ = false;
     other.user_data_ = nullptr;
     other.window_id_ = 0;
     other.dpi_scale_ = 1.0f;
+    if (s_active_window_ == &other) s_active_window_ = this;
 }
 
 x11_window& x11_window::operator=(x11_window&& other) noexcept {
@@ -99,11 +111,15 @@ x11_window& x11_window::operator=(x11_window&& other) noexcept {
         net_wm_name_atom_ = other.net_wm_name_atom_;
         net_wm_icon_atom_ = other.net_wm_icon_atom_;
         utf8_string_atom_ = other.utf8_string_atom_;
+        clipboard_atom_ = other.clipboard_atom_;
+        targets_atom_ = other.targets_atom_;
+        text_atom_ = other.text_atom_;
         screen_number_ = other.screen_number_;
         gl_context_ = other.gl_context_;
         glx_visual_ = other.glx_visual_;
         display_ = other.display_;
         title_ = std::move(other.title_);
+        clipboard_text_ = std::move(other.clipboard_text_);
         width_ = other.width_;
         height_ = other.height_;
         x_ = other.x_;
@@ -132,12 +148,16 @@ x11_window& x11_window::operator=(x11_window&& other) noexcept {
         other.net_wm_name_atom_ = 0;
         other.net_wm_icon_atom_ = 0;
         other.utf8_string_atom_ = 0;
+        other.clipboard_atom_ = 0;
+        other.targets_atom_ = 0;
+        other.text_atom_ = 0;
         other.should_close_ = false;
         other.is_visible_ = false;
         other.initialized_ = false;
         other.user_data_ = nullptr;
         other.window_id_ = 0;
         other.dpi_scale_ = 1.0f;
+        if (s_active_window_ == &other) s_active_window_ = this;
     }
     return *this;
 }
@@ -466,6 +486,9 @@ bool x11_window::initialize(const window_params& params) {
         net_wm_name_atom_ = XInternAtom(display, "_NET_WM_NAME", False);
         net_wm_icon_atom_ = XInternAtom(display, "_NET_WM_ICON", False);
         utf8_string_atom_ = XInternAtom(display, "UTF8_STRING", False);
+        clipboard_atom_ = XInternAtom(display, "CLIPBOARD", False);
+        targets_atom_ = XInternAtom(display, "TARGETS", False);
+        text_atom_ = XInternAtom(display, "TEXT", False);
     }
 
     if (!select_fb_config()) return false;
@@ -479,9 +502,24 @@ bool x11_window::initialize(const window_params& params) {
                  KeyPressMask | KeyReleaseMask |
                  ButtonPressMask | ButtonReleaseMask |
                  PointerMotionMask |
-                 FocusChangeMask | VisibilityChangeMask);
+                 FocusChangeMask | VisibilityChangeMask |
+                 SelectionRequest | SelectionClear);
 
     XSetWMProtocols(display_, window_, &delete_atom_, 1);
+
+    s_active_window_ = this;
+    x11_clipboard_bind(
+        [](const std::string& text) {
+            if (x11_window::s_active_window_) {
+                x11_window::s_active_window_->copy_to_clipboard(text);
+            }
+        },
+        []() -> std::string {
+            if (x11_window::s_active_window_) {
+                return x11_window::s_active_window_->paste_from_clipboard();
+            }
+            return {};
+        });
 
     setlocale(LC_ALL, "");
     XSetLocaleModifiers("");
@@ -541,6 +579,9 @@ bool x11_window::initialize(const window_params& params) {
 
 void x11_window::shutdown() {
     if (!initialized_) return;
+
+    x11_clipboard_bind(nullptr, nullptr);
+    if (s_active_window_ == this) s_active_window_ = nullptr;
 
     if (widget_) {
         widget_.reset();
@@ -826,6 +867,14 @@ bool x11_window::process_events() {
                 if (xic_) XUnsetICFocus(xic_);
                 break;
             }
+            case SelectionRequest: {
+                handle_selection_request(event.xselectionrequest);
+                break;
+            }
+            case SelectionClear: {
+                handle_selection_clear();
+                break;
+            }
             case KeyPress: {
                 handle_key_press(reinterpret_cast<XKeyEvent*>(&event));
                 break;
@@ -960,7 +1009,10 @@ static int keysym_to_vk(KeySym keysym) {
         case XK_F11:       return 0x7A;
         case XK_F12:       return 0x7B;
         default:
-            if (keysym >= ' ' && keysym <= '~') return static_cast<int>(keysym);
+            if (keysym >= XK_A && keysym <= XK_Z) return static_cast<int>(keysym);
+            if (keysym >= XK_a && keysym <= XK_z) return static_cast<int>(keysym - 32);
+            if (keysym >= XK_0 && keysym <= XK_9) return static_cast<int>(keysym);
+            if (keysym >= XK_space && keysym <= XK_asciitilde) return static_cast<int>(keysym);
             return static_cast<int>(keysym);
     }
 }
@@ -1019,8 +1071,7 @@ void x11_window::handle_key_press(XKeyEvent* event) {
                                     (static_cast<unsigned char>(buf[3]) & 0x3F);
                 }
             }
-        }
-        if (ked.codepoint == 0) {
+        } else {
             char ascii_buf[8] = {};
             KeySym ks;
             int len = XLookupString(event, ascii_buf, sizeof(ascii_buf), &ks, nullptr);
@@ -1038,6 +1089,115 @@ void x11_window::handle_key_release(XKeyEvent* event) {
     KeySym keysym = XLookupKeysym(event, 0);
     key_state_[keysym] = false;
     if (on_key_) on_key_(this);
+}
+
+namespace {
+
+struct clipboard_wait_ctx {
+    ::Window window;
+    Atom selection;
+};
+
+Bool clipboard_notify_predicate(Display*, XEvent* ev, XPointer arg) {
+    const auto* ctx = reinterpret_cast<const clipboard_wait_ctx*>(arg);
+    return ev->type == SelectionNotify &&
+           ev->xselection.requestor == ctx->window &&
+           ev->xselection.selection == ctx->selection;
+}
+
+} // namespace
+
+void x11_window::copy_to_clipboard(const std::string& text) {
+    if (!display_ || !window_) return;
+    clipboard_text_ = text;
+    XSetSelectionOwner(display_, clipboard_atom_, window_, CurrentTime);
+    XFlush(display_);
+}
+
+std::string x11_window::paste_from_clipboard() {
+    if (!display_ || !window_) return {};
+
+    ::Window owner = XGetSelectionOwner(display_, clipboard_atom_);
+    if (owner == None) return {};
+    if (owner == window_) return clipboard_text_;
+
+    XConvertSelection(display_, clipboard_atom_, utf8_string_atom_, clipboard_atom_,
+                      window_, CurrentTime);
+    XFlush(display_);
+
+    clipboard_wait_ctx ctx = { window_, clipboard_atom_ };
+    std::string result;
+    auto deadline = std::chrono::steady_clock::now() + std::chrono::milliseconds(500);
+    while (std::chrono::steady_clock::now() < deadline) {
+        XEvent ev;
+        if (XCheckIfEvent(display_, &ev, clipboard_notify_predicate,
+                          reinterpret_cast<XPointer>(&ctx))) {
+            if (ev.xselection.property != None) {
+                result = read_selection_property(ev.xselection.property);
+            }
+            break;
+        }
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+    }
+    return result;
+}
+
+void x11_window::handle_selection_request(const XSelectionRequestEvent& req) {
+    if (!display_) return;
+
+    XSelectionEvent reply = {};
+    reply.type = SelectionNotify;
+    reply.display = req.display;
+    reply.requestor = req.requestor;
+    reply.selection = req.selection;
+    reply.target = req.target;
+    reply.time = req.time;
+    reply.property = req.property;
+    if (reply.property == None) reply.property = req.target;
+
+    if (req.selection != clipboard_atom_) {
+        reply.property = None;
+    } else if (req.target == targets_atom_) {
+        Atom supported[] = { targets_atom_, utf8_string_atom_, XA_STRING, text_atom_ };
+        XChangeProperty(display_, req.requestor, req.property, XA_ATOM, 32,
+                        PropModeReplace,
+                        reinterpret_cast<unsigned char*>(supported),
+                        static_cast<int>(sizeof(supported) / sizeof(supported[0])));
+    } else if (req.target == utf8_string_atom_ || req.target == XA_STRING ||
+               req.target == text_atom_) {
+        XChangeProperty(display_, req.requestor, req.property, utf8_string_atom_, 8,
+                        PropModeReplace,
+                        reinterpret_cast<const unsigned char*>(clipboard_text_.data()),
+                        static_cast<int>(clipboard_text_.size()));
+    } else {
+        reply.property = None;
+    }
+
+    XSendEvent(display_, req.requestor, False, NoEventMask,
+               reinterpret_cast<XEvent*>(&reply));
+    XFlush(display_);
+}
+
+void x11_window::handle_selection_clear() {
+    clipboard_text_.clear();
+}
+
+std::string x11_window::read_selection_property(Atom property) {
+    if (!display_ || !window_) return {};
+    Atom actual_type;
+    int actual_format;
+    unsigned long nitems, bytes_after;
+    unsigned char* prop_data = nullptr;
+    std::string result;
+    if (XGetWindowProperty(display_, window_, property, 0, 1 << 20, True,
+                           AnyPropertyType, &actual_type, &actual_format,
+                           &nitems, &bytes_after, &prop_data) == Success && prop_data) {
+        if (actual_format == 8) {
+            result.assign(reinterpret_cast<char*>(prop_data), nitems);
+        }
+        XFree(prop_data);
+    }
+    return result;
 }
 
 int x11_window::hit_test_edge(float x, float y) const {
@@ -1262,7 +1422,7 @@ void x11_window::handle_mouse_motion(XMotionEvent* event) {
         if (edge && yDIP >= DRAG_AREA_HEIGHT) {
             set_resize_cursor(display_, window_, edge);
         } else {
-            XUndefineCursor(display_, window_);
+            cursor_manager::instance().apply(cursor_manager::instance().current());
         }
     }
 
