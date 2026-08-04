@@ -99,6 +99,10 @@ private:
     bool m_IsFullscreen = false;
     bool m_NeedsRepaint = true;
     bool m_NeedsLayout = true;
+    bool m_RepaintRequested = false;
+
+    bool m_Resizing = false;
+    DWORD m_LastResizeLayoutTick = 0;
 
     RECT m_WindowRectBeforeFullscreen = {};
     DWORD m_WindowStyleBeforeFullscreen = 0;

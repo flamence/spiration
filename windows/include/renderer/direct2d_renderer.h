@@ -13,6 +13,7 @@
 #include <wincodec.h>
 #include <wrl/client.h>
 #include <unordered_map>
+#include <map>
 #include <vector>
 #include <string>
 
@@ -127,6 +128,21 @@ private:
     
     std::unordered_map<std::string, texture_resource> m_Textures;
     std::unordered_map<std::string, font_resource> m_Fonts;
+
+    struct measure_key {
+        std::string text;
+        float size = 0.0f;
+        float wrap = 0.0f;
+        std::string family;
+        bool operator<(const measure_key& o) const {
+            if (size != o.size) return size < o.size;
+            if (wrap != o.wrap) return wrap < o.wrap;
+            if (family != o.family) return family < o.family;
+            return text < o.text;
+        }
+    };
+    std::map<measure_key, float> m_MeasureCache;
+    static constexpr size_t MEASURE_CACHE_MAX = 16384;
     
     std::vector<transform> m_TransformStack;
     transform m_CurrentTransform;

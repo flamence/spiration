@@ -37,7 +37,7 @@ public:
 
     void clear_text_selection() override { clear_selection(); }
 
-    cursor_type effective_cursor() const override {
+    cursor_type effective_cursor(float, float) const override {
         return selectable ? cursor_type::text : widget_style.cursor;
     }
 
@@ -84,6 +84,14 @@ private:
     void notify_root_selection_started();
 
     std::shared_ptr<renderer> cached_renderer_;
+
+    mutable std::vector<line_info> cached_lines_;
+    mutable float cached_lines_total_h_ = 0.0f;
+    mutable std::string cached_lines_text_;
+    mutable float cached_lines_width_ = -1.0f;
+    mutable float cached_lines_font_ = -1.0f;
+    mutable float cached_lines_height_ = -1.0f;
+    mutable bool cached_lines_valid_ = false;
 };
 
 }

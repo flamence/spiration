@@ -87,7 +87,7 @@ void container::paint(std::shared_ptr<renderer> renderer) {
     if (scroll_v || scroll_h) {
         renderer->push_clip({0, 0, width, height});
         renderer->push_transform(-scroll_x_, -scroll_y_);
-        widget::paint(renderer);
+        paint_children_culled(renderer);
         renderer->pop_transform();
         renderer->pop_clip();
 
@@ -95,7 +95,19 @@ void container::paint(std::shared_ptr<renderer> renderer) {
         return;
     }
 
-    widget::paint(renderer);
+    paint_children_culled(renderer);
+}
+
+void container::paint_children_culled(std::shared_ptr<renderer> renderer) {
+    for (auto& child : children()) {
+        float vx, vy, vw, vh;
+        if (child->width > 0.0f && child->height > 0.0f &&
+            !child->visible_rect(vx, vy, vw, vh))
+            continue;
+        renderer->push_transform(child->x, child->y);
+        child->paint(renderer);
+        renderer->pop_transform();
+    }
 }
 
 void container::tick(float dt_ms) {
@@ -142,20 +154,35 @@ void container::handle_event(const event_type& type, void* data) {
     }
 
     if (md->action == mouse_action::wheel) {
+        point w_orig = md->position;
+        md->position.x = w_orig.x + scroll_x_;
+        md->position.y = w_orig.y + scroll_y_;
+        const bool child_consumed_before = md->consumed;
+        widget::handle_event(type, data);
+        md->position = w_orig;
+        if (md->consumed && !child_consumed_before) return;
+
         if (scroll_v && !md->shift) {
             float step = (md->wheel_delta > 0) ? -40.0f : 40.0f;
-            scroll_y_ = std::max(0.0f, std::min(scroll_y_ + step, scroll_max_y_));
-            md->consumed = true;
-            if (request_repaint_) request_repaint_();
+            float ny = std::max(0.0f, std::min(scroll_y_ + step, scroll_max_y_));
+            if (ny != scroll_y_) {
+                scroll_y_ = ny;
+                md->consumed = true;
+                if (request_repaint_) request_repaint_();
+            }
             return;
         }
         if (scroll_h) {
             float step = (md->wheel_delta > 0) ? -40.0f : 40.0f;
-            scroll_x_ = std::max(0.0f, std::min(scroll_x_ + step, scroll_max_x_));
-            md->consumed = true;
-            if (request_repaint_) request_repaint_();
+            float nx = std::max(0.0f, std::min(scroll_x_ + step, scroll_max_x_));
+            if (nx != scroll_x_) {
+                scroll_x_ = nx;
+                md->consumed = true;
+                if (request_repaint_) request_repaint_();
+            }
             return;
         }
+        return;
     }
 
     if (md->action == mouse_action::down && md->button == mouse_button::left && over_v) {

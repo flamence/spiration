@@ -34,6 +34,7 @@ void text_field::blur() {
 void text_field::tick(float dt_ms) {
     if (focused_) {
         cursor_blink_ += dt_ms;
+        if (dt_ms > 500.0f) cursor_blink_ = cursor_blink_interval_;
         if (cursor_blink_ >= cursor_blink_interval_) {
             cursor_blink_ -= cursor_blink_interval_;
             cursor_visible_ = !cursor_visible_;

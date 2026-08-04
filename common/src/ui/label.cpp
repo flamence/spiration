@@ -37,6 +37,13 @@ float label::layout_lines(std::shared_ptr<renderer> r, std::vector<line_info>& o
     const float wrap_w = width > 0.0f ? width : 10000.0f;
     const float line_h = fs * 1.4f;
 
+    if (cached_lines_valid_ && cached_lines_text_ == text &&
+        cached_lines_width_ == width && cached_lines_font_ == font_size &&
+        cached_lines_height_ == height) {
+        out = cached_lines_;
+        return cached_lines_total_h_;
+    }
+
     out.clear();
     if (text.empty()) {
         out.push_back({0.0f, line_h, 0, 0, 0.0f, {}, {}});
@@ -100,6 +107,14 @@ float label::layout_lines(std::shared_ptr<renderer> r, std::vector<line_info>& o
         ln.height = line_h;
         y += line_h;
     }
+
+    cached_lines_ = out;
+    cached_lines_total_h_ = total_h;
+    cached_lines_text_ = text;
+    cached_lines_width_ = width;
+    cached_lines_font_ = font_size;
+    cached_lines_height_ = height;
+    cached_lines_valid_ = true;
     return total_h;
 }
 
@@ -164,20 +179,29 @@ size_t label::hit_test_text(float x, float y) const {
     if (lines.empty()) return 0;
     const float wrap_w = width > 0.0f ? width : 10000.0f;
 
-    for (const auto& ln : lines) {
-        if (y >= ln.y - 1.0f && y <= ln.y + ln.height + 1.0f) {
-            float lx = align_x(ln.width, wrap_w);
-            float rel = x - lx;
-            float acc = 0.0f;
-            for (size_t k = 0; k < ln.widths.size(); ++k) {
-                if (rel <= acc + ln.widths[k] * 0.5f)
-                    return ln.char_offsets[k];
-                acc += ln.widths[k];
-            }
-            return ln.end;
+    size_t idx = lines.size();
+    for (size_t i = 0; i < lines.size(); ++i) {
+        if (y <= lines[i].y + lines[i].height + 1.0f) {
+            idx = i;
+            break;
         }
     }
-    return (y < lines.front().y) ? 0 : text.size();
+    if (idx == lines.size()) {
+        return text.size();
+    }
+    const auto& ln = lines[idx];
+    if (y < ln.y - 1.0f) {
+        return ln.start;
+    }
+    float lx = align_x(ln.width, wrap_w);
+    float rel = x - lx;
+    float acc = 0.0f;
+    for (size_t k = 0; k < ln.widths.size(); ++k) {
+        if (rel <= acc + ln.widths[k] * 0.5f)
+            return ln.char_offsets[k];
+        acc += ln.widths[k];
+    }
+    return ln.end;
 }
 
 std::string label::selected_text() const {

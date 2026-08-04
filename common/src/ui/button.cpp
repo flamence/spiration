@@ -26,7 +26,7 @@ void button::on_hover_change(bool hovered) {
     color target;
     if (hovered && pressing_)      target = press_color;
     else if (hovered)              target = hover_color;
-    else                           target = color::transparent();
+    else                           target = base_bg;
     bg_transition_.animate_to(target, 120.0f);
 }
 

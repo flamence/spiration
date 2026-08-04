@@ -55,11 +55,17 @@ void scroll_row::handle_event(const event_type& type, void* data) {
         point original = md->position;
 
         if (md->action == mouse_action::wheel) {
-            float step = (md->wheel_delta > 0) ? -30.0f : 30.0f;
-            scroll_offset_ += step;
-            scroll_offset_ = std::max(0.0f, std::min(scroll_offset_, scroll_max_));
-            md->consumed = true;
-            if (request_repaint_) request_repaint_();
+            const bool inside = md->position.x >= 0.0f && md->position.x <= width &&
+                                md->position.y >= 0.0f && md->position.y <= height;
+            if (inside) {
+                float step = (md->wheel_delta > 0) ? -30.0f : 30.0f;
+                float ns = std::max(0.0f, std::min(scroll_offset_ + step, scroll_max_));
+                if (ns != scroll_offset_) {
+                    scroll_offset_ = ns;
+                    md->consumed = true;
+                    if (request_repaint_) request_repaint_();
+                }
+            }
             return;
         }
 

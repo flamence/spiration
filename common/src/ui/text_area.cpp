@@ -299,8 +299,7 @@ void text_area::handle_event(const event_type& type, void* data) {
         } else if (mouse->action == mouse_action::wheel) {
             if (mouse->shift) {
                 scroll_x_ -= static_cast<float>(mouse->wheel_delta) * 6.0f;
-                if (!max_width_dirty_) scroll_x_ = std::min(scroll_x_, scroll_max_x());
-                scroll_x_ = std::max(0.0f, scroll_x_);
+                scroll_x_ = std::max(0.0f, std::min(scroll_x_, scroll_max_x()));
             } else {
                 scroll_y_ -= static_cast<float>(mouse->wheel_delta) * 3.0f;
                 float max_scroll = std::max(0.0f,
@@ -738,7 +737,10 @@ void text_area::resolve_click(std::shared_ptr<renderer> r) {
 
 void text_area::paint(std::shared_ptr<renderer> r) {
     if (pending_click_.active) resolve_click(r);
-    if (max_width_dirty_) compute_max_line_width(r);
+    if (max_width_dirty_) {
+        compute_max_line_width(r);
+        scroll_x_ = std::max(0.0f, std::min(scroll_x_, scroll_max_x()));
+    }
 
     draw_background(r);
 

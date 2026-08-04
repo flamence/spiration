@@ -6,8 +6,18 @@
 
 #include <ui/widget.h>
 #include <ui/context_menu.h>
+#include <ui/root.h>
 
 namespace spiration {
+
+void widget::notify_destroyed() {
+    for (widget* p = parent_; p; p = p->parent()) {
+        if (auto* r = dynamic_cast<root*>(p)) {
+            r->on_widget_destroyed(this);
+            break;
+        }
+    }
+}
 
 void widget::set_context_menu_callback(std::function<void(float x, float y, std::unique_ptr<context_menu>)> cb) {
     context_menu_cb_ = std::move(cb);
@@ -22,6 +32,14 @@ void widget::request_context_menu(float x, float y, std::unique_ptr<context_menu
             w->context_menu_cb_(x, y, std::move(menu));
             return;
         }
+    }
+}
+
+void widget::relayout_chain() {
+    widget* w = this;
+    while (w) {
+        w->layout();
+        w = w->parent_;
     }
 }
 

@@ -32,13 +32,15 @@ public:
 
     /// @brief 块级元素。
     struct block {
-        enum class kind { heading, paragraph, code, quote, list, hr };
+        enum class kind { heading, paragraph, code, quote, list, hr, table };
         kind k = kind::paragraph;
         int level = 0;
         bool ordered = false;
         std::vector<run> runs;
         std::vector<std::vector<run>> items;
         std::vector<std::string> code_lines;
+        std::vector<size_t> code_offsets;
+        std::vector<std::vector<std::vector<run>>> table;
     };
 
     markdown() = default;
@@ -48,6 +50,7 @@ public:
     void layout() override;
     size layout_preferred_size() const override;
     void handle_event(const event_type& type, void* data) override;
+    cursor_type effective_cursor(float lx, float ly) const override;
 
 protected:
     size_t hit_test_text(float x, float y) const override;
@@ -57,6 +60,10 @@ private:
     std::vector<block> parse(const std::string& src) const;
     static std::vector<run> parse_inline(const std::string& line, size_t line_off,
                                          const std::map<std::string, std::string>& refs);
+    /// @brief 解析一行表格。
+    static std::vector<std::vector<run>> parse_table_row(
+        const std::string& line, size_t line_off,
+        const std::map<std::string, std::string>& refs);
 
     void ensure_parsed() const;
     std::shared_ptr<renderer> measure_renderer() const;
@@ -88,6 +95,11 @@ private:
     mutable std::string parsed_text_;
     mutable std::vector<block> blocks_;
     mutable std::shared_ptr<renderer> cached_renderer_;
+
+    mutable std::string cached_h_text_;
+    mutable float cached_h_width_ = -1.0f;
+    mutable float cached_h_font_ = -1.0f;
+    mutable float cached_h_height_ = 0.0f;
 
     std::string pressed_link_;
 };

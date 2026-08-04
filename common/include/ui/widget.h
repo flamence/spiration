@@ -43,6 +43,7 @@ public:
 
     virtual ~widget() {
         dispose();
+        notify_destroyed();
         for (auto& child : children_) {
             child->parent_ = nullptr;
         }
@@ -227,6 +228,29 @@ public:
     }
 
     /**
+     * @brief 计算本控件在祖先滚动/裁剪下实际可见的区域。
+     *        用于虚拟视图：绘制/tick 前判断子项是否在可视区域内。
+     * @return false 表示完全不可见。
+     */
+    bool visible_rect(float& vx, float& vy, float& vw, float& vh) const {
+        if (!parent_) {
+            vx = 0.0f; vy = 0.0f; vw = width; vh = height;
+            return vw > 0.0f && vh > 0.0f;
+        }
+        float px, py, pw, ph;
+        if (!parent_->visible_rect(px, py, pw, ph)) return false;
+        const float sx = parent_->scroll_offset_x_for_children();
+        const float sy = parent_->scroll_offset_for_children();
+        const float x0 = std::max(px + sx - x, 0.0f);
+        const float y0 = std::max(py + sy - y, 0.0f);
+        const float x1 = std::min(px + sx - x + pw, width);
+        const float y1 = std::min(py + sy - y + ph, height);
+        if (x1 <= x0 || y1 <= y0) return false;
+        vx = x0; vy = y0; vw = x1 - x0; vh = y1 - y0;
+        return true;
+    }
+
+    /**
      * @brief 子内容的垂直滚动偏移。
      */
     virtual float scroll_offset_for_children() const { return 0.0f; }
@@ -242,9 +266,24 @@ public:
     virtual void clear_text_selection() {}
 
     /**
+     * @brief 通知 root 清理可能指向本控件的捕获/选区指针。
+     *        防止 root 保存的裸指针在控件销毁后悬空导致 UAF 崩溃。
+     */
+    void notify_destroyed();
+
+    /**
      * @brief 控件悬停时应显示的光标。
      */
-    virtual cursor_type effective_cursor() const { return widget_style.cursor; }
+    virtual cursor_type effective_cursor(float lx, float ly) const {
+        (void)lx; (void)ly;
+        return widget_style.cursor;
+    }
+
+    /**
+     * @brief 沿父链重新布局。
+     *        供动画驱动的控件在高度变化时调用，让父布局及时跟随。
+     */
+    void relayout_chain();
 
     void set_parent(widget* p) { parent_ = p; }
 

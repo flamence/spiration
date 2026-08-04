@@ -116,6 +116,16 @@ std::string strip_list_marker(const std::string& t) {
     return t;
 }
 
+bool is_table_delimiter(const std::string& t) {
+    bool saw_pipe = false;
+    for (char c : t) {
+        if (c == '|') { saw_pipe = true; continue; }
+        if (c == ' ' || c == '\t' || c == '-' || c == ':') continue;
+        return false;
+    }
+    return saw_pipe && t.find('-') != std::string::npos;
+}
+
 float heading_size(float base, int level) {
     switch (level) {
         case 1: return base * 1.55f;
@@ -136,6 +146,31 @@ std::string mono_font() {
 
 std::string family_for(markdown::run_style s, const std::string& base) {
     return s == markdown::run_style::code ? mono_font() : base;
+}
+
+void apply_style(std::vector<markdown::run>& runs, markdown::run_style add) {
+    for (auto& r : runs) {
+        if (add == markdown::run_style::bold) {
+            switch (r.style) {
+                case markdown::run_style::normal: r.style = markdown::run_style::bold; break;
+                case markdown::run_style::italic: r.style = markdown::run_style::bold_italic; break;
+                default: break;
+            }
+        } else if (add == markdown::run_style::italic) {
+            switch (r.style) {
+                case markdown::run_style::normal: r.style = markdown::run_style::italic; break;
+                case markdown::run_style::bold:   r.style = markdown::run_style::bold_italic; break;
+                default: break;
+            }
+        }
+    }
+}
+
+void apply_link(std::vector<markdown::run>& runs, const std::string& href) {
+    for (auto& r : runs) {
+        r.href = href;
+        if (r.style == markdown::run_style::normal) r.style = markdown::run_style::link;
+    }
 }
 
 float approx_width(const std::string& s, float font_size) {
@@ -283,6 +318,7 @@ std::vector<markdown::block> markdown::parse(const std::string& src) const {
                 const std::string& cl = src_lines[i].first;
                 if (trim(cl).rfind("```", 0) == 0) { ++i; break; }
                 b.code_lines.push_back(cl);
+                b.code_offsets.push_back(src_lines[i].second);
                 ++i;
             }
             blocks.push_back(std::move(b));
@@ -364,6 +400,25 @@ std::vector<markdown::block> markdown::parse(const std::string& src) const {
             continue;
         }
 
+        if (i + 1 < n && t.find('|') != std::string::npos &&
+            is_table_delimiter(trim(src_lines[i + 1].first))) {
+            block b;
+            b.k = block::kind::table;
+            b.table.push_back(parse_table_row(t, t_off, refs));
+            i += 2;
+            while (i < n) {
+                const std::string& brow = src_lines[i].first;
+                const size_t boff = src_lines[i].second;
+                std::string bt = trim(brow);
+                if (bt.empty()) { ++i; break; }
+                if (bt.find('|') == std::string::npos) break;
+                b.table.push_back(parse_table_row(bt, boff, refs));
+                ++i;
+            }
+            blocks.push_back(std::move(b));
+            continue;
+        }
+
         block b;
         b.k = block::kind::paragraph;
         while (i < n) {
@@ -431,11 +486,10 @@ std::vector<markdown::run> markdown::parse_inline(
             size_t end = line.find("**", i + 2);
             if (end != std::string::npos) {
                 flush();
-                run r;
-                r.text = line.substr(i + 2, end - i - 2);
-                r.style = run_style::bold;
-                r.src = line_off + i + 2;
-                out.push_back(std::move(r));
+                auto nested = parse_inline(line.substr(i + 2, end - i - 2),
+                                           line_off + i + 2, refs);
+                apply_style(nested, run_style::bold);
+                out.insert(out.end(), nested.begin(), nested.end());
                 i = end + 2;
                 continue;
             }
@@ -444,11 +498,10 @@ std::vector<markdown::run> markdown::parse_inline(
             size_t end = line.find('*', i + 1);
             if (end != std::string::npos && (end + 1 >= n || line[end + 1] != '*')) {
                 flush();
-                run r;
-                r.text = line.substr(i + 1, end - i - 1);
-                r.style = run_style::italic;
-                r.src = line_off + i + 1;
-                out.push_back(std::move(r));
+                auto nested = parse_inline(line.substr(i + 1, end - i - 1),
+                                           line_off + i + 1, refs);
+                apply_style(nested, run_style::italic);
+                out.insert(out.end(), nested.begin(), nested.end());
                 i = end + 1;
                 continue;
             }
@@ -494,12 +547,11 @@ std::vector<markdown::run> markdown::parse_inline(
                 size_t url_end = line.find(')', close + 2);
                 if (url_end != std::string::npos) {
                     flush();
-                    run r;
-                    r.text = line.substr(i + 1, close - i - 1);
-                    r.style = run_style::link;
-                    r.href = trim(line.substr(close + 2, url_end - close - 2));
-                    r.src = line_off + i + 1;
-                    out.push_back(std::move(r));
+                    std::string label = line.substr(i + 1, close - i - 1);
+                    std::string href = trim(line.substr(close + 2, url_end - close - 2));
+                    auto nested = parse_inline(label, line_off + i + 1, refs);
+                    apply_link(nested, href);
+                    out.insert(out.end(), nested.begin(), nested.end());
                     i = url_end + 1;
                     continue;
                 }
@@ -528,12 +580,9 @@ std::vector<markdown::run> markdown::parse_inline(
                 }
                 if (!href.empty()) {
                     flush();
-                    run r;
-                    r.text = label;
-                    r.style = run_style::link;
-                    r.href = href;
-                    r.src = line_off + i + 1;
-                    out.push_back(std::move(r));
+                    auto nested = parse_inline(label, line_off + i + 1, refs);
+                    apply_link(nested, href);
+                    out.insert(out.end(), nested.begin(), nested.end());
                     i = end_pos + 1;
                     continue;
                 }
@@ -548,7 +597,43 @@ std::vector<markdown::run> markdown::parse_inline(
     return out;
 }
 
+std::vector<std::vector<markdown::run>> markdown::parse_table_row(
+        const std::string& line, size_t line_off,
+        const std::map<std::string, std::string>& refs) {
+    std::vector<std::vector<run>> cells;
+    std::string s = line;
+    if (!s.empty() && s[0] == '|') s.erase(0, 1);
+    if (!s.empty() && s.back() == '|') s.pop_back();
+    const size_t base_off = line_off + (line.size() - s.size());
+    size_t pos = 0;
+    while (pos <= s.size()) {
+        size_t pipe = std::string::npos;
+        for (size_t q = pos; q < s.size(); ++q) {
+            if (s[q] == '|' && (q == 0 || s[q - 1] != '\\')) { pipe = q; break; }
+        }
+        std::string cell = (pipe == std::string::npos)
+                               ? s.substr(pos)
+                               : s.substr(pos, pipe - pos);
+        size_t trim_l = cell.find_first_not_of(" \t\r");
+        size_t trim_r = cell.find_last_not_of(" \t\r");
+        std::string trimmed;
+        size_t cell_off = base_off + pos;
+        if (trim_l != std::string::npos) {
+            trimmed = cell.substr(trim_l, trim_r - trim_l + 1);
+            cell_off += trim_l;
+        }
+        cells.push_back(parse_inline(trimmed, cell_off, refs));
+        if (pipe == std::string::npos) break;
+        pos = pipe + 1;
+    }
+    return cells;
+}
+
 float markdown::measure_height(std::shared_ptr<renderer> r, float avail_w) const {
+    if (cached_h_text_ == text && cached_h_width_ == avail_w &&
+        cached_h_font_ == font_size) {
+        return cached_h_height_;
+    }
     ensure_parsed();
     const float base_size = font_size > 0.0f ? font_size : 14.0f;
     const float line_h = base_size * 1.4f;
@@ -597,8 +682,15 @@ float markdown::measure_height(std::shared_ptr<renderer> r, float avail_w) const
             case block::kind::hr:
                 y += line_h * 1.3f;
                 break;
+            case block::kind::table:
+                y += static_cast<float>(b.table.size()) * line_h + base_size * 0.35f;
+                break;
         }
     }
+    cached_h_text_ = text;
+    cached_h_width_ = avail_w;
+    cached_h_font_ = font_size;
+    cached_h_height_ = y;
     return y;
 }
 
@@ -663,8 +755,15 @@ void markdown::draw_block(std::shared_ptr<renderer> r, const block& b,
             r->draw_rectangle_outline({x, y, avail_w, ch},
                                       theme_manager::get(theme_manager::SEPARATOR), 1.0f);
             float cy = y + pad;
-            for (const auto& cl : b.code_lines) {
-                r->draw_text(cl, {x + pad, cy}, code_col, base_size * 0.95f, mono_font(), false);
+            float cfont = base_size * 0.95f;
+            for (size_t ci = 0; ci < b.code_lines.size(); ++ci) {
+                const auto& cl = b.code_lines[ci];
+                r->draw_text(cl, {x + pad, cy}, code_col, cfont, mono_font(), false);
+                float lw = r ? r->measure_text_width(cl, cfont, mono_font()) : 0.0f;
+                size_t loff = (ci < b.code_offsets.size()) ? b.code_offsets[ci] : 0;
+                word_rects_.push_back({x + pad, cy, lw, line_h, loff,
+                                       loff + cl.size(), "", cl,
+                                       run_style::code, cfont});
                 cy += line_h;
             }
             y += ch + base_size * 0.35f;
@@ -709,6 +808,53 @@ void markdown::draw_block(std::shared_ptr<renderer> r, const block& b,
             y += line_h * 1.3f;
             break;
         }
+        case block::kind::table: {
+            const float cell_pad = 8.0f;
+            size_t cols = 0;
+            for (const auto& row : b.table)
+                cols = std::max(cols, row.size());
+            if (cols == 0) break;
+            std::vector<float> col_w(cols, 0.0f);
+            for (const auto& row : b.table) {
+                for (size_t c = 0; c < row.size(); ++c) {
+                    float cw = line_width(r, row[c], base_size, bf);
+                    col_w[c] = std::max(col_w[c], cw + cell_pad * 2.0f);
+                }
+            }
+            float total = 0.0f;
+            for (float w : col_w) total += w;
+            if (total > avail_w) {
+                float scale = avail_w / total;
+                for (auto& w : col_w) w *= scale;
+                total = avail_w;
+            }
+            color tbl_border = theme_manager::get(theme_manager::SEPARATOR);
+            color tbl_hdr    = theme_manager::get(theme_manager::CODE_BG);
+            float row_h = line_h;
+            float table_h = static_cast<float>(b.table.size()) * row_h;
+            r->draw_rectangle({x, y, total, row_h}, tbl_hdr);
+            float ry = y;
+            for (size_t ri = 0; ri < b.table.size(); ++ri) {
+                const auto& row = b.table[ri];
+                float cx = x;
+                for (size_t ci = 0; ci < cols; ++ci) {
+                    if (ci < row.size())
+                        draw_word_line(r, row[ci], cx + cell_pad, ry,
+                                       base_size, bf, base, code_bg, line_h, link);
+                    if (ci + 1 < cols)
+                        r->draw_line({cx + col_w[ci], ry}, {cx + col_w[ci], ry + row_h},
+                                     tbl_border, 1.0f);
+                    cx += col_w[ci];
+                }
+                if (ri + 1 < b.table.size())
+                    r->draw_line({x, ry + row_h}, {x + total, ry + row_h},
+                                 tbl_border, 1.0f);
+                ry += row_h;
+            }
+            r->draw_rectangle_outline({x, y, total, table_h}, tbl_border, 1.0f);
+            y += table_h + base_size * 0.35f;
+            break;
+        }
     }
     y_out = y;
 }
@@ -720,7 +866,8 @@ void markdown::draw_word_line(std::shared_ptr<renderer> r, const std::vector<run
     float cx = x;
     float space_w = r ? r->measure_text_width(" ", font_size, base_family)
                       : font_size * 0.28f;
-    for (const auto& run : line) {
+    for (size_t li = 0; li < line.size(); ++li) {
+        const auto& run = line[li];
         if (run.style == run_style::image) {
             float bw = draw_image_run(r, run, cx, y, font_size, line_height);
             word_rects_.push_back({cx, y, bw, line_height, run.src,
@@ -733,7 +880,7 @@ void markdown::draw_word_line(std::shared_ptr<renderer> r, const std::vector<run
         float w = r ? r->measure_text_width(run.text, font_size, family)
                     : approx_width(run.text, font_size);
         color c = base_color;
-        if (run.style == run_style::link) c = link_color;
+        if (!run.href.empty() || run.style == run_style::link) c = link_color;
 
         if (run.style == run_style::code && code_bg.a > 0.0f)
             r->draw_rectangle({cx - 3.0f, y - 1.0f, w + 6.0f, line_height - 1.0f}, code_bg);
@@ -742,9 +889,16 @@ void markdown::draw_word_line(std::shared_ptr<renderer> r, const std::vector<run
             r->draw_text(run.text, {cx + 0.5f, y}, c, font_size, family, false);
         r->draw_text(run.text, {cx, y}, c, font_size, family, false);
 
-        if (run.style == run_style::link)
-            r->draw_line({cx, y + font_size + 1.0f},
-                         {cx + w, y + font_size + 1.0f}, link_color, 1.0f);
+        if (!run.href.empty() || run.style == run_style::link) {
+            float line_end = cx + w;
+            if (li + 1 < line.size() &&
+                (!line[li + 1].href.empty() || line[li + 1].style == run_style::link) &&
+                line[li + 1].href == run.href) {
+                line_end += space_w;
+            }
+            r->draw_line({cx, y + font_size + 1.0f}, {line_end, y + font_size + 1.0f},
+                         link_color, 1.0f);
+        }
 
         word_rects_.push_back({cx, y, w + space_w, line_height, run.src,
                                run.src + run.text.size(), run.href,
@@ -848,7 +1002,19 @@ size_t markdown::hit_test_text(float x, float y) const {
             if (!found || x < wr.x) { best = wr.start; found = true; }
         }
     }
-    return found ? best : (y < 0.0f ? 0 : text.size());
+    if (found) return best;
+
+    if (y < 0.0f) return 0;
+    size_t closest = text.size();
+    float best_dy = 1e30f;
+    for (const auto& wr : word_rects_) {
+        float dy = (y < wr.y) ? (wr.y - y) : (y - (wr.y + wr.h));
+        if (dy < best_dy) {
+            best_dy = dy;
+            closest = (y < wr.y) ? wr.start : wr.end;
+        }
+    }
+    return closest;
 }
 
 void markdown::draw_selection_highlight(std::shared_ptr<renderer> r) const {
@@ -864,6 +1030,17 @@ void markdown::draw_selection_highlight(std::shared_ptr<renderer> r) const {
         float xb = word_prefix_width(wr, lb, r);
         r->draw_rectangle({wr.x + xa, wr.y, std::max(xb - xa, 1.0f), wr.h}, sel_c);
     }
+}
+
+cursor_type markdown::effective_cursor(float lx, float ly) const {
+    for (const auto& wr : word_rects_) {
+        if (lx >= wr.x && lx <= wr.x + wr.w && ly >= wr.y && ly <= wr.y + wr.h) {
+            if (!wr.href.empty() || wr.style == run_style::link ||
+                wr.style == run_style::image)
+                return cursor_type::pointer;
+        }
+    }
+    return label::effective_cursor(lx, ly);
 }
 
 void markdown::handle_event(const event_type& type, void* data) {

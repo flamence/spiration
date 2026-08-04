@@ -47,6 +47,11 @@ public:
      */
     void notify_selection_started(widget* w);
 
+    /**
+     * @brief 控件销毁时调用。
+     */
+    void on_widget_destroyed(widget* w);
+
     tab_bar* get_tab_bar() const { return tab_bar_; }
     menu_bar* get_menu_bar() const { return menu_bar_; }
     std::shared_ptr<spiration::window> window() const { return m_window; }
