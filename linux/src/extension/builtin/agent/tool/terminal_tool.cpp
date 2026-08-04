@@ -28,6 +28,90 @@ namespace agent {
 
 namespace {
 
+class ansi_stripper {
+public:
+    std::string process(const std::string& chunk) {
+        std::string out;
+        out.reserve(chunk.size());
+        for (unsigned char c : chunk) {
+            switch (state_) {
+                case 0:
+                    if (c == 0x1B) {
+                        state_ = 1;
+                    } else if (c == '\r' || c == 0x07) {
+                    } else if (c < 0x20 || c == 0x7F) {
+                        if (c == '\n' || c == '\t') out += static_cast<char>(c);
+                    } else {
+                        out += static_cast<char>(c);
+                    }
+                    break;
+                case 1:
+                    if (c == '[') state_ = 2;
+                    else if (c == ']') state_ = 3;
+                    else state_ = 0;
+                    break;
+                case 2:
+                    if (c >= 0x40 && c <= 0x7E) state_ = 0;
+                    break;
+                case 3:
+                    if (c == 0x07) state_ = 0;
+                    else if (c == 0x1B) state_ = 4;
+                    break;
+                case 4:
+                    state_ = (c == '\\') ? 0 : 3;
+                    break;
+            }
+        }
+        return out;
+    }
+
+private:
+    int state_ = 0;
+};
+
+std::string sanitize_utf8(const std::string& in) {
+    std::string out;
+    out.reserve(in.size());
+    const size_t n = in.size();
+    size_t i = 0;
+    while (i < n) {
+        unsigned char c = static_cast<unsigned char>(in[i]);
+        size_t len = 0;
+        if (c < 0x80) {
+            out += static_cast<char>(c);
+            ++i;
+            continue;
+        } else if ((c & 0xE0) == 0xC0) {
+            len = 2;
+        } else if ((c & 0xF0) == 0xE0) {
+            len = 3;
+        } else if ((c & 0xF8) == 0xF0) {
+            len = 4;
+        }
+        if (len == 0 || i + len > n) {
+            out += "\xEF\xBF\xBD";  // U+FFFD
+            ++i;
+            continue;
+        }
+        bool ok = true;
+        for (size_t k = 1; k < len; ++k) {
+            unsigned char cc = static_cast<unsigned char>(in[i + k]);
+            if (cc < 0x80 || cc > 0xBF) {
+                ok = false;
+                break;
+            }
+        }
+        if (!ok) {
+            out += "\xEF\xBF\xBD";
+            ++i;
+            continue;
+        }
+        out.append(in, i, len);
+        i += len;
+    }
+    return out;
+}
+
 class posix_terminal_session : public terminal_session {
 public:
     explicit posix_terminal_session(const std::string& shell_path);
@@ -40,8 +124,8 @@ public:
     std::string error() const override { return err_; }
 
 private:
-    int in_fd_ = -1;   // 写子进程 stdin
-    int out_fd_ = -1;  // 读子进程 stdout
+    int in_fd_ = -1;
+    int out_fd_ = -1;
     pid_t pid_ = -1;
     std::thread reader_;
     std::atomic<bool> alive_{false};
@@ -74,12 +158,14 @@ posix_terminal_session::posix_terminal_session(const std::string& shell_path) {
         return;
     }
     if (pid_ == 0) {
-        // 子进程
         dup2(in_pipe[0], STDIN_FILENO);
         dup2(out_pipe[1], STDOUT_FILENO);
         dup2(out_pipe[1], STDERR_FILENO);
         close(in_pipe[0]); close(in_pipe[1]);
         close(out_pipe[0]); close(out_pipe[1]);
+        setenv("LC_ALL", "C.UTF-8", 1);
+        setenv("LANG", "C.UTF-8", 1);
+        setenv("PYTHONIOENCODING", "utf-8", 1);
         const char* shell = shell_path.empty() ? "/bin/sh" : shell_path.c_str();
         execl(shell, shell, nullptr);
         _exit(127);
@@ -90,7 +176,6 @@ posix_terminal_session::posix_terminal_session(const std::string& shell_path) {
     in_fd_ = in_pipe[1];
     out_fd_ = out_pipe[0];
 
-    // 非阻塞读，配合轮询
     int flags = fcntl(out_fd_, F_GETFL, 0);
     fcntl(out_fd_, F_SETFL, flags | O_NONBLOCK);
 
@@ -133,42 +218,43 @@ size_t posix_terminal_session::line_count() const {
 std::vector<std::string> posix_terminal_session::read_window(size_t from_bottom,
                                                              size_t to_bottom) const {
     std::lock_guard<std::mutex> lk(mtx_);
-    std::vector<std::string> all(lines_.begin(), lines_.end());
-    if (!partial_.empty()) all.push_back(partial_);
-
-    size_t total = all.size();
+    const size_t total = lines_.size() + (partial_.empty() ? 0 : 1);
     if (total == 0) return {};
     if (from_bottom > to_bottom) std::swap(from_bottom, to_bottom);
     if (from_bottom < 1) from_bottom = 1;
     if (to_bottom > total) to_bottom = total;
-    size_t start = total - to_bottom;
-    size_t end = total - from_bottom;
+    const size_t start_idx = total - to_bottom;
+    const size_t end_idx = total - from_bottom + 1;
     std::vector<std::string> out;
-    out.reserve(end - start + 1);
-    for (size_t i = start; i <= end; ++i) out.push_back(all[i]);
+    out.reserve(end_idx - start_idx);
+    for (size_t i = start_idx; i < end_idx; ++i) {
+        out.push_back((i < lines_.size()) ? lines_[i] : partial_);
+    }
     return out;
 }
 
 void posix_terminal_session::reader_loop() {
     char buf[4096];
+    ansi_stripper strip;
     while (alive_) {
         ssize_t n = ::read(out_fd_, buf, sizeof(buf));
         if (n > 0) {
             std::string chunk(buf, static_cast<size_t>(n));
+            std::string cleaned = strip.process(chunk);
             std::lock_guard<std::mutex> lk(mtx_);
-            partial_ += chunk;
+            partial_ += cleaned;
             size_t pos;
             while ((pos = partial_.find('\n')) != std::string::npos) {
                 std::string line = partial_.substr(0, pos);
                 if (!line.empty() && line.back() == '\r') line.pop_back();
-                lines_.push_back(line);
+                lines_.push_back(sanitize_utf8(line));
                 partial_.erase(0, pos + 1);
                 if (lines_.size() > MAX_LINES) lines_.pop_front();
             }
         } else if (n < 0 && (errno == EAGAIN || errno == EWOULDBLOCK)) {
             std::this_thread::sleep_for(std::chrono::milliseconds(20));
         } else {
-            break;  // EOF 或错误
+            break;
         }
     }
     alive_ = false;

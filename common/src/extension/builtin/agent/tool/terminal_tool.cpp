@@ -26,7 +26,7 @@ std::string terminal_manager::create(const std::string& shell) {
     std::lock_guard<std::mutex> lk(mtx_);
     std::string id = "t" + std::to_string(next_id_++);
     sessions_[id] = std::move(s);
-    console::info("terminal", "created session %s", id.c_str());
+    console::info("extension/agent/terminal", "created session %s", id.c_str());
     return id;
 }
 

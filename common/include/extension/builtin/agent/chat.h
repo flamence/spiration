@@ -30,9 +30,17 @@ struct tool_execution {
     std::string result;
 };
 
+/// @brief 思考等级。
+enum class reasoning_level {
+    none,    ///< 无
+    standard, ///< 标准
+    deep,    ///< 深度
+};
+
 /// @brief 单次对话补全响应。
 struct chat_response {
     std::string content;
+    std::string reasoning_content;  ///< 模型思考过程
     std::vector<tool_call> tool_calls;
     std::string finish_reason;
     std::vector<tool_execution> executions;
@@ -50,8 +58,11 @@ struct chat_message {
 /// @brief 流式/执行事件回调集合。
 struct chat_events {
     std::function<void(const std::string& delta)> on_delta;
+    std::function<void(const std::string& delta)> on_reasoning_delta;  ///< 思考过程增量
     std::function<void(const tool_call& tc)> on_tool_call;
     std::function<void(const tool_execution& ex)> on_tool_result;
+    std::function<bool()> should_stop;   ///< 返回 true 时中断 run（停止按钮）
+    std::function<bool()> should_yield;  ///< 返回 true 时当前轮结束后不再继续（补充消息到达）
 };
 
 /**
@@ -66,12 +77,22 @@ public:
         int max_tokens = 4096;
         float temperature = 0.7f;
         bool stream = true;
+        reasoning_level reasoning = reasoning_level::standard;
     };
 
     explicit chat_client(const config& cfg);
     ~chat_client();
 
-    /// @brief 设置系统提示词（覆盖已有）。
+    /// @brief 运行时指定模型。
+    void set_model(const std::string& model) { cfg_.model = model; }
+
+    /// @brief 运行时指定思考等级。
+    void set_reasoning_level(reasoning_level level) { cfg_.reasoning = level; }
+
+    /// @brief 获取当前思考等级。
+    reasoning_level reasoning_level() const { return cfg_.reasoning; }
+
+    /// @brief 设置系统提示词。
     void set_system_prompt(const std::string& prompt);
 
     /// @brief 添加一条消息到对话历史。
@@ -106,11 +127,13 @@ private:
     std::vector<tool*> tools_;
 
     std::string build_request_body() const;
+    /// @brief 清理不合规的历史消息（发送前调用）。
+    void sanitize_history();
     chat_response parse_response(const std::string& body) const;
     std::string http_post(const std::string& url, const std::string& body,
                           const std::string& api_key) const;
     std::string execute_tool(const tool_call& tc);
-    chat_response send_stream(const std::function<void(const std::string&)>& on_delta);
+    chat_response send_stream(const chat_events& events);
     void append_assistant(const chat_response& resp);
 };
 

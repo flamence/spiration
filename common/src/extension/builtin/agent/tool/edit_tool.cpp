@@ -12,6 +12,8 @@
 #include <filesystem>
 #include <fstream>
 #include <string>
+#include <cstdint>
+#include <vector>
 
 #include <utils/path.h>
 
@@ -78,8 +80,92 @@ std::string create_file_tool::execute(const std::string& args_json) {
     if (path.empty()) return "[error] missing 'path'";
     if (!write_file(path, content))
         return "[error] create_file failed: " + path;
-    console::info("edit_tool", "created file: %s (%zu bytes)", path.c_str(), content.size());
+    console::info("extension/agent/edit", "created file: %s (%zu bytes)", path.c_str(), content.size());
     return "ok";
+}
+
+std::string read_file_tool::description() const {
+    return "Read a file and return its content. "
+           "Inspect files before editing them. "
+           "Use 'start_line'/'end_line' (1-based, inclusive) to read a range; "
+           "by default only the first 200 lines are returned.";
+}
+
+std::string read_file_tool::parameters_json() const {
+    return R"({
+    "type": "object",
+    "properties": {
+        "path": {
+            "type": "string",
+            "description": "File path to read."
+        },
+        "start_line": {
+            "type": "integer",
+            "description": "1-based first line to read (inclusive). Default 1."
+        },
+        "end_line": {
+            "type": "integer",
+            "description": "1-based last line to read (inclusive). Default: min(last line, 200)."
+        }
+    },
+    "required": ["path"]
+})";
+}
+
+std::string read_file_tool::execute(const std::string& args_json) {
+    std::string path;
+    long start_line = 1;
+    long end_line = 0;
+    try {
+        nlohmann::json j = nlohmann::json::parse(args_json);
+        path = j.value("path", "");
+        start_line = j.value("start_line", 1L);
+        end_line = j.value("end_line", 0L);
+    } catch (const std::exception& e) {
+        return "[error] invalid arguments: " + std::string(e.what());
+    }
+    if (path.empty()) return "[error] missing 'path'";
+
+    std::error_code ec;
+    uintmax_t sz = std::filesystem::file_size(path::u8path(path), ec);
+    if (ec) return "[error] read_file failed (stat): " + path;
+    if (sz > 16u * 1024u * 1024u)
+        return "[error] read_file: file too large (" + std::to_string(sz) + " bytes)";
+
+    std::string data;
+    if (!read_file(path, data)) return "[error] read_file failed: " + path;
+
+    std::vector<std::string> lines;
+    {
+        std::string cur;
+        for (size_t i = 0; i <= data.size(); ++i) {
+            if (i == data.size() || data[i] == '\n') {
+                if (!cur.empty() && cur.back() == '\r') cur.pop_back();
+                lines.push_back(cur);
+                cur.clear();
+            } else {
+                cur += data[i];
+            }
+        }
+    }
+
+    constexpr long MAX_LINES = 200;
+    if (start_line < 1) start_line = 1;
+    if (end_line <= 0 || end_line > static_cast<long>(lines.size()))
+        end_line = static_cast<long>(lines.size());
+    if (end_line - start_line + 1 > MAX_LINES) end_line = start_line + MAX_LINES - 1;
+
+    std::string out;
+    for (long ln = start_line; ln <= end_line; ++ln) {
+        out += lines[static_cast<size_t>(ln - 1)];
+        out += "\n";
+    }
+    if (end_line < static_cast<long>(lines.size())) {
+        out += "... (剩余 " + std::to_string(lines.size() - end_line) + " 行未显示)\n";
+    }
+    console::info("extension/agent/edit", "read file: %s (lines %ld-%ld / %zu)",
+                  path.c_str(), start_line, end_line, lines.size());
+    return out;
 }
 
 std::string create_directory_tool::description() const {
@@ -111,7 +197,7 @@ std::string create_directory_tool::execute(const std::string& args_json) {
     std::error_code ec;
     std::filesystem::create_directories(path::u8path(path), ec);
     if (ec) return "[error] create_directory failed: " + path + " (" + ec.message() + ")";
-    console::info("edit_tool", "created directory: %s", path.c_str());
+    console::info("extension/agent/edit", "created directory: %s", path.c_str());
     return "ok";
 }
 
@@ -170,7 +256,7 @@ std::string edit_file_tool::execute(const std::string& args_json) {
     if (has_content) {
         if (!write_file(path, content))
             return "[error] edit_file failed (write): " + path;
-        console::info("edit_tool", "edited file (full rewrite): %s (%zu bytes)", path.c_str(), content.size());
+        console::info("extension/agent/edit", "edited file (full rewrite): %s (%zu bytes)", path.c_str(), content.size());
         return "ok";
     }
 
@@ -187,7 +273,7 @@ std::string edit_file_tool::execute(const std::string& args_json) {
                 ++count;
             }
             if (count == 0) return "[error] 'search' text not found in " + path;
-            console::info("edit_tool", "replaced %zu occurrence(s) in %s", count, path.c_str());
+            console::info("extension/agent/edit", "replaced %zu occurrence(s) in %s", count, path.c_str());
         } else {
             size_t pos = data.find(search);
             if (pos == std::string::npos) return "[error] 'search' text not found in " + path;
@@ -234,7 +320,7 @@ std::string rename_tool::execute(const std::string& args_json) {
     std::error_code ec;
     std::filesystem::rename(path::u8path(path), path::u8path(new_path), ec);
     if (ec) return "[error] rename failed: " + path + " -> " + new_path + " (" + ec.message() + ")";
-    console::info("edit_tool", "renamed: %s -> %s", path.c_str(), new_path.c_str());
+    console::info("extension/agent/edit", "renamed: %s -> %s", path.c_str(), new_path.c_str());
     return "ok";
 }
 
@@ -271,7 +357,7 @@ std::string delete_tool::execute(const std::string& args_json) {
     if (is_dir) std::filesystem::remove_all(p, ec);
     else std::filesystem::remove(p, ec);
     if (ec) return "[error] delete failed: " + path + " (" + ec.message() + ")";
-    console::info("edit_tool", "deleted: %s", path.c_str());
+    console::info("extension/agent/edit", "deleted: %s", path.c_str());
     return "ok";
 }
 

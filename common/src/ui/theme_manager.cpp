@@ -27,6 +27,7 @@ void theme_manager::init_defaults(profile* dark) {
     d(MENU_BAR_BG,        {0.15f, 0.15f, 0.15f});
     d(MENU_TEXT,          {0.85f, 0.85f, 0.85f});
     d(BUTTON_TEXT,        {0.85f, 0.85f, 0.85f});
+    d(BUTTON_BG,          {0.13f, 0.13f, 0.13f});
     d(BUTTON_HOVER,       {1.00f, 1.00f, 1.00f, 0.12f});
     d(BUTTON_PRESS,       {1.00f, 1.00f, 1.00f, 0.22f});
     d(POPUP_BG,           {0.22f, 0.22f, 0.22f});
