@@ -205,6 +205,7 @@ LRESULT Window::HandleMessage(UINT uMsg, WPARAM wParam, LPARAM lParam) {
         BeginPaint(m_hWnd, &ps);
         if (m_Widget && m_Renderer) {
             m_Renderer->begin_frame();
+            m_Renderer->clear(m_Widget->widget_style.background_color);
             m_Widget->paint(m_Renderer);
             m_Renderer->end_frame();
         }
@@ -285,11 +286,35 @@ LRESULT Window::HandleMessage(UINT uMsg, WPARAM wParam, LPARAM lParam) {
             uint32_t heightDIP = static_cast<uint32_t>(std::lround(heightPx / m_DPIScale));
             m_Renderer->resize(widthDIP, heightDIP);
         }
-        NotifyWidgetResize();
-        if (m_OnResize) m_OnResize(this);
+        if (m_Resizing) {
+            // 拖动改变大小期间限频全量重排（约 30fps）：每个 WM_SIZE 都
+            // 全量 relayout+重测文本会导致严重卡顿（宽度变化使高度缓存失效）。
+            DWORD now = GetTickCount();
+            if (now - m_LastResizeLayoutTick >= 33) {
+                m_LastResizeLayoutTick = now;
+                NotifyWidgetResize();
+                if (m_OnResize) m_OnResize(this);
+            }
+        } else {
+            NotifyWidgetResize();
+            if (m_OnResize) m_OnResize(this);
+        }
         InvalidateRect(m_hWnd, nullptr, FALSE);
         return TRUE;
     }
+
+    case WM_ENTERSIZEMOVE:
+        m_Resizing = true;
+        return 0;
+
+    case WM_EXITSIZEMOVE:
+        // 拖动结束：恢复全量重排并立即刷新一次
+        m_Resizing = false;
+        m_LastResizeLayoutTick = 0;
+        NotifyWidgetResize();
+        if (m_OnResize) m_OnResize(this);
+        InvalidateRect(m_hWnd, nullptr, FALSE);
+        return 0;
 
     case WM_SYSKEYDOWN:
         if (wParam == VK_F4) {
@@ -705,22 +730,24 @@ void Window::loop() {
             m_Widget->tick(dt_ms);
         }
 
-        
-        if (m_NeedsRepaint || processedInput) {
+        bool hadRepaintReq = m_RepaintRequested;
+        m_RepaintRequested = false;
+
+        if (m_NeedsRepaint || processedInput || hadRepaintReq) {
             if (m_hWnd) {
                 InvalidateRect(m_hWnd, nullptr, FALSE);
                 m_NeedsRepaint = false;
             }
         }
 
-        
-        if (!processedInput && !m_NeedsRepaint) {
-            WaitMessage();
+        if (!processedInput && !m_NeedsRepaint && !hadRepaintReq) {
+            MsgWaitForMultipleObjects(0, nullptr, FALSE, 16, QS_ALLINPUT);
         }
     }
 }
 
 void Window::request_repaint() {
+    m_RepaintRequested = true;
     if (m_hWnd) {
         InvalidateRect(m_hWnd, nullptr, FALSE);
     }

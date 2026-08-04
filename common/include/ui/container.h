@@ -63,6 +63,11 @@ public:
     float scroll_max_y() const { return scroll_max_y_; }
 
     /**
+     * @brief 内容实际高度。
+     */
+    float content_height() const { return content_height_; }
+
+    /**
      * @brief 水平滚动到指定偏移。
      */
     void scroll_to_x(float x);
@@ -90,6 +95,9 @@ public:
 
 private:
     std::unique_ptr<layout_manager> layout_manager_ = nullptr;
+
+    /// 虚拟视图。
+    void paint_children_culled(std::shared_ptr<renderer> renderer);
 
     float content_width_ = 0.0f;
     float content_height_ = 0.0f;

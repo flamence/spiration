@@ -146,6 +146,7 @@ void direct2d_renderer::shutdown() {
     release_device_resources();
     m_Fonts.clear();
     m_Textures.clear();
+    m_MeasureCache.clear();
     m_WICFactory.Reset();
     m_DWriteFactory.Reset();
     m_D2DFactory.Reset();
@@ -420,7 +421,13 @@ void direct2d_renderer::get_viewport_size(uint32_t& width, uint32_t& height) con
 
 float direct2d_renderer::measure_text_width(const std::string& text, float font_size,
                                              const std::string& font_family) {
+    if (text.empty()) return 0.0f;
     if (!m_DWriteFactory || !m_RenderTarget) return 0.0f;
+
+    measure_key key{text, font_size, -1.0f, font_family};
+    auto cit = m_MeasureCache.find(key);
+    if (cit != m_MeasureCache.end()) return cit->second;
+
     font_resource* font = get_font(font_family, font_size);
     if (!font || !font->format) return 0.0f;
 
@@ -433,13 +440,22 @@ float direct2d_renderer::measure_text_width(const std::string& text, float font_
 
     DWRITE_TEXT_METRICS metrics;
     layout->GetMetrics(&metrics);
-    return metrics.widthIncludingTrailingWhitespace;
+    float result = metrics.widthIncludingTrailingWhitespace;
+    if (m_MeasureCache.size() >= MEASURE_CACHE_MAX) m_MeasureCache.clear();
+    m_MeasureCache.emplace(std::move(key), result);
+    return result;
 }
 
 float direct2d_renderer::measure_text_height(const std::string& text, float font_size,
                                               const std::string& font_family,
                                               float wrap_width) {
+    if (text.empty()) return 0.0f;
     if (!m_DWriteFactory || !m_RenderTarget) return 0.0f;
+
+    measure_key key{text, font_size, wrap_width, font_family};
+    auto cit = m_MeasureCache.find(key);
+    if (cit != m_MeasureCache.end()) return cit->second;
+
     font_resource* font = get_font(font_family, font_size);
     if (!font || !font->format) return 0.0f;
 
@@ -452,7 +468,10 @@ float direct2d_renderer::measure_text_height(const std::string& text, float font
 
     DWRITE_TEXT_METRICS metrics;
     layout->GetMetrics(&metrics);
-    return metrics.height;
+    float result = metrics.height;
+    if (m_MeasureCache.size() >= MEASURE_CACHE_MAX) m_MeasureCache.clear();
+    m_MeasureCache.emplace(std::move(key), result);
+    return result;
 }
 
 
@@ -502,6 +521,7 @@ void direct2d_renderer::release_device_resources() {
     m_Textures.clear();
     
     m_Fonts.clear();
+    m_MeasureCache.clear();
 }
 
 

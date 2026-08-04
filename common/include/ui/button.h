@@ -33,6 +33,15 @@ public:
     std::string text;
     std::function<void()> on_click;
 
+    /// @brief 非悬停状态的基础背景色。
+    color base_bg = color::transparent();
+
+    /// @brief 设置基础背景色。
+    void set_base_bg(const color& c) {
+        base_bg = c;
+        if (!is_hovered()) bg_transition_.snap_to(c);
+    }
+
     bool hit_test(float x, float y) const override;
 
     void tick(float dt_ms) override;

@@ -41,6 +41,16 @@ void root::notify_selection_started(widget* w) {
     selecting_widget_ = w;
 }
 
+void root::on_widget_destroyed(widget* w) {
+    if (captured_ == w) {
+        captured_ = nullptr;
+        if (m_window) m_window->set_mouse_capture(false);
+    }
+    if (selecting_widget_ == w) {
+        selecting_widget_ = nullptr;
+    }
+}
+
 widget* root::hit_test_hover(float x, float y) const {
     if (m_context_menu && m_context_menu->visible()) {
         if (widget* h = m_context_menu->hit_test_hover(x - m_context_menu->x,
@@ -90,12 +100,18 @@ void root::handle_event(const event_type& type, void* data) {
         auto* md = static_cast<mouse_event_data*>(data);
         point original = md->position;
         float ox = 0.0f, oy = 0.0f;
+        bool first = true;
         for (widget* w = captured_; w && w != this; w = w->parent()) {
-            // 与 widget::to_screen 一致：每层都要减去滚动偏移，
-            // 否则捕获期间（拖选 move/up）坐标整体偏移 scroll_y_，
-            // 导致选区错位、单击也“选词”。
-            ox += w->x - w->scroll_offset_x_for_children();
-            oy += w->y - w->scroll_offset_for_children();
+            if (first) {
+                // captured_ 自身的局部坐标不含它自己的滚动偏移（那是子内容偏移），
+                // 否则滚动容器作为捕获者（滚动条拖拽）时坐标多偏移 scroll_y_ 导致拖不动。
+                ox += w->x;
+                oy += w->y;
+                first = false;
+            } else {
+                ox += w->x - w->scroll_offset_x_for_children();
+                oy += w->y - w->scroll_offset_for_children();
+            }
         }
         md->position.x = original.x - ox;
         md->position.y = original.y - oy;

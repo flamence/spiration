@@ -648,6 +648,12 @@ void* Window::native_handle() const {
 
 void Window::loop() {
     @autoreleasepool {
+        static NSTimeInterval lastTick = [NSDate timeIntervalSinceReferenceDate];
+        NSTimeInterval now = [NSDate timeIntervalSinceReferenceDate];
+        float dt_ms = static_cast<float>((now - lastTick) * 1000.0);
+        lastTick = now;
+        if (dt_ms > 100.0f) dt_ms = 16.0f;
+
         NSEvent* event = [NSApp nextEventMatchingMask:NSEventMaskAny
                                             untilDate:[NSDate dateWithTimeIntervalSinceNow:0.016]
                                                inMode:NSDefaultRunLoopMode
@@ -661,6 +667,8 @@ void Window::loop() {
                 m_Widget->layout();
                 m_NeedsLayout = false;
             }
+            // 推进 tick 驱动的动画（胶囊展开/收起、光标闪烁等）
+            m_Widget->tick(dt_ms);
             m_Renderer->begin_frame();
             m_Widget->paint(m_Renderer);
             m_Renderer->end_frame();
