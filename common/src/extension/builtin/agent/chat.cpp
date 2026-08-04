@@ -13,6 +13,7 @@
 #include <cassert>
 #include <exception>
 #include <map>
+#include <set>
 #include <sstream>
 #include <cstdio>
 
@@ -62,6 +63,12 @@ std::string chat_client::build_request_body() const {
     body["max_tokens"] = cfg_.max_tokens;
     body["temperature"] = cfg_.temperature;
     body["stream"]     = cfg_.stream;
+
+    switch (cfg_.reasoning) {
+        case reasoning_level::none: break;
+        case reasoning_level::standard: body["reasoning_effort"] = "medium"; break;
+        case reasoning_level::deep:     body["reasoning_effort"] = "high"; break;
+    }
 
     nlohmann::json messages = nlohmann::json::array();
     for (const auto& m : history_) {
@@ -125,6 +132,7 @@ chat_response chat_client::parse_response(const std::string& body) const {
 
     auto& msg = choice["message"];
     resp.content = msg.value("content", "");
+    resp.reasoning_content = msg.value("reasoning_content", "");
 
     if (msg.contains("tool_calls")) {
         for (auto& tc : msg["tool_calls"]) {
@@ -144,15 +152,20 @@ chat_response chat_client::parse_response(const std::string& body) const {
 struct stream_context {
     std::string line_buf;
     std::string content;
+    std::string reasoning;
     std::string finish_reason;
     std::map<int, tool_call> tc_map;
     std::function<void(const std::string&)> on_delta;
+    std::function<void(const std::string&)> on_reasoning_delta;
+    std::function<bool()> should_stop;
 };
 
 static size_t stream_write_callback(void* contents, size_t size, size_t nmemb, void* userp) {
     auto* ctx = static_cast<stream_context*>(userp);
     size_t total = size * nmemb;
     if (!ctx) return total;
+
+    if (ctx->should_stop && ctx->should_stop()) return 0;
 
     ctx->line_buf.append(static_cast<char*>(contents), total);
     size_t pos;
@@ -180,6 +193,11 @@ static size_t stream_write_callback(void* contents, size_t size, size_t nmemb, v
             std::string piece = delta["content"].get<std::string>();
             ctx->content += piece;
             if (ctx->on_delta) ctx->on_delta(piece);
+        }
+        if (delta.contains("reasoning_content") && delta["reasoning_content"].is_string()) {
+            std::string piece = delta["reasoning_content"].get<std::string>();
+            ctx->reasoning += piece;
+            if (ctx->on_reasoning_delta) ctx->on_reasoning_delta(piece);
         }
         if (delta.contains("tool_calls") && delta["tool_calls"].is_array()) {
             for (auto& t : delta["tool_calls"]) {
@@ -243,7 +261,7 @@ std::string chat_client::http_post(const std::string& url, const std::string& bo
 }
 
 chat_response chat_client::send() {
-    return send_stream(nullptr);
+    return send_stream(chat_events{});
 }
 
 void chat_client::append_assistant(const chat_response& resp) {
@@ -256,7 +274,60 @@ void chat_client::append_assistant(const chat_response& resp) {
     }
 }
 
-chat_response chat_client::send_stream(const std::function<void(const std::string&)>& on_delta) {
+void chat_client::sanitize_history() {
+    history_.erase(
+        std::remove_if(history_.begin(), history_.end(),
+                       [](const chat_message& m) {
+                           if (m.role == "system") return false;
+                           if (m.role == "assistant")
+                               return m.content.empty() && m.tool_calls.empty() &&
+                                      m.tool_call_id.empty();
+                           return m.content.empty();
+                       }),
+        history_.end());
+
+    for (size_t i = 0; i < history_.size(); ++i) {
+        auto& m = history_[i];
+        if (m.role != "assistant" || m.tool_calls.empty()) continue;
+        bool all_resolved = true;
+        for (const auto& tc : m.tool_calls) {
+            bool found = false;
+            for (size_t j = i + 1; j < history_.size(); ++j) {
+                if (history_[j].role == "tool" && history_[j].tool_call_id == tc.id) {
+                    found = true;
+                    break;
+                }
+            }
+            if (!found) { all_resolved = false; break; }
+        }
+        if (all_resolved) continue;
+        if (m.content.empty()) {
+            history_.erase(history_.begin() + static_cast<std::ptrdiff_t>(i));
+            --i;
+        } else {
+            m.tool_calls.clear();
+        }
+    }
+
+    std::set<std::string> valid_ids;
+    for (const auto& m : history_) {
+        if (m.role == "assistant") {
+            for (const auto& tc : m.tool_calls) valid_ids.insert(tc.id);
+        }
+    }
+    history_.erase(
+        std::remove_if(history_.begin(), history_.end(),
+                       [&](const chat_message& m) {
+                           if (m.role != "tool") return false;
+                           return m.tool_call_id.empty() ||
+                                  valid_ids.count(m.tool_call_id) == 0;
+                       }),
+        history_.end());
+}
+
+chat_response chat_client::send_stream(const chat_events& events) {
+    sanitize_history();
+
     std::string url = cfg_.endpoint + "/chat/completions";
     std::string body;
     try {
@@ -281,8 +352,10 @@ chat_response chat_client::send_stream(const std::function<void(const std::strin
             console::error("extension/agent", "parse response failed: %s", e.what());
             return {};
         }
-        if (on_delta && !resp.content.empty())
-            on_delta(resp.content);
+        if (events.on_delta && !resp.content.empty())
+            events.on_delta(resp.content);
+        if (events.on_reasoning_delta && !resp.reasoning_content.empty())
+            events.on_reasoning_delta(resp.reasoning_content);
         append_assistant(resp);
         return resp;
     }
@@ -294,7 +367,9 @@ chat_response chat_client::send_stream(const std::function<void(const std::strin
     }
 
     stream_context ctx;
-    ctx.on_delta = on_delta;
+    ctx.on_delta = events.on_delta;
+    ctx.on_reasoning_delta = events.on_reasoning_delta;
+    ctx.should_stop = events.should_stop;
 
     curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
     curl_easy_setopt(curl, CURLOPT_POST, 1L);
@@ -315,15 +390,19 @@ chat_response chat_client::send_stream(const std::function<void(const std::strin
 
     CURLcode res = curl_easy_perform(curl);
     if (res != CURLE_OK) {
-        console::error("extension/agent", "curl stream request failed: %s", curl_easy_strerror(res));
+        if (!(events.should_stop && events.should_stop())) {
+            console::error("extension/agent", "curl stream request failed: %s",
+                           curl_easy_strerror(res));
+        }
     }
 
     curl_slist_free_all(headers);
     curl_easy_cleanup(curl);
 
     chat_response resp;
-    resp.content       = ctx.content;
-    resp.finish_reason = ctx.finish_reason;
+    resp.content           = ctx.content;
+    resp.reasoning_content = ctx.reasoning;
+    resp.finish_reason     = ctx.finish_reason;
     for (auto& [idx, tc] : ctx.tc_map)
         resp.tool_calls.push_back(std::move(tc));
 
@@ -353,12 +432,16 @@ chat_response chat_client::run(int max_rounds, const chat_events& events) {
     std::vector<tool_execution> all_executions;
 
     for (int round = 0; round < max_rounds; ++round) {
-        last = send_stream(events.on_delta);
+        if (events.should_stop && events.should_stop()) break;
+        if (events.should_yield && events.should_yield()) break;
+        last = send_stream(events);
 
         if (last.tool_calls.empty())
             break;
 
         for (auto& tc : last.tool_calls) {
+            if (events.should_stop && events.should_stop()) break;
+            if (events.should_yield && events.should_yield()) break;
             if (events.on_tool_call) events.on_tool_call(tc);
 
             std::string result = execute_tool(tc);

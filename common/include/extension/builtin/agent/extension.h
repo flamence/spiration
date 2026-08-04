@@ -23,7 +23,7 @@ class extension : public spiration::extension {
 public:
     std::string id() const override          { return ID; }
     std::string name() const override        { return api->tr("extension.agent.name"); }
-    std::string version() const override     { return "0.2"; }
+    std::string version() const override     { return "0.3"; }
     std::string description() const override { return api->tr("extension.agent.description"); }
 
     bool initialize() override;
@@ -39,6 +39,7 @@ private:
     std::unique_ptr<write_terminal_tool> write_terminal_;
     std::unique_ptr<read_terminal_tool> read_terminal_;
     std::unique_ptr<create_file_tool> create_file_;
+    std::unique_ptr<read_file_tool> read_file_;
     std::unique_ptr<create_directory_tool> create_directory_;
     std::unique_ptr<edit_file_tool> edit_file_;
     std::unique_ptr<rename_tool> rename_;

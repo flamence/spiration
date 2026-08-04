@@ -23,6 +23,7 @@ public:
     static constexpr const char* MENU_BAR_BG        = "menu_bar_bg";
     static constexpr const char* MENU_TEXT          = "menu_text";
     static constexpr const char* BUTTON_TEXT        = "button_text";
+    static constexpr const char* BUTTON_BG          = "button_bg";
     static constexpr const char* BUTTON_HOVER       = "button_hover";
     static constexpr const char* BUTTON_PRESS       = "button_press";
     static constexpr const char* POPUP_BG           = "popup_bg";

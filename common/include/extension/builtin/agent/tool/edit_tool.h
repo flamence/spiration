@@ -30,6 +30,15 @@ public:
     std::string execute(const std::string& args_json) override;
 };
 
+/// @brief 读取文件内容。
+class read_file_tool : public tool {
+public:
+    std::string name() const override { return "read_file"; }
+    std::string description() const override;
+    std::string parameters_json() const override;
+    std::string execute(const std::string& args_json) override;
+};
+
 /// @brief 编辑文件。
 class edit_file_tool : public tool {
 public:

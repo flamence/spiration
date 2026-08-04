@@ -197,7 +197,7 @@ std::string fetch_tool::execute(const std::string& args_json) {
         out += "\n" + response;
     }
     if (out.size() > 65536) out = out.substr(0, 65536) + "\n[output truncated]";
-    console::info("web_tool", "fetch %s -> status %ld, %zu bytes", full_url.c_str(), status, response.size());
+    console::info("extension/agent/web", "fetch %s -> status %ld, %zu bytes", full_url.c_str(), status, response.size());
     return out;
 }
 
