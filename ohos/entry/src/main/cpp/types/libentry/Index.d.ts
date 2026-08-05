@@ -87,8 +87,8 @@ export const spiration: {
     getAppDataDir(): string;
     /** 获取可执行文件目录 */
     getExecutableDir(): string;
-    /** 通过 Context API 注入应用沙箱数据目录 */
-    setDataDir(dir: string): void;
+    /** 通过 Context API 注入沙箱数据目录 */
+    setDataDir(appDir: string, moduleDir: string): void;
   };
 
   /** 国际化翻译 API */
