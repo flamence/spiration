@@ -44,6 +44,56 @@ bool read_file(const std::string& path, std::string& out) {
     return true;
 }
 
+/// @brief 行尾风格。
+enum class eol_style { lf, crlf };
+
+/// @brief 检测文本的主流行尾风格。
+eol_style detect_eol(const std::string& s) {
+    size_t crlf = 0, lf = 0;
+    for (size_t i = 0; i < s.size(); ++i) {
+        if (s[i] == '\n') {
+            if (i > 0 && s[i - 1] == '\r') ++crlf;
+            else ++lf;
+        }
+    }
+    return crlf > lf ? eol_style::crlf : eol_style::lf;
+}
+
+/// @brief 将 CRLF 统一为 LF，原地压缩。
+void normalize_to_lf(std::string& s) {
+    size_t w = 0;
+    for (size_t r = 0; r < s.size(); ++r) {
+        if (s[r] == '\r' && r + 1 < s.size() && s[r + 1] == '\n') continue;
+        s[w++] = s[r];
+    }
+    s.resize(w);
+}
+
+/// @brief 将 LF 恢复为 CRLF，原地扩展。
+void lf_to_crlf(std::string& s) {
+    size_t count = 0;
+    for (char c : s)
+        if (c == '\n') ++count;
+    if (count == 0) return;
+    s.resize(s.size() + count);
+    size_t w = s.size();
+    for (size_t r = s.size() - count; r > 0;) {
+        --r;
+        char c = s[r];
+        if (c == '\n') {
+            s[--w] = '\n';
+            s[--w] = '\r';
+        } else {
+            s[--w] = c;
+        }
+    }
+}
+
+/// @brief 按检测到的风格恢复行尾。
+void restore_eol(std::string& s, eol_style eol) {
+    if (eol == eol_style::crlf) lf_to_crlf(s);
+}
+
 } // namespace
 
 std::string create_file_tool::description() const {
@@ -140,15 +190,16 @@ std::string read_file_tool::execute(const std::string& args_json) {
     std::vector<std::string> lines;
     {
         std::string cur;
-        for (size_t i = 0; i <= data.size(); ++i) {
-            if (i == data.size() || data[i] == '\n') {
+        for (char c : data) {
+            if (c == '\n') {
                 if (!cur.empty() && cur.back() == '\r') cur.pop_back();
-                lines.push_back(cur);
+                lines.push_back(std::move(cur));
                 cur.clear();
             } else {
-                cur += data[i];
+                cur += c;
             }
         }
+        if (!cur.empty()) lines.push_back(std::move(cur));
     }
 
     constexpr long MAX_LINES = 200;
@@ -255,12 +306,16 @@ std::string edit_file_tool::execute(const std::string& args_json) {
         return "[error] invalid arguments: " + std::string(e.what());
     }
     if (path.empty()) return "[error] missing \"path\"";
-    path = resolve_path(path);  // 相对路径 → 会话工作目录
+    path = resolve_path(path);
 
     if (has_content) {
-        if (!write_file(path, content))
+        std::string out = content;
+        std::string old;
+        if (read_file(path, old) && detect_eol(old) == eol_style::crlf)
+            lf_to_crlf(out);
+        if (!write_file(path, out))
             return "[error] edit_file failed (write): " + path;
-        console::info("extension/agent/edit", "edited file (full rewrite): %s (%zu bytes)", path.c_str(), content.size());
+        console::info("extension/agent/edit", "edited file (full rewrite): %s (%zu bytes)", path.c_str(), out.size());
         return "ok";
     }
 
@@ -268,6 +323,10 @@ std::string edit_file_tool::execute(const std::string& args_json) {
         std::string data;
         if (!read_file(path, data)) return "[error] edit_file failed (read): " + path;
         if (search.empty()) return "[error] \"search\" must not be empty";
+        eol_style eol = detect_eol(data);
+        normalize_to_lf(data);
+        normalize_to_lf(search);
+        normalize_to_lf(replace);
         if (replace_all) {
             size_t p = 0;
             size_t count = 0;
@@ -283,6 +342,7 @@ std::string edit_file_tool::execute(const std::string& args_json) {
             if (pos == std::string::npos) return "[error] \"search\" text not found in " + path;
             data.replace(pos, search.size(), replace);
         }
+        restore_eol(data, eol);
         if (!write_file(path, data)) return "[error] edit_file failed (write): " + path;
         return "ok";
     }
