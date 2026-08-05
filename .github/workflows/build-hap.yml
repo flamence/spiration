@@ -50,8 +50,8 @@ jobs:
         if: github.event_name != 'release'
         uses: actions/upload-artifact@v6
         with:
-          name: ${{ steps.strings.outputs.archive-name }}
           path: ${{ steps.strings.outputs.build-hap }}
+          archive: false
 
       - name: 上传到 GitHub Release
         if: github.event_name == 'release'
