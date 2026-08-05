@@ -150,6 +150,7 @@ private:
     float m_Alpha = 1.0f;
     bool m_BlendEnabled = true;
     bool m_DeviceLost = false;
+    bool m_ComInitialized = false;
     
     static constexpr wchar_t DEFAULT_FONT[] = L"Arial";
 };

@@ -103,6 +103,7 @@ private:
 
     bool m_Resizing = false;
     DWORD m_LastResizeLayoutTick = 0;
+    DWORD m_LastTick = 0;
 
     RECT m_WindowRectBeforeFullscreen = {};
     DWORD m_WindowStyleBeforeFullscreen = 0;

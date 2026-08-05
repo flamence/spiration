@@ -723,10 +723,10 @@ void Window::loop() {
         }
 
         if (m_Widget) {
-            static DWORD lastTick = GetTickCount();
+            if (m_LastTick == 0) m_LastTick = GetTickCount();
             DWORD now = GetTickCount();
-            float dt_ms = static_cast<float>(now - lastTick);
-            lastTick = now;
+            float dt_ms = static_cast<float>(now - m_LastTick);
+            m_LastTick = now;
             m_Widget->tick(dt_ms);
         }
 

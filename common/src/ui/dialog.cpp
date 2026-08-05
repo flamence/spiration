@@ -11,6 +11,8 @@ namespace spiration {
 
 void dialog::init() {
     widget_style.background_color = theme_manager::get(theme_manager::DIALOG_BG);
+    if (width <= 0.0f) width = 400.0f;
+    if (height <= 0.0f) height = 250.0f;
 }
 
 void dialog::show() { visible_ = true; if (request_repaint_) request_repaint_(); }
@@ -29,13 +31,12 @@ void dialog::layout() {
 
 void dialog::paint(std::shared_ptr<renderer> renderer) {
     if (!visible_) return;
-    float ox = x, oy = y;
     uint32_t vw = 0, vh = 0;
     renderer->get_viewport_size(vw, vh);
-    x = 0; y = 0; width = static_cast<float>(vw); height = static_cast<float>(vh);
-    renderer->draw_rectangle({x, y, width, height}, theme_manager::get(theme_manager::DIALOG_OVERLAY));
-    x = ox; y = oy;
-    width = 400.0f; height = 250.0f;
+
+    renderer->draw_rectangle({0, 0, static_cast<float>(vw), static_cast<float>(vh)},
+                             theme_manager::get(theme_manager::DIALOG_OVERLAY));
+
     renderer->draw_rounded_rectangle({x, y, width, height}, theme_manager::get(theme_manager::DIALOG_BG), 8.0f);
     renderer->draw_rounded_rectangle_outline({x, y, width, height}, theme_manager::get(theme_manager::POPUP_BORDER), 8.0f, 1.0f);
 

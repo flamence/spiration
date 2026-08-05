@@ -189,10 +189,12 @@ void tab_bar::handle_event(const event_type& type, void* data) {
         auto* md = static_cast<mouse_event_data*>(data);
 
         point old = md->position;
-        md->position.x = old.x - header_row_->x;
-        md->position.y = old.y - header_row_->y;
-        header_row_->handle_event(type, data);
-        md->position = old;
+        if (header_row_) {
+            md->position.x = old.x - header_row_->x;
+            md->position.y = old.y - header_row_->y;
+            header_row_->handle_event(type, data);
+            md->position = old;
+        }
 
         bool header = (old.y >= 0.0f && old.y < TAB_HEADER_H);
         if (header && md->consumed) return;
