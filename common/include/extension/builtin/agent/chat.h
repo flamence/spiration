@@ -48,7 +48,7 @@ public:
         int max_tokens = 0;
         float temperature = 0.7f;
         bool stream = true;
-        reasoning_level reasoning = reasoning_level::standard;
+        reasoning_level reasoning = reasoning_level::medium;
         long timeout_seconds = 120;
     };
 
@@ -72,6 +72,18 @@ public:
 
     /// @brief 获取当前 provider 名称。
     std::string provider_name() const;
+
+    /// @brief 获取当前 provider 支持的思考挡位列表。
+    std::vector<::spiration::agent::reasoning_level> supported_reasoning_levels() const {
+        return provider_ ? provider_->supported_reasoning_levels()
+                         : std::vector<::spiration::agent::reasoning_level>{
+                               ::spiration::agent::reasoning_level::none,
+                               ::spiration::agent::reasoning_level::low,
+                               ::spiration::agent::reasoning_level::medium,
+                               ::spiration::agent::reasoning_level::high,
+                               ::spiration::agent::reasoning_level::xhigh,
+                               ::spiration::agent::reasoning_level::max};
+    }
 
     /// @brief 设置系统提示词。
     void set_system_prompt(const std::string& prompt);

@@ -33,12 +33,41 @@ struct tool_execution {
     std::string result;
 };
 
-/// @brief 思考等级。
+/// @brief 思考挡位。
 enum class reasoning_level {
-    none,     ///< 无
-    standard, ///< 标准
-    deep,     ///< 深度
+    none,     ///< 无（不思考）
+    low,      ///< 低
+    medium,   ///< 标准
+    high,     ///< 高
+    xhigh,    ///< 超高
+    max,      ///< 最大
 };
+
+/// @brief 将思考挡位转为字符串标识。
+inline const char* reasoning_level_to_string(reasoning_level l) {
+    switch (l) {
+        case reasoning_level::none:   return "none";
+        case reasoning_level::low:    return "low";
+        case reasoning_level::medium: return "medium";
+        case reasoning_level::high:   return "high";
+        case reasoning_level::xhigh:  return "xhigh";
+        case reasoning_level::max:    return "max";
+    }
+    return "medium";
+}
+
+/// @brief 从字符串解析思考挡位（兼容旧值 standard→medium、deep→high）。
+inline reasoning_level reasoning_level_from_string(const std::string& s) {
+    if (s == "none")   return reasoning_level::none;
+    if (s == "low")    return reasoning_level::low;
+    if (s == "medium") return reasoning_level::medium;
+    if (s == "high")   return reasoning_level::high;
+    if (s == "xhigh")  return reasoning_level::xhigh;
+    if (s == "max")    return reasoning_level::max;
+    if (s == "standard") return reasoning_level::medium;  // 兼容旧配置
+    if (s == "deep")     return reasoning_level::high;    // 兼容旧配置
+    return reasoning_level::medium;
+}
 
 /// @brief 单次对话补全响应。
 struct chat_response {
@@ -65,7 +94,7 @@ struct provider_request {
     int max_tokens = 0;
     float temperature = 0.7f;
     bool stream = false;
-    reasoning_level reasoning = reasoning_level::standard;
+    reasoning_level reasoning = reasoning_level::medium;
     std::vector<chat_message> messages;
     std::vector<tool_definition> tools;
 };
@@ -104,6 +133,15 @@ public:
 
     /// @brief provider 名称。
     virtual std::string name() const = 0;
+
+    /**
+     * @brief 支持的思考挡位列表（按显示顺序）。
+     *        不同 provider / 模型对思考能力的支持不同，UI 以此生成可选挡位。
+     */
+    virtual std::vector<reasoning_level> supported_reasoning_levels() const {
+        return {reasoning_level::none, reasoning_level::low, reasoning_level::medium,
+                reasoning_level::high, reasoning_level::xhigh, reasoning_level::max};
+    }
 
     /// @brief 基于配置的 endpoint 生成补全请求 URL。
     virtual std::string chat_url(const std::string& endpoint) const = 0;

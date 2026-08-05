@@ -19,12 +19,16 @@ namespace agent {
 
 namespace {
 
-/// @brief 将思考等级映射为 OpenAI 的 reasoning_effort 值。
+/// @brief 将思考挡位映射为 OpenAI 的 reasoning_effort 值。
+///        仅对启用思考的挡位返回非空；none 由调用方以 thinking disabled 处理。
 const char* openai_reasoning_effort(reasoning_level level) {
     switch (level) {
-        case reasoning_level::none:     return nullptr;
-        case reasoning_level::standard: return "medium";
-        case reasoning_level::deep:     return "high";
+        case reasoning_level::none:   return nullptr;
+        case reasoning_level::low:    return "low";
+        case reasoning_level::medium: return "medium";
+        case reasoning_level::high:   return "high";
+        case reasoning_level::xhigh:  return "xhigh";
+        case reasoning_level::max:    return "max";
     }
     return nullptr;
 }
@@ -36,6 +40,11 @@ namespace {
 class openai_provider : public provider {
 public:
     std::string name() const override { return "openai"; }
+
+    std::vector<reasoning_level> supported_reasoning_levels() const override {
+        return {reasoning_level::none, reasoning_level::low, reasoning_level::medium,
+                reasoning_level::high, reasoning_level::xhigh, reasoning_level::max};
+    }
 
     std::string chat_url(const std::string& endpoint) const override {
         return endpoint + "/chat/completions";
@@ -56,8 +65,16 @@ public:
         body["temperature"] = req.temperature;
         body["stream"]      = req.stream;
 
-        if (const char* effort = openai_reasoning_effort(req.reasoning))
+        if (const char* effort = openai_reasoning_effort(req.reasoning)) {
+            // OpenAI 思考模型：effort 控制思考强度；
+            // 参考 python 客户端 extra_body={"thinking": {"type": "enabled"}}，
+            // 显式声明 thinking 开启，避免默认行为不一致。
             body["reasoning_effort"] = effort;
+            body["thinking"] = {{"type", "enabled"}};
+        } else if (req.reasoning == reasoning_level::none) {
+            // “无”：显式关闭思考，而不是退回模型默认（否则部分模型仍会思考）。
+            body["thinking"] = {{"type", "disabled"}};
+        }
 
         nlohmann::json messages = nlohmann::json::array();
         for (const auto& m : req.messages) {
@@ -209,6 +226,11 @@ class anthropic_provider : public provider {
 public:
     std::string name() const override { return "anthropic"; }
 
+    std::vector<reasoning_level> supported_reasoning_levels() const override {
+        return {reasoning_level::none, reasoning_level::low, reasoning_level::medium,
+                reasoning_level::high, reasoning_level::xhigh, reasoning_level::max};
+    }
+
     std::string chat_url(const std::string& endpoint) const override {
         return endpoint + "/v1/messages";
     }
@@ -231,9 +253,20 @@ public:
         body["temperature"] = req.temperature;
         body["stream"]      = req.stream;
 
-        // 深度思考：启用 thinking 块（预算取有效输出 token 的 3/4）
-        if (req.reasoning == reasoning_level::deep) {
-            long budget = std::max(1024L, out_tokens * 3L / 4L);
+        // 思考：按挡位决定 thinking 块预算。
+        // none 时不发送 thinking（Anthropic 默认不思考）；其余挡位按比例分配 budget_tokens。
+        if (req.reasoning != reasoning_level::none) {
+            double ratio = 0.5;
+            switch (req.reasoning) {
+                case reasoning_level::low:    ratio = 0.25; break;
+                case reasoning_level::medium: ratio = 0.50; break;
+                case reasoning_level::high:   ratio = 0.75; break;
+                case reasoning_level::xhigh:  ratio = 0.85; break;
+                case reasoning_level::max:    ratio = 0.95; break;
+                default: break;
+            }
+            long budget = std::max(1024L, static_cast<long>(static_cast<double>(out_tokens) * ratio));
+            if (budget > out_tokens) budget = out_tokens;
             body["thinking"] = {{"type", "enabled"}, {"budget_tokens", budget}};
         }
 

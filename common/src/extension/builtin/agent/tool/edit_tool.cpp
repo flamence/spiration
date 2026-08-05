@@ -309,10 +309,13 @@ std::string edit_file_tool::execute(const std::string& args_json) {
     path = resolve_path(path);
 
     if (has_content) {
+        // 先统一为 LF，再按目标行尾恢复，避免 content 自带 CRLF 时重复加 \r（\r\r\n）。
         std::string out = content;
+        eol_style target = eol_style::lf;
         std::string old;
-        if (read_file(path, old) && detect_eol(old) == eol_style::crlf)
-            lf_to_crlf(out);
+        if (read_file(path, old)) target = detect_eol(old);
+        normalize_to_lf(out);
+        if (target == eol_style::crlf) lf_to_crlf(out);
         if (!write_file(path, out))
             return "[error] edit_file failed (write): " + path;
         console::info("extension/agent/edit", "edited file (full rewrite): %s (%zu bytes)", path.c_str(), out.size());

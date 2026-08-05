@@ -179,6 +179,7 @@ agent_tab::agent_tab(chat_client* client, chat_store* store) : client_(client), 
         if (idx >= 0 && idx < static_cast<int>(models_.size())) {
             client_->configure(models_[static_cast<size_t>(idx)].cfg);
             save_current();
+            refresh_reasoning_combo();  // 模型/provider 切换后更新可用思考挡位
         }
     };
     mc->popup_up = true;
@@ -188,19 +189,18 @@ agent_tab::agent_tab(chat_client* client, chat_store* store) : client_(client), 
     auto rc = std::make_unique<combo_box>();
     rc->font_size = 12.0f;
     rc->item_height = 22.0f;
-    rc->items = {i18n_manager::get().tr("reasoning.none"),
-                 i18n_manager::get().tr("reasoning.standard"),
-                 i18n_manager::get().tr("reasoning.deep")};
-    rc->selected_index = 1;
     rc->on_changed = [this](int idx) {
-        reasoning_level lvl = reasoning_level::standard;
-        if (idx == 0)      lvl = reasoning_level::none;
-        else if (idx == 2) lvl = reasoning_level::deep;
-        set_reasoning_level(lvl);
+        auto levels = client_ ? client_->supported_reasoning_levels()
+                              : std::vector<reasoning_level>{};
+        if (idx >= 0 && idx < static_cast<int>(levels.size()))
+            set_reasoning_level(levels[static_cast<size_t>(idx)]);
     };
     reasoning_combo_ = rc.get();
     rc->popup_up = true;
     settings_bar_->add_child(std::move(rc));
+    // 以当前 provider 能力初始化思考挡位下拉框
+    if (client_) reasoning_ = client_->get_config().reasoning;
+    refresh_reasoning_combo();
 
     auto ap = std::make_unique<checkbox>();
     ap->text = i18n_manager::get().tr("chat.auto_approve");
@@ -1072,11 +1072,29 @@ void agent_tab::update_token_label() {
 void agent_tab::set_reasoning_level(reasoning_level l) {
     reasoning_ = l;
     if (client_) client_->set_reasoning_level(l);
-    if (reasoning_combo_) {
-        reasoning_combo_->selected_index =
-            (l == reasoning_level::none) ? 0 : (l == reasoning_level::deep) ? 2 : 1;
-    }
+    refresh_reasoning_combo();
     if (request_repaint_) request_repaint_();
+}
+
+void agent_tab::refresh_reasoning_combo() {
+    if (!reasoning_combo_) return;
+    auto levels = client_ ? client_->supported_reasoning_levels()
+                          : std::vector<reasoning_level>{};
+    if (levels.empty()) return;
+    reasoning_combo_->items.clear();
+    for (auto l : levels) {
+        std::string key = "reasoning." + std::string(reasoning_level_to_string(l));
+        reasoning_combo_->items.push_back(i18n_manager::get().tr(key, key));
+    }
+    reasoning_combo_->selected_index = -1;
+    for (size_t i = 0; i < levels.size(); ++i) {
+        if (levels[i] == reasoning_) {
+            reasoning_combo_->selected_index = static_cast<int>(i);
+            break;
+        }
+    }
+    if (reasoning_combo_->selected_index < 0)
+        reasoning_combo_->selected_index = 0;
 }
 
 collapsible* agent_tab::create_capsule(const std::string& summary) {
