@@ -68,7 +68,8 @@ direct2d_renderer::direct2d_renderer(direct2d_renderer&& other) noexcept
     , m_CurrentTransform(other.m_CurrentTransform)
     , m_Alpha(other.m_Alpha)
     , m_BlendEnabled(other.m_BlendEnabled)
-    , m_DeviceLost(other.m_DeviceLost) {
+    , m_DeviceLost(other.m_DeviceLost)
+    , m_ComInitialized(other.m_ComInitialized) {
     
     other.m_hWnd = nullptr;
     other.m_Width = 0;
@@ -76,6 +77,7 @@ direct2d_renderer::direct2d_renderer(direct2d_renderer&& other) noexcept
     other.m_Alpha = 1.0f;
     other.m_BlendEnabled = true;
     other.m_DeviceLost = false;
+    other.m_ComInitialized = false;
 }
 
 direct2d_renderer& direct2d_renderer::operator=(direct2d_renderer&& other) noexcept {
@@ -97,6 +99,7 @@ direct2d_renderer& direct2d_renderer::operator=(direct2d_renderer&& other) noexc
         m_Alpha = other.m_Alpha;
         m_BlendEnabled = other.m_BlendEnabled;
         m_DeviceLost = other.m_DeviceLost;
+        m_ComInitialized = other.m_ComInitialized;
         
         other.m_hWnd = nullptr;
         other.m_Width = 0;
@@ -104,6 +107,7 @@ direct2d_renderer& direct2d_renderer::operator=(direct2d_renderer&& other) noexc
         other.m_Alpha = 1.0f;
         other.m_BlendEnabled = true;
         other.m_DeviceLost = false;
+        other.m_ComInitialized = false;
     }
     return *this;
 }
@@ -114,8 +118,12 @@ bool direct2d_renderer::initialize(void* native_window_handle) {
         return false;
     }
 
+    // Record whether COM was initialized here so shutdown() can pair CoUninitialize().
+    // RPC_E_CHANGED_MODE means another module owns the threads COM - do not uninit it.
     HRESULT hr = CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
-    if (FAILED(hr) && hr != RPC_E_CHANGED_MODE && hr != S_FALSE) {
+    if (hr == S_OK || hr == S_FALSE) {
+        m_ComInitialized = true;
+    } else if (hr != RPC_E_CHANGED_MODE) {
         return false;
     }
     
@@ -151,6 +159,10 @@ void direct2d_renderer::shutdown() {
     m_DWriteFactory.Reset();
     m_D2DFactory.Reset();
     m_hWnd = nullptr;
+    if (m_ComInitialized) {
+        CoUninitialize();
+        m_ComInitialized = false;
+    }
 }
 
 void direct2d_renderer::resize(uint32_t width, uint32_t height) {
@@ -163,9 +175,14 @@ void direct2d_renderer::resize(uint32_t width, uint32_t height) {
         float dpi = get_dpi();
         UINT pw = static_cast<UINT>(std::lround(width * dpi / 96.0f));
         UINT ph = static_cast<UINT>(std::lround(height * dpi / 96.0f));
-        m_RenderTarget->Resize(D2D1::SizeU(pw, ph));
-        
-        m_RenderTarget->SetDpi(dpi, dpi);
+        HRESULT hr = m_RenderTarget->Resize(D2D1::SizeU(pw, ph));
+        if (hr == D2DERR_RECREATE_TARGET) {
+            // Target lost (e.g. device removed): recreate on next begin_frame().
+            m_DeviceLost = true;
+            release_device_resources();
+        } else {
+            m_RenderTarget->SetDpi(dpi, dpi);
+        }
     }
 }
 

@@ -102,7 +102,7 @@ x11_window& x11_window::operator=(x11_window&& other) noexcept {
         shutdown();
 
         display_ = other.display_;
-                window_ = other.window_;
+        window_ = other.window_;
         delete_atom_ = other.delete_atom_;
         wm_state_atom_ = other.wm_state_atom_;
         wm_state_fullscreen_atom_ = other.wm_state_fullscreen_atom_;
@@ -117,7 +117,6 @@ x11_window& x11_window::operator=(x11_window&& other) noexcept {
         screen_number_ = other.screen_number_;
         gl_context_ = other.gl_context_;
         glx_visual_ = other.glx_visual_;
-        display_ = other.display_;
         title_ = std::move(other.title_);
         clipboard_text_ = std::move(other.clipboard_text_);
         width_ = other.width_;

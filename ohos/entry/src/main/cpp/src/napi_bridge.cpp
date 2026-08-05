@@ -32,10 +32,11 @@ static napi_value CreateString(napi_env env, const std::string& str) {
 
 static std::string GetStringArg(napi_env env, napi_value value) {
     size_t len = 0;
-    napi_get_value_string_utf8(env, value, nullptr, 0, &len);
+    if (napi_get_value_string_utf8(env, value, nullptr, 0, &len) != napi_ok) return "";
     if (len == 0) return "";
-    std::string result(len, '\0');
+    std::string result(len + 1, '\0');
     napi_get_value_string_utf8(env, value, &result[0], len + 1, &len);
+    result.resize(len);
     return result;
 }
 
