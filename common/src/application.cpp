@@ -11,17 +11,37 @@ namespace spiration {
 
 std::unique_ptr<application> application::instance_ = nullptr;
 
-void application::initialize() {
+void application::initialize_early() {
+    spiration::platform::create_directory(spiration::platform::app_data_dir());
     spiration::extension_manager::instance();
     std::string extDir = spiration::platform::extension_directory();
+    spiration::platform::create_directory(extDir);
     size_t extCount = spiration::extension_manager::load_extensions_from(extDir);
     spiration::console::info("extension/manager", "loaded %zu extension(s)", extCount);
     spiration::extension_manager::initialize_phase(init_phase::early);
-    window_ = create_window();
+}
+
+void application::set_window(std::shared_ptr<spiration::window> window,
+                             int32_t width, int32_t height) {
+    window_ = window;
     auto widget = std::make_unique<spiration::root>(window_);
+    if (width > 0 && height > 0) {
+        widget->width = static_cast<float>(width);
+        widget->height = static_cast<float>(height);
+        widget->layout();
+    }
     widget_ = widget.get();
     window_->set_widget(std::move(widget));
+}
+
+void application::initialize_normal() {
     spiration::extension_manager::initialize_phase(init_phase::normal);
+}
+
+void application::initialize() {
+    initialize_early();
+    set_window(create_window());
+    initialize_normal();
     window_->show();
     spiration::console::info("main", "spiration running on %s", spiration::platform::os_name().c_str());
 }

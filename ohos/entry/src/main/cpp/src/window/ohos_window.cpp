@@ -1,14 +1,23 @@
 /**
  * @file ohos_window.cpp
- * @brief OHOS 窗口实现。
+ * @brief 窗口实现。
  * @author clk
  */
 
-#include "ohos_window.h"
-#include <renderer/opengl_renderer.h>
-#include <utils/console.h>
+#include <window/ohos_window.h>
 
 namespace spiration {
+
+std::shared_ptr<window> window::create() {
+    console::warning("window", "Window creation not fully implemented on OHOS platform");
+    return nullptr;
+}
+
+std::shared_ptr<window> window::create(const window_params& params) {
+    console::warning("window", "Window creation not fully implemented on OHOS platform");
+    (void)params;
+    return nullptr;
+}
 
 window::window() = default;
 window::~window() = default;
@@ -151,14 +160,23 @@ void ohos_window::on_mouse_event(float x, float y, int action, int button) {
         default: mouse.button = mouse_button::none; break;
     }
 
-    // 转换动作：0=press, 1=release
-    mouse.action = (action == 0) ? mouse_action::down : mouse_action::up;
+    // 转换动作：0=press, 1=release, 2=move
+    switch (action) {
+        case 0: mouse.action = mouse_action::down; break;
+        case 1: mouse.action = mouse_action::up; break;
+        case 2: mouse.action = mouse_action::move; break;
+        default: return;
+    }
 
     root_widget_->handle_event(event_type::mouse, &mouse);
 }
 
 void ohos_window::on_key_event(int key_code, unsigned int codepoint, bool ctrl, bool shift, bool alt, bool is_down) {
     if (!root_widget_ || !is_down) return;  // 只处理按键按下事件
+
+    // 诊断日志：确认按键事件已到达 C++（hilog 过滤 window）
+    spiration::console::info("window", "key code=%d cp=%u ctrl=%d shift=%d alt=%d",
+        key_code, codepoint, ctrl, shift, alt);
 
     key_event_data key;
     key.key_code = key_code;

@@ -1,6 +1,6 @@
 /**
  * @file web_tool.cpp
- * @brief OpenHarmony 平台 web 工具桩（无 libcurl，网络能力由 ArkTS 侧提供）。
+ * @brief 网络工具实现。
  * @author clk
  */
 

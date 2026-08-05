@@ -4,52 +4,25 @@
  * @author clk
  */
 
-#include "napi_bridge.h"
+#include <napi_bridge.h>
 
-#include <ohos_application.h>
 #include <utils/platform.h>
 #include <extension/builtin/i18n/i18n.h>
 #include <utils/console.h>
 #include <extension/extension_manager.h>
-#include <extension/extension_api.h>
 
 #include <string>
 #include <vector>
 
 namespace spiration {
 
-void set_ohos_data_dir(const std::string& dir);
+void set_ohos_data_dir(const std::string& app_dir, const std::string& module_dir);
 
 namespace bridge {
 
 using spiration::i18n_manager;
 using spiration::console;
 using spiration::platform;
-
-static std::shared_ptr<extension_api> s_api_context = nullptr;
-
-bool initialize_runtime(const std::string& data_dir) {
-    std::string langDir = data_dir + "/lang";
-    std::string sysLocale = platform::system_locale();
-
-    i18n_manager::get().load("zh-CN", langDir + "/zh-CN.properties");
-    i18n_manager::get().load(sysLocale, langDir + "/" + sysLocale + ".properties");
-    i18n_manager::get().set_locale(sysLocale);
-
-    console::info("napi", "Spiration OHOS runtime initialized, locale: %s",
-                  sysLocale.c_str());
-
-    s_api_context = nullptr;
-
-    return true;
-}
-
-void shutdown_runtime() {
-    if (s_api_context) {
-        s_api_context.reset();
-    }
-    console::info("napi", "Spiration OHOS runtime shutdown");
-}
 
 static napi_value CreateString(napi_env env, const std::string& str) {
     napi_value result;
@@ -94,18 +67,17 @@ napi_value NapiGetExecutableDir(napi_env env, napi_callback_info info) {
  * @brief 通过 Context API 注入应用沙箱数据目录。
  */
 napi_value NapiSetDataDir(napi_env env, napi_callback_info info) {
-    size_t argc = 1;
-    napi_value args[1];
+    size_t argc = 2;
+    napi_value args[2];
     napi_get_cb_info(env, info, &argc, args, nullptr, nullptr);
     if (argc < 1) return CreateString(env, "");
 
-    std::string dir = GetStringArg(env, args[0]);
-    spiration::set_ohos_data_dir(dir);
-    console::info("napi", "data dir injected via Context API: %s", dir.c_str());
-
-    // 注入完成后再初始化运行时（i18n / 扩展），确保使用真实沙箱路径
-    ohos_application::instance()->initialize_early();
-    return CreateString(env, dir);
+    std::string app_dir = GetStringArg(env, args[0]);
+    std::string module_dir = argc >= 2 ? GetStringArg(env, args[1]) : app_dir;
+    spiration::set_ohos_data_dir(app_dir, module_dir);
+    console::info("napi", "data dir injected via Context API: app=%s module=%s",
+                  app_dir.c_str(), module_dir.c_str());
+    return CreateString(env, app_dir);
 }
 
 napi_value NapiTr(napi_env env, napi_callback_info info) {

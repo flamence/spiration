@@ -243,11 +243,13 @@ opengl_renderer::opengl_renderer(opengl_renderer&& other) noexcept
     , vao_(other.vao_)
     , vbo_(other.vbo_)
     , batch_(std::move(other.batch_))
+#if !defined(__OHOS__)
     , ft_library_(other.ft_library_)
     , font_faces_(std::move(other.font_faces_))
     , glyph_cache_(std::move(other.glyph_cache_))
     , glyph_atlas_(other.glyph_atlas_)
     , cjk_fallback_(other.cjk_fallback_)
+#endif
     , images_(std::move(other.images_))
     , transform_stack_(std::move(other.transform_stack_))
     , current_transform_(other.current_transform_)
@@ -264,9 +266,11 @@ opengl_renderer::opengl_renderer(opengl_renderer&& other) noexcept
     other.shape_shader_ = {};
     other.vao_ = 0;
     other.vbo_ = 0;
+#if !defined(__OHOS__)
     other.ft_library_ = nullptr;
     other.glyph_atlas_ = {};
     other.cjk_fallback_ = nullptr;
+#endif
     other.alpha_ = 1.0f;
     other.blend_enabled_ = true;
     other.batch_has_texture_ = false;
@@ -284,11 +288,13 @@ opengl_renderer& opengl_renderer::operator=(opengl_renderer&& other) noexcept {
         vao_ = other.vao_;
         vbo_ = other.vbo_;
         batch_ = std::move(other.batch_);
+#if !defined(__OHOS__)
         ft_library_ = other.ft_library_;
         font_faces_ = std::move(other.font_faces_);
         glyph_cache_ = std::move(other.glyph_cache_);
         glyph_atlas_ = other.glyph_atlas_;
         cjk_fallback_ = other.cjk_fallback_;
+#endif
         images_ = std::move(other.images_);
         transform_stack_ = std::move(other.transform_stack_);
         current_transform_ = other.current_transform_;
@@ -305,9 +311,11 @@ opengl_renderer& opengl_renderer::operator=(opengl_renderer&& other) noexcept {
         other.shape_shader_ = {};
         other.vao_ = 0;
         other.vbo_ = 0;
+#if !defined(__OHOS__)
         other.ft_library_ = nullptr;
         other.glyph_atlas_ = {};
         other.cjk_fallback_ = nullptr;
+#endif
         other.alpha_ = 1.0f;
         other.blend_enabled_ = true;
         other.batch_has_texture_ = false;
@@ -511,9 +519,9 @@ void opengl_renderer::draw_text(const std::string& text, const point& position, 
     OH_Drawing_TypographyHandlerAddText(handler, text.c_str());
     OH_Drawing_Typography* typo = OH_Drawing_CreateTypography(handler);
     if (word_wrap) {
-        double wrap_width = static_cast<double>(viewport_width_ * dpi);
-        if (position.x < static_cast<float>(viewport_width_)) {
-            wrap_width = static_cast<double>((viewport_width_ - position.x) * dpi);
+        double wrap_width = static_cast<double>(width_ * dpi);
+        if (position.x < static_cast<float>(width_)) {
+            wrap_width = static_cast<double>((width_ - position.x) * dpi);
         }
         OH_Drawing_TypographyLayout(typo, wrap_width);
     } else {
@@ -1032,7 +1040,30 @@ void opengl_renderer::get_viewport_size(uint32_t& width, uint32_t& height) const
 float opengl_renderer::measure_text_width(const std::string& text, float font_size,
                                           const std::string& font_family) {
     if (text.empty()) return 0.0f;
-    return text.length() * font_size * 0.5f;
+    float dpi = density_ > 0.0f ? density_ : 1.0f;
+
+    OH_Drawing_TypographyStyle* style = OH_Drawing_CreateTypographyStyle();
+    OH_Drawing_SetTypographyTextDirection(style, TEXT_DIRECTION_LTR);
+    OH_Drawing_SetTypographyTextAlign(style, TEXT_ALIGN_LEFT);
+    OH_Drawing_FontCollection* fc = OH_Drawing_CreateFontCollection();
+    OH_Drawing_TypographyCreate* handler = OH_Drawing_CreateTypographyHandler(style, fc);
+    OH_Drawing_TextStyle* tStyle = OH_Drawing_CreateTextStyle();
+    OH_Drawing_SetTextStyleFontSize(tStyle, static_cast<double>(font_size * dpi));
+    if (!font_family.empty()) {
+        const char* fam = font_family.c_str();
+        OH_Drawing_SetTextStyleFontFamilies(tStyle, 1, &fam);
+    }
+    OH_Drawing_TypographyHandlerPushTextStyle(handler, tStyle);
+    OH_Drawing_TypographyHandlerAddText(handler, text.c_str());
+    OH_Drawing_Typography* typo = OH_Drawing_CreateTypography(handler);
+    OH_Drawing_TypographyLayout(typo, 2000.0 * dpi);
+    float w = static_cast<float>(OH_Drawing_TypographyGetLongestLine(typo)) / dpi;
+    OH_Drawing_DestroyTypography(typo);
+    OH_Drawing_DestroyTypographyHandler(handler);
+    OH_Drawing_DestroyTextStyle(tStyle);
+    OH_Drawing_DestroyFontCollection(fc);
+    OH_Drawing_DestroyTypographyStyle(style);
+    return w;
 }
 
 float opengl_renderer::measure_text_height(const std::string& text, float font_size,
@@ -1224,7 +1255,9 @@ void opengl_renderer::flush_batch() {
         glUniform1i(shape_shader_.u_use_texture, 1);
         glUniform1i(shape_shader_.u_texture_sampler, 0);
         glActiveTexture(GL_TEXTURE0);
+#if !defined(__OHOS__)
         glBindTexture(GL_TEXTURE_2D, glyph_atlas_.texture_id);
+#endif
     } else {
         glUniform1i(shape_shader_.u_use_texture, 0);
     }
@@ -1245,6 +1278,7 @@ void opengl_renderer::apply_transform() {
     mat4_multiply(mvp_matrix_, proj_matrix_, current_transform_.m);
 }
 
+#if !defined(__OHOS__)
 bool opengl_renderer::init_freetype() {
     if (FT_Init_FreeType(&ft_library_) != 0) {
         ft_library_ = nullptr;
@@ -1469,6 +1503,7 @@ bool opengl_renderer::init_glyph_atlas(glyph_atlas* atlas) {
 
     return true;
 }
+#endif
 
 opengl_renderer::image_resource* opengl_renderer::load_image(const std::string& path) {
     auto it = images_.find(path);

@@ -6,9 +6,19 @@
 
 import { resourceManager } from '@kit.LocalizationKit';
 
+/**
+ * 应用级上下文（getApplicationContext 返回）。
+ * 其 filesDir 为应用级文件目录（无 haps/<module> 层级）。
+ */
+export interface ApplicationContext {
+  filesDir: string;
+}
+
 export interface AbilityContext {
   terminateSelf(): void;
   resourceManager: resourceManager.ResourceManager;
+  filesDir: string;
+  getApplicationContext(): ApplicationContext;
 }
 
 export class GlobalContext {

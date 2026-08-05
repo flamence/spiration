@@ -24,9 +24,7 @@ void install(const std::string&) {}
 #include <sys/stat.h>
 #include <unistd.h>
 
-#if !defined(OHOS_PLATFORM)
 #include <execinfo.h>
-#endif
 
 namespace spiration {
 namespace crash_log {
@@ -61,19 +59,9 @@ void crash_handler(int sig) {
     if (fd < 0) return;
     ::write(fd, buf, static_cast<size_t>(len));
 
-#if defined(OHOS_PLATFORM)
-    for (int i = 0; i < 32; ++i) {
-        void* ra = __builtin_return_address(i);
-        if (!ra) break;
-        char line[96];
-        int n = std::snprintf(line, sizeof(line), "  #%d 0x%p\n", i, ra);
-        ::write(fd, line, static_cast<size_t>(n));
-    }
-#else
     void* frames[64];
     int count = backtrace(frames, 64);
     backtrace_symbols_fd(frames, count, fd);
-#endif
 
     ::write(fd, "\n", 1);
     ::close(fd);

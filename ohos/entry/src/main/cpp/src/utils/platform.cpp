@@ -21,11 +21,13 @@
 namespace spiration {
 
 namespace {
-std::string g_data_dir;
+std::string g_app_dir;      // 应用级 filesDir（getApplicationContext().filesDir）
+std::string g_module_dir;   // 模块级 filesDir（UIAbilityContext.filesDir）
 }
 
-void set_ohos_data_dir(const std::string& dir) {
-    g_data_dir = dir;
+void set_ohos_data_dir(const std::string& app_dir, const std::string& module_dir) {
+    g_app_dir = app_dir;
+    g_module_dir = module_dir;
 }
 
 os_type platform::current_os() {
@@ -51,25 +53,17 @@ std::string platform::architecture() {
 }
 
 std::string platform::app_data_dir() {
-    if (!g_data_dir.empty()) {
-        return join_path(g_data_dir, "spiration");
+    if (!g_app_dir.empty()) {
+        return g_app_dir;
     }
-    return "/data/storage/el2/base/haps/entry/files/spiration";
+    return "/data/storage/el2/base/files";
 }
 
 std::string platform::executable_directory() {
-    char buf[1024];
-    ssize_t len = readlink("/proc/self/exe", buf, sizeof(buf) - 1);
-    if (len != -1) {
-        buf[len] = '\0';
-        std::string path(buf);
-        auto pos = path.find_last_of('/');
-        if (pos != std::string::npos) path.resize(pos);
-        return path;
+    if (!g_module_dir.empty()) {
+        return g_module_dir;
     }
-    const char* home = getenv("HOME");
-    if (home) return std::string(home);
-    return ".";
+    return "/data/storage/el2/base/haps/entry/files";
 }
 
 std::string platform::join_path(const std::string& a, const std::string& b) {
