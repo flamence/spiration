@@ -144,7 +144,7 @@ private:
     bool show_chat_      = true;
     float list_expand_ratio_ = 0.3f;
 
-    reasoning_level reasoning_ = reasoning_level::standard;
+    reasoning_level reasoning_ = reasoning_level::medium;
     collapsible* tool_capsule_ = nullptr;
     container* tool_capsule_scroll_ = nullptr;
     markdown* tool_label_ = nullptr;
@@ -244,6 +244,8 @@ private:
 
     /** @brief 设置思考等级并更新下拉框高亮。 */
     void set_reasoning_level(reasoning_level l);
+    /** @brief 依据当前 provider 支持能力刷新思考挡位下拉框。 */
+    void refresh_reasoning_combo();
     /** @brief 刷新待办胶囊。 */
     void update_todo_capsule();
     /** @brief 创建一个胶囊，返回其指针。 */

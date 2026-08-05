@@ -32,10 +32,7 @@ model_option parse_model_json(const nlohmann::json& m, const std::string& key) {
     opt.cfg.temperature = m.value("temperature", opt.cfg.temperature);
     opt.cfg.stream = m.value("stream", opt.cfg.stream);
     opt.cfg.timeout_seconds = m.value("timeout", opt.cfg.timeout_seconds);
-    std::string rs = m.value("reasoning", "standard");
-    if (rs == "none")       opt.cfg.reasoning = reasoning_level::none;
-    else if (rs == "deep")  opt.cfg.reasoning = reasoning_level::deep;
-    else                    opt.cfg.reasoning = reasoning_level::standard;
+    opt.cfg.reasoning = reasoning_level_from_string(m.value("reasoning", "medium"));
     return opt;
 }
 
@@ -84,10 +81,7 @@ bool extension::initialize() {
                 cfg.temperature = j.value("temperature", cfg.temperature);
                 cfg.stream      = j.value("stream", cfg.stream);
                 cfg.timeout_seconds = j.value("timeout", cfg.timeout_seconds);
-                std::string rs  = j.value("reasoning", "standard");
-                if (rs == "none")       cfg.reasoning = reasoning_level::none;
-                else if (rs == "deep")  cfg.reasoning = reasoning_level::deep;
-                else                    cfg.reasoning = reasoning_level::standard;
+                cfg.reasoning = reasoning_level_from_string(j.value("reasoning", "medium"));
                 if (j.contains("models") && j["models"].is_array()) {
                     for (auto& m : j["models"]) {
                         if (m.is_string()) {
