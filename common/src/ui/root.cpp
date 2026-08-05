@@ -1,11 +1,33 @@
 #include <ui/root.h>
 #include <ui/appbar.h>
 #include <ui/cursor.h>
+#include <ui/focus_manager.h>
 #include <ui/layout.h>
 #include <ui/menu_bar.h>
 #include <ui/theme_manager.h>
 
 namespace spiration {
+
+namespace {
+
+/// @brief 把屏幕坐标转换为 w 的局部坐标。
+point root_local(widget* w, const widget* root, const point& screen) {
+    float ox = 0.0f, oy = 0.0f;
+    bool first = true;
+    for (widget* p = w; p && p != root; p = p->parent()) {
+        if (first) {
+            ox += p->x;
+            oy += p->y;
+            first = false;
+        } else {
+            ox += p->x - p->scroll_offset_x_for_children();
+            oy += p->y - p->scroll_offset_for_children();
+        }
+    }
+    return {screen.x - ox, screen.y - oy};
+}
+
+} // namespace
 
 root::root(std::shared_ptr<spiration::window> parent, bool create_appbar) {
     m_window = parent;
@@ -13,6 +35,17 @@ root::root(std::shared_ptr<spiration::window> parent, bool create_appbar) {
     widget_style.background_color = theme_manager::get(theme_manager::WINDOW_BG);
     cursor_manager::instance().set_window(m_window.get());
     init();
+}
+
+void root::add_overlay(widget* w) {
+    if (m_overlay && m_overlay != w) {
+        m_overlay->set_focused(false);
+    }
+    m_overlay = w;
+}
+
+void root::remove_overlay(widget* w) {
+    if (m_overlay == w) m_overlay = nullptr;
 }
 
 void root::paint(std::shared_ptr<renderer> renderer) {
@@ -49,6 +82,9 @@ void root::on_widget_destroyed(widget* w) {
     if (selecting_widget_ == w) {
         selecting_widget_ = nullptr;
     }
+    if (m_overlay == w) {
+        m_overlay = nullptr;
+    }
 }
 
 widget* root::hit_test_hover(float x, float y) const {
@@ -60,6 +96,12 @@ widget* root::hit_test_hover(float x, float y) const {
     }
     if (m_popup) {
         if (widget* h = m_popup->hit_test_hover(x - m_popup->x, y - m_popup->y)) {
+            return h;
+        }
+    }
+    if (m_overlay) {
+        point lp = root_local(m_overlay, this, {x, y});
+        if (widget* h = m_overlay->hit_test_hover(lp.x, lp.y)) {
             return h;
         }
     }
@@ -96,6 +138,16 @@ void root::handle_event(const event_type& type, void* data) {
         if (md->consumed) return;
     }
 
+    if (m_overlay && type == event_type::mouse) {
+        auto* md = static_cast<mouse_event_data*>(data);
+        point lp = root_local(m_overlay, this, md->position);
+        point old = md->position;
+        md->position = lp;
+        m_overlay->handle_event(type, data);
+        md->position = old;
+        if (md->consumed) return;
+    }
+
     if (type == event_type::mouse && captured_) {
         auto* md = static_cast<mouse_event_data*>(data);
         point original = md->position;
@@ -103,8 +155,6 @@ void root::handle_event(const event_type& type, void* data) {
         bool first = true;
         for (widget* w = captured_; w && w != this; w = w->parent()) {
             if (first) {
-                // captured_ 自身的局部坐标不含它自己的滚动偏移（那是子内容偏移），
-                // 否则滚动容器作为捕获者（滚动条拖拽）时坐标多偏移 scroll_y_ 导致拖不动。
                 ox += w->x;
                 oy += w->y;
                 first = false;
@@ -121,6 +171,13 @@ void root::handle_event(const event_type& type, void* data) {
     }
 
     container::handle_event(type, data);
+
+    if (type == event_type::mouse) {
+        auto* md = static_cast<mouse_event_data*>(data);
+        if (md->action == mouse_action::down && !md->consumed) {
+            focus_manager::instance().clear_focus();
+        }
+    }
 }
 
 void root::tick(float dt_ms) {

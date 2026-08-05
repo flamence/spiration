@@ -1,59 +1,21 @@
 /**
  * @file chat.h
- * @brief OpenAI 兼容的对话客户端。
+ * @brief 对话客户端。
  * @author clk
  */
 
 #pragma once
 
-#include <extension/builtin/agent/tool/tool.h>
+#include <extension/builtin/agent/provider.h>
 
+#include <functional>
+#include <future>
+#include <memory>
 #include <string>
 #include <vector>
-#include <functional>
-#include <memory>
 
 namespace spiration {
 namespace agent {
-
-/// @brief 一次工具调用。
-struct tool_call {
-    std::string id;
-    std::string function_name;
-    std::string arguments;
-};
-
-/// @brief 一次已执行的工具调用。
-struct tool_execution {
-    std::string function_name;
-    std::string arguments;
-    std::string result;
-};
-
-/// @brief 思考等级。
-enum class reasoning_level {
-    none,    ///< 无
-    standard, ///< 标准
-    deep,    ///< 深度
-};
-
-/// @brief 单次对话补全响应。
-struct chat_response {
-    std::string content;
-    std::string reasoning_content;  ///< 模型思考过程
-    std::vector<tool_call> tool_calls;
-    std::string finish_reason;
-    std::vector<tool_execution> executions;
-};
-
-/// @brief 对话消息。
-struct chat_message {
-    std::string role;
-    std::string content;
-    std::string tool_call_id;
-    std::string name;
-    std::vector<tool_call> tool_calls;
-};
 
 /// @brief 流式/执行事件回调集合。
 struct chat_events {
@@ -61,23 +23,30 @@ struct chat_events {
     std::function<void(const std::string& delta)> on_reasoning_delta;  ///< 思考过程增量
     std::function<void(const tool_call& tc)> on_tool_call;
     std::function<void(const tool_execution& ex)> on_tool_result;
-    std::function<bool()> should_stop;   ///< 返回 true 时中断 run（停止按钮）
-    std::function<bool()> should_yield;  ///< 返回 true 时当前轮结束后不再继续（补充消息到达）
+    std::function<bool()> should_stop;
+    std::function<bool()> should_yield;
+    /**
+     * @brief 敏感工具执行前征询用户批准。
+     * @return true 批准执行，false 拒绝。
+     */
+    std::function<bool(const tool_call&)> on_approve;
 };
 
 /**
- * @brief OpenAI 兼容的对话客户端。
+ * @brief 对话客户端。
  */
 class chat_client {
 public:
     struct config {
-        std::string endpoint = "https://api.openai.com/v1/completions";
+        std::string endpoint;
         std::string api_key;
         std::string model;
+        std::string provider = "openai";
         int max_tokens = 4096;
         float temperature = 0.7f;
         bool stream = true;
         reasoning_level reasoning = reasoning_level::standard;
+        long timeout_seconds = 120;
     };
 
     explicit chat_client(const config& cfg);
@@ -86,11 +55,20 @@ public:
     /// @brief 运行时指定模型。
     void set_model(const std::string& model) { cfg_.model = model; }
 
+    /// @brief 用完整配置替换当前配置并重建 provider。
+    void configure(const config& c);
+
     /// @brief 运行时指定思考等级。
     void set_reasoning_level(reasoning_level level) { cfg_.reasoning = level; }
 
     /// @brief 获取当前思考等级。
     reasoning_level reasoning_level() const { return cfg_.reasoning; }
+
+    /// @brief 设置 provider。
+    void set_provider(std::unique_ptr<provider> p) { provider_ = std::move(p); }
+
+    /// @brief 获取当前 provider 名称。
+    std::string provider_name() const;
 
     /// @brief 设置系统提示词。
     void set_system_prompt(const std::string& prompt);
@@ -121,18 +99,54 @@ public:
     /// @brief 获取当前配置。
     const config& get_config() const { return cfg_; }
 
+    /// @brief 获取当前对话历史。
+    const std::vector<chat_message>& history() const { return history_; }
+
+    /// @brief 累计输入 token 数。
+    long long input_tokens() const { return total_input_; }
+    /// @brief 累计输出 token 数。
+    long long output_tokens() const { return total_output_; }
+
+    /// @brief 每次 provider 响应更新 token 计数后回调。
+    std::function<void()> on_tokens_updated;
+
+    /// @brief 重置 token 计数。
+    void reset_tokens() {
+        total_input_ = 0;
+        total_output_ = 0;
+        if (on_tokens_updated) on_tokens_updated();
+    }
+
+    /// @brief 恢复 token 计数。
+    void set_tokens(long long in, long long out) {
+        total_input_ = in;
+        total_output_ = out;
+        if (on_tokens_updated) on_tokens_updated();
+    }
+
+    /// @brief 按名称切换 provider。
+    bool switch_provider(const std::string& name);
+
 private:
     config cfg_;
+    std::unique_ptr<provider> provider_;
     std::vector<chat_message> history_;
     std::vector<tool*> tools_;
+    long long total_input_ = 0;
+    long long total_output_ = 0;
 
-    std::string build_request_body() const;
-    /// @brief 清理不合规的历史消息（发送前调用）。
+    /// @brief 清理不合规的历史消息。
     void sanitize_history();
-    chat_response parse_response(const std::string& body) const;
     std::string http_post(const std::string& url, const std::string& body,
-                          const std::string& api_key) const;
-    std::string execute_tool(const tool_call& tc);
+                          const std::vector<std::pair<std::string, std::string>>& headers) const;
+    /// @brief 按名称查找工具。
+    tool* find_tool(const std::string& name) const;
+    /// @brief 在独立线程启动工具执行并返回 future。
+    std::future<std::string> launch_tool(const tool_call& tc,
+                                         const std::function<bool()>& should_stop);
+    /// @brief 执行工具。
+    std::string execute_tool(const tool_call& tc,
+                             const std::function<bool()>& should_stop);
     chat_response send_stream(const chat_events& events);
     void append_assistant(const chat_response& resp);
 };

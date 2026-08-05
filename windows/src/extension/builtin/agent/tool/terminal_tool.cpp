@@ -21,7 +21,6 @@ namespace agent {
 
 namespace {
 
-// 简单校验字符串是否为合法 UTF-8
 bool is_valid_utf8(const std::string& s) {
     size_t i = 0;
     const size_t n = s.size();
@@ -49,7 +48,6 @@ bool is_valid_utf8(const std::string& s) {
     return true;
 }
 
-// 本地代码页（OEM/ANSI）→ UTF-8；已是合法 UTF-8 则原样返回
 std::string to_utf8(const std::string& input) {
     if (is_valid_utf8(input)) return input;
     for (UINT cp : {CP_OEMCP, CP_ACP}) {
@@ -67,7 +65,6 @@ std::string to_utf8(const std::string& input) {
     return input;
 }
 
-// UTF-8 → OEM 代码页（写入 cmd.exe stdin 前转换，保证中文正确）
 std::string to_oem(const std::string& input) {
     if (input.empty()) return input;
     int wlen = MultiByteToWideChar(CP_UTF8, 0, input.data(), static_cast<int>(input.size()), nullptr, 0);
@@ -83,7 +80,7 @@ std::string to_oem(const std::string& input) {
 
 class win_terminal_session : public terminal_session {
 public:
-    explicit win_terminal_session(const std::string& shell_path);
+    win_terminal_session(const std::string& shell_path, const std::string& cwd);
     ~win_terminal_session() override;
 
     bool is_alive() const override { return alive_.load(); }
@@ -93,8 +90,8 @@ public:
     std::string error() const override { return err_; }
 
 private:
-    HANDLE child_stdin_ = INVALID_HANDLE_VALUE;   // 写子进程 stdin
-    HANDLE child_stdout_ = INVALID_HANDLE_VALUE;  // 读子进程 stdout
+    HANDLE child_stdin_ = INVALID_HANDLE_VALUE;
+    HANDLE child_stdout_ = INVALID_HANDLE_VALUE;
     HANDLE proc_ = nullptr;
     std::thread reader_;
     std::atomic<bool> alive_{false};
@@ -108,7 +105,7 @@ private:
     void reader_loop();
 };
 
-win_terminal_session::win_terminal_session(const std::string& shell_path) {
+win_terminal_session::win_terminal_session(const std::string& shell_path, const std::string& cwd) {
     SECURITY_ATTRIBUTES sa = {sizeof(SECURITY_ATTRIBUTES), nullptr, TRUE};
 
     HANDLE inRead = INVALID_HANDLE_VALUE, inWrite = INVALID_HANDLE_VALUE;
@@ -123,7 +120,6 @@ win_terminal_session::win_terminal_session(const std::string& shell_path) {
         err_ = "failed to create stdout pipe";
         return;
     }
-    // 子进程继承 stdin 读端 / stdout 写端；父进程端不继承
     SetHandleInformation(inWrite, HANDLE_FLAG_INHERIT, 0);
     SetHandleInformation(outRead, HANDLE_FLAG_INHERIT, 0);
 
@@ -138,8 +134,9 @@ win_terminal_session::win_terminal_session(const std::string& shell_path) {
     std::string cmdline = "\"" + exe + "\"";
 
     PROCESS_INFORMATION pi = {};
+    LPCSTR dir = cwd.empty() ? nullptr : cwd.c_str();
     BOOL ok = CreateProcessA(nullptr, cmdline.data(), nullptr, nullptr, TRUE,
-                             CREATE_NO_WINDOW, nullptr, nullptr, &si, &pi);
+                             CREATE_NO_WINDOW, nullptr, dir, &si, &pi);
     CloseHandle(inRead);
     CloseHandle(outWrite);
 
@@ -202,7 +199,6 @@ std::vector<std::string> win_terminal_session::read_window(size_t from_bottom,
     if (from_bottom > to_bottom) std::swap(from_bottom, to_bottom);
     if (from_bottom < 1) from_bottom = 1;
     if (to_bottom > total) to_bottom = total;
-    // 自下而上：绝对起点 = total - to_bottom，绝对终点(含) = total - from_bottom
     size_t start = total - to_bottom;
     size_t end = total - from_bottom;
     std::vector<std::string> out;
@@ -235,8 +231,9 @@ void win_terminal_session::reader_loop() {
 
 } // namespace
 
-std::unique_ptr<terminal_session> create_terminal_session(const std::string& shell_path) {
-    return std::make_unique<win_terminal_session>(shell_path);
+std::unique_ptr<terminal_session> create_terminal_session(const std::string& shell_path,
+                                                          const std::string& cwd) {
+    return std::make_unique<win_terminal_session>(shell_path, cwd);
 }
 
 } // namespace agent

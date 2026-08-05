@@ -1,6 +1,6 @@
 /**
  * @file terminal_tool.cpp
- * @brief macOS 终端会话实现（/bin/sh 交互式进程 + 管道读写 + 后台读取线程）。
+ * @brief 终端会话实现。
  * @author clk
  */
 
@@ -10,6 +10,7 @@
 #include <chrono>
 #include <csignal>
 #include <cstdlib>
+#include <cstring>
 #include <fcntl.h>
 #include <sys/types.h>
 #include <sys/wait.h>
@@ -30,7 +31,7 @@ namespace {
 
 class posix_terminal_session : public terminal_session {
 public:
-    explicit posix_terminal_session(const std::string& shell_path);
+    posix_terminal_session(const std::string& shell_path, const std::string& cwd);
     ~posix_terminal_session() override;
 
     bool is_alive() const override { return alive_.load(); }
@@ -40,8 +41,8 @@ public:
     std::string error() const override { return err_; }
 
 private:
-    int in_fd_ = -1;   // 写子进程 stdin
-    int out_fd_ = -1;  // 读子进程 stdout
+    int in_fd_ = -1;
+    int out_fd_ = -1;
     pid_t pid_ = -1;
     std::thread reader_;
     std::atomic<bool> alive_{false};
@@ -55,7 +56,8 @@ private:
     void reader_loop();
 };
 
-posix_terminal_session::posix_terminal_session(const std::string& shell_path) {
+posix_terminal_session::posix_terminal_session(const std::string& shell_path,
+                                               const std::string& cwd) {
     int in_pipe[2] = {-1, -1};
     int out_pipe[2] = {-1, -1};
     if (pipe(in_pipe) != 0) { err_ = "failed to create stdin pipe"; return; }
@@ -74,12 +76,15 @@ posix_terminal_session::posix_terminal_session(const std::string& shell_path) {
         return;
     }
     if (pid_ == 0) {
-        // 子进程
         dup2(in_pipe[0], STDIN_FILENO);
         dup2(out_pipe[1], STDOUT_FILENO);
         dup2(out_pipe[1], STDERR_FILENO);
         close(in_pipe[0]); close(in_pipe[1]);
         close(out_pipe[0]); close(out_pipe[1]);
+        if (!cwd.empty() && chdir(cwd.c_str()) != 0) {
+            std::string msg = "chdir failed: " + std::string(strerror(errno)) + "\n";
+            ::write(out_pipe[1], msg.data(), msg.size());
+        }
         const char* shell = shell_path.empty() ? "/bin/sh" : shell_path.c_str();
         execl(shell, shell, nullptr);
         _exit(127);
@@ -90,7 +95,6 @@ posix_terminal_session::posix_terminal_session(const std::string& shell_path) {
     in_fd_ = in_pipe[1];
     out_fd_ = out_pipe[0];
 
-    // 非阻塞读，配合轮询
     int flags = fcntl(out_fd_, F_GETFL, 0);
     fcntl(out_fd_, F_SETFL, flags | O_NONBLOCK);
 
@@ -168,7 +172,7 @@ void posix_terminal_session::reader_loop() {
         } else if (n < 0 && (errno == EAGAIN || errno == EWOULDBLOCK)) {
             std::this_thread::sleep_for(std::chrono::milliseconds(20));
         } else {
-            break;  // EOF 或错误
+            break;
         }
     }
     alive_ = false;
@@ -176,8 +180,9 @@ void posix_terminal_session::reader_loop() {
 
 } // namespace
 
-std::unique_ptr<terminal_session> create_terminal_session(const std::string& shell_path) {
-    return std::make_unique<posix_terminal_session>(shell_path);
+std::unique_ptr<terminal_session> create_terminal_session(const std::string& shell_path,
+                                                          const std::string& cwd) {
+    return std::make_unique<posix_terminal_session>(shell_path, cwd);
 }
 
 } // namespace agent

@@ -5,6 +5,7 @@
  */
 
 #include <ui/slider.h>
+#include <ui/focus_manager.h>
 
 namespace spiration {
 
@@ -54,6 +55,7 @@ void slider::handle_event(const event_type& type, void* data) {
             if (near_thumb || (my >= cy - track_thickness * 3.0f && my <= cy + track_thickness * 3.0f)) {
                 dragging_ = true;
                 md->consumed = true;
+                focus_manager::instance().request_focus(this);
                 value = x_to_value(mx);
                 value = std::max(min_value, std::min(max_value, value));
                 if (on_changed) on_changed(value);

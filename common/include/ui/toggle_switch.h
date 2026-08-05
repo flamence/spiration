@@ -19,6 +19,7 @@ class toggle_switch : public widget {
 public:
     toggle_switch() {
         widget_style.cursor = cursor_type::pointer;
+        focusable = true;
     }
 
     bool active = false;

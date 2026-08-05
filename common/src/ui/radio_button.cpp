@@ -5,6 +5,7 @@
  */
 
 #include <ui/radio_button.h>
+#include <ui/focus_manager.h>
 
 namespace spiration {
 
@@ -19,6 +20,7 @@ void radio_button::handle_event(const event_type& type, void* data) {
                      md->position.y >= 0.0f && md->position.y <= height);
         if (md->action == mouse_action::down && hovering_) {
             md->consumed = true;
+            focus_manager::instance().request_focus(this);
             if (!selected) {
                 selected = true;
                 if (on_changed) on_changed(true);

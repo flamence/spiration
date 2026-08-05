@@ -23,6 +23,7 @@ class collapsible : public widget {
 public:
     collapsible() {
         widget_style.cursor = cursor_type::pointer;
+        focusable = true;
     }
 
     std::string summary_text;

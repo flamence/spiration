@@ -115,6 +115,21 @@ void extension_api::open_tab(std::unique_ptr<tab> t) {
     }
 }
 
+bool extension_api::activate_tab(tab* t) {
+    if (!t) return false;
+    auto* root = dynamic_cast<spiration::root*>(spiration::application::instance()->widget());
+    if (!root) return false;
+    auto* tb = root->get_tab_bar();
+    if (!tb) return false;
+    for (int i = 0; i < tb->tab_count(); ++i) {
+        if (tb->get_tab(i) == t) {
+            tb->activate_tab(i);
+            return true;
+        }
+    }
+    return false;
+}
+
 void extension_api::register_theme_profile(const std::string& name) {
     theme_manager::register_profile(name);
 }

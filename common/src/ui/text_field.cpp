@@ -1,11 +1,12 @@
 /**
  * @file text_field.cpp
- * @brief 单行文本输入框实现（仿 edit_tab：选择、精确光标、复制粘贴）。
+ * @brief 单行文本输入框实现。
  * @author clk
  */
 
 #include <ui/text_field.h>
 #include <ui/context_menu.h>
+#include <ui/focus_manager.h>
 #include <extension/builtin/i18n/i18n.h>
 #include <window/event.h>
 #include <utils/clipboard.h>
@@ -18,17 +19,48 @@ bool text_field::hit_test(float x, float y) const {
 }
 
 void text_field::focus() {
-    focused_ = true;
+    focus_manager::instance().request_focus(this);
     cursor_blink_ = 0.0f;
     cursor_visible_ = true;
     if (request_repaint_) request_repaint_();
 }
 
 void text_field::blur() {
+    if (focus_manager::instance().focused() == this)
+        focus_manager::instance().clear_focus();
+    if (request_repaint_) request_repaint_();
+}
+
+void text_field::on_focus() {
+    focused_ = true;
+    cursor_blink_ = 0.0f;
+    cursor_visible_ = true;
+    if (request_repaint_) request_repaint_();
+}
+
+void text_field::on_blur() {
     focused_ = false;
     selecting_ = false;
     cursor_visible_ = false;
     if (request_repaint_) request_repaint_();
+}
+
+void text_field::blur_current() {
+    focus_manager::instance().clear_focus();
+}
+
+void text_field::select_all() {
+    sel_anchor_ = 0;
+    cursor_pos_ = text.size();
+    selecting_ = true;
+    cursor_blink_ = 0.0f;
+    cursor_visible_ = true;
+    ensure_cursor_visible();
+    if (request_repaint_) request_repaint_();
+}
+
+text_field* text_field::current_focused() {
+    return dynamic_cast<text_field*>(focus_manager::instance().focused());
 }
 
 void text_field::tick(float dt_ms) {
@@ -42,6 +74,14 @@ void text_field::tick(float dt_ms) {
         }
     }
     widget::tick(dt_ms);
+}
+
+void text_field::layout() {
+    if (widget_style.height > 0) {
+        height = static_cast<float>(widget_style.height);
+    } else {
+        label::layout();
+    }
 }
 
 bool text_field::has_selection() const {
@@ -93,8 +133,6 @@ void text_field::handle_event(const event_type& type, void* data) {
                 cursor_blink_ = 0.0f;
                 cursor_visible_ = true;
                 if (request_repaint_) request_repaint_();
-            } else {
-                blur();
             }
         } else if (md->action == mouse_action::move && mouse_down_) {
             cursor_pos_ = hit_to_cursor(mx, cached_renderer_);

@@ -18,6 +18,7 @@
 namespace spiration {
 
 class context_menu;
+class root;
 
 /**
  * @brief 所有 UI 控件的抽象基类。
@@ -44,9 +45,7 @@ public:
     virtual ~widget() {
         dispose();
         notify_destroyed();
-        for (auto& child : children_) {
-            child->parent_ = nullptr;
-        }
+        children_.clear();
     }
 
     virtual void init() {  }
@@ -174,6 +173,7 @@ public:
         
         if (it != children_.end()) {
             std::unique_ptr<widget> removed = std::move(*it);
+            removed->notify_destroyed_recursive();
             removed->parent_ = nullptr;
             children_.erase(it);
             return removed;
@@ -272,6 +272,11 @@ public:
     void notify_destroyed();
 
     /**
+     * @brief 递归通知本控件及其全部子孙。
+     */
+    void notify_destroyed_recursive();
+
+    /**
      * @brief 控件悬停时应显示的光标。
      */
     virtual cursor_type effective_cursor(float lx, float ly) const {
@@ -284,6 +289,12 @@ public:
      *        供动画驱动的控件在高度变化时调用，让父布局及时跟随。
      */
     void relayout_chain();
+
+    /**
+     * @brief 沿父链查找根节点，找不到返回 nullptr。
+     *        浮层控件用它注册为顶层事件接收者。
+     */
+    root* find_root();
 
     void set_parent(widget* p) { parent_ = p; }
 

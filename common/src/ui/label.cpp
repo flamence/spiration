@@ -7,7 +7,9 @@
 #include <ui/label.h>
 #include <ui/theme_manager.h>
 #include <ui/context_menu.h>
+#include <ui/focus_manager.h>
 #include <ui/root.h>
+#include <ui/text_utils.h>
 #include <application.h>
 #include <extension/builtin/i18n/i18n.h>
 #include <utils/clipboard.h>
@@ -21,6 +23,25 @@ std::shared_ptr<renderer> label::current_renderer() const {
     auto* app = application::instance();
     if (app && app->window()) return app->window()->get_renderer();
     return nullptr;
+}
+
+float label::text_width() const {
+    auto r = current_renderer();
+    if (!r) return 0.0f;
+    const float fs = font_size > 0.0f ? font_size : 14.0f;
+    return r->measure_text_width(text, fs, theme_manager::get_str(theme_manager::UI_FONT));
+}
+
+bool label::hit_text_area(float x, float y) const {
+    std::vector<line_info> lines;
+    layout_lines(current_renderer(), lines);
+    for (const auto& ln : lines) {
+        if (y >= ln.y && y <= ln.y + ln.height) {
+            float lx = align_x(ln.width, width > 0.0f ? width : 10000.0f);
+            return x >= lx && x <= lx + ln.width;
+        }
+    }
+    return false;
 }
 
 float label::align_x(float line_width, float wrap_width) const {
@@ -122,8 +143,22 @@ void label::paint(std::shared_ptr<renderer> renderer) {
     cached_renderer_ = renderer;
 
     if (!selectable) {
+        std::string display = text;
+        if (overflow != text_overflow::none && !display.empty()) {
+            float avail = std::max(0.0f, width);
+            float tw = renderer->measure_text_width(
+                display, font_size > 0.0f ? font_size : 14.0f,
+                theme_manager::get_str(theme_manager::UI_FONT));
+            if (tw > avail) {
+                if (overflow == text_overflow::hide) {
+                    display.clear();
+                } else {
+                    display = text_utils::ellipsize(renderer, display, font_size, avail);
+                }
+            }
+        }
         renderer->draw_text_aligned(
-            text,
+            display,
             {0, 0, width, height},
             theme_manager::get(theme_manager::LABEL_TEXT),
             h_align,
@@ -251,11 +286,12 @@ void label::handle_event(const event_type& type, void* data) {
             auto* md = static_cast<mouse_event_data*>(data);
             const float mx = md->position.x;
             const float my = md->position.y;
-            const bool inside = (mx >= 0.0f && mx <= width && my >= 0.0f && my <= height);
+            const bool inside = hit_text_area(mx, my);
 
             if (md->action == mouse_action::down && md->button == mouse_button::left && inside) {
                 notify_root_selection_started();
                 md->consumed = true;
+                focus_manager::instance().clear_focus();
                 mouse_down_ = true;
                 selecting_ = true;
                 sel_anchor_ = hit_test_text(mx, my);

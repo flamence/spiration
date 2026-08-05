@@ -23,6 +23,7 @@ class text_area : public label {
 public:
     text_area() {
         widget_style.cursor = cursor_type::text;
+        focusable = true;
     }
 
     std::function<void(const std::string&)> on_changed;
@@ -56,6 +57,11 @@ public:
     void blur();
     bool focused() const { return focused_; }
 
+    /// @brief 获得焦点。
+    void on_focus() override;
+    /// @brief 失去焦点。
+    void on_blur() override;
+
     ///< 当前垂直滚动偏移。
     float scroll_y() const { return scroll_y_; }
     ///< 当前水平滚动偏移。
@@ -79,7 +85,7 @@ public:
     ///< 获取选中文本。
     std::string selected_text() const;
     ///< 全选。
-    void select_all();
+    virtual void select_all();
     ///< 复制选中文本到剪贴板。
     void copy();
     ///< 剪切选中文本到剪贴板。

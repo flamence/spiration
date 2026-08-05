@@ -7,12 +7,20 @@
 #pragma once
 
 #include <extension/builtin/agent/chat.h>
+#include <extension/builtin/agent/chat_store.h>
+#include <extension/builtin/agent/ui/todo_view.h>
 
 #include <ui/button.h>
+#include <ui/checkbox.h>
 #include <ui/collapsible.h>
+#include <ui/combo_box.h>
 #include <ui/container.h>
+#include <ui/input_dialog.h>
+#include <ui/label.h>
 #include <ui/layout.h>
 #include <ui/markdown.h>
+#include <ui/rectangle.h>
+#include <ui/split_pane.h>
 #include <ui/tab_bar.h>
 #include <ui/text_field.h>
 #include <ui/theme_manager.h>
@@ -21,6 +29,7 @@
 #include <cstddef>
 #include <atomic>
 #include <deque>
+#include <functional>
 #include <future>
 #include <memory>
 #include <mutex>
@@ -35,35 +44,97 @@ struct display_message {
     std::string content;
 };
 
+/// @brief 模型选项。
+struct model_option {
+    std::string display_name;
+    chat_client::config cfg;
+};
+
 /**
  * @brief 智能体标签页。
  */
 class agent_tab : public tab {
 public:
-    explicit agent_tab(chat_client* client = nullptr);
-    ~agent_tab() override { *alive_ = false; }
+    explicit agent_tab(chat_client* client, chat_store* store = nullptr);
+    ~agent_tab() override {
+        *alive_ = false;
+        if (pending_.valid()) pending_.wait();
+        if (on_conversation_done) on_conversation_done(this);
+        if (on_destroyed) on_destroyed();
+    }
 
     void paint(std::shared_ptr<renderer> renderer) override;
     void handle_event(const event_type& type, void* data) override;
     void layout() override;
     void tick(float dt_ms) override;
     void on_activate() override;
+    widget* hit_test_hover(float x, float y) const override;
 
     /** @brief 添加一条消息到显示列表。 */
     void add_message(const std::string& role, const std::string& content);
 
+    /**
+     * @brief 一轮对话完成后的回调。
+     * @param tab 回调发起方的标签页。
+     */
+    std::function<void(agent_tab*)> on_conversation_done;
+
+    /// @brief 标签页被关闭时回调，供持有者清理自身对该标签页的引用。
+    std::function<void()> on_destroyed;
+
+    /// @brief 设置可选模型列表。
+    void set_models(std::vector<model_option> models);
+
+    /// @brief 是否可以继续生成。
+    bool can_continue() const { return continue_btn_ != nullptr; }
+
+    /// @brief 当前是否自动审批敏感工具。
+    bool auto_approve() const { return auto_approve_on_.load(); }
+
 private:
     chat_client* client_ = nullptr;
-    container*   scroll_ = nullptr;
-    container*    msg_list_ = nullptr;
-    text_field*   input_ = nullptr;
-    button*       send_btn_ = nullptr;
+    chat_store*  store_  = nullptr;
+
+    split_pane* split_pane_  = nullptr; 
+    container* list_pane_   = nullptr;
+    container* list_header_ = nullptr;
+    container* list_scroll_ = nullptr;
+    container* chat_pane_   = nullptr;
+    container* back_bar_    = nullptr;
+    container* scroll_      = nullptr;
+    container* settings_bar_ = nullptr;
+    container* input_bar_   = nullptr;
+    container* msg_list_    = nullptr;
+    todo_view* todo_view_   = nullptr;
+
+    button*     back_btn_     = nullptr;
+    button*     toggle_list_  = nullptr;
+    button*     new_btn_      = nullptr;
+    combo_box*  model_combo_  = nullptr;
+    combo_box*  reasoning_combo_ = nullptr;
+    checkbox*   auto_approve_ = nullptr;
+    label*      token_label_  = nullptr;
+
+    collapsible* todo_capsule_ = nullptr;
+    size_t todo_count_ = 0;
+    bool todo_has_ = false;
+
+    text_field* input_   = nullptr;
+    button*     send_btn_ = nullptr;
+
     std::vector<display_message> messages_;
+    std::string current_uuid_;
+    bool list_rebuild_pending_ = false;
+
+    bool landscape_      = true;
+    bool list_collapsed_ = false;
+    bool show_chat_      = true;
+    float list_expand_ratio_ = 0.3f;
 
     reasoning_level reasoning_ = reasoning_level::standard;
-    std::vector<button*> reasoning_btns_;
     collapsible* tool_capsule_ = nullptr;
     container* tool_capsule_scroll_ = nullptr;
+    markdown* tool_label_ = nullptr;
     collapsible* thinking_capsule_ = nullptr;
     container* thinking_scroll_ = nullptr;
     markdown* thinking_label_ = nullptr;
@@ -74,22 +145,60 @@ private:
     std::shared_ptr<std::atomic<bool>> alive_ = std::make_shared<std::atomic<bool>>(true);
 
     std::atomic<bool> stop_requested_ = false;
-    /// 补充消息已排队（软让出）：当前轮结束后不再继续，直接发送排队消息。
     std::atomic<bool> supplement_requested_ = false;
     std::deque<std::string> queued_inputs_;
     button* continue_btn_ = nullptr;
+    std::atomic<bool> tokens_dirty_{false};
+    std::vector<model_option> models_;
 
     struct stream_event {
         enum class type { delta, reasoning, tool_call, tool_result };
         type t = type::delta;
         std::string text;
+        std::string name;
+        std::string args;
     };
     std::mutex stream_mutex_;
     std::deque<stream_event> stream_events_;
     markdown* stream_label_ = nullptr;
     markdown* last_label_   = nullptr;
-    /// 当前流式助手消息在 messages_ 中的下标（补充消息会追加在它之后，不能依赖 back()）。
     size_t stream_msg_index_ = 0;
+    bool streamed_content_ = false;
+
+    std::mutex approval_mtx_;
+    std::atomic<bool> approval_pending_{false};
+    tool_call approval_tc_;
+    std::shared_ptr<std::promise<bool>> approval_promise_;
+    std::atomic<bool> auto_approve_on_{false};
+    bool approval_inline_shown_ = false;
+    label* approval_hint_ = nullptr;
+    container* approval_row_ = nullptr;
+    button* approval_allow_btn_ = nullptr;
+    button* approval_deny_btn_ = nullptr;
+
+    void new_conversation(bool to_chat = true);
+    void open_conversation(const std::string& uuid, bool to_chat = true);
+    void delete_conversation(const std::string& uuid);
+    void rebuild_conversation_list();
+    /** @brief 请求在下一帧 tick 重建会话列表。 */
+    void request_list_rebuild();
+    void clear_messages();
+    void save_current();
+
+    std::string rename_uuid_;
+    input_dialog* rename_dialog_ = nullptr;
+    void begin_rename(const std::string& uuid, const std::string& name);
+    void commit_rename_text(const std::string& text);
+
+    /** @brief 在工具胶囊内展示内联 允许/拒绝 审批。 */
+    void show_inline_approval();
+    /** @brief 审批结束后移除胶囊内的审批按钮。 */
+    void remove_inline_approval();
+
+    /** @brief 布局会话列表面板内部。 */
+    void layout_list_internal();
+    /** @brief 布局聊天面板内部。 */
+    void layout_chat_internal();
 
     /** @brief 创建一条消息气泡并添加到列表，返回气泡控件指针。 */
     markdown* append_bubble(const display_message& msg);
@@ -103,6 +212,8 @@ private:
     void send();
     /** @brief 启动一次对话。 */
     void start_send(const std::string& text, bool show_user);
+    /** @brief 基于当前历史启动一轮生成。 */
+    void begin_run();
     /** @brief 继续生成。 */
     void continue_generation();
     /** @brief 在消息列表末尾添加“继续生成”按钮。 */
@@ -111,17 +222,26 @@ private:
     void remove_continue_button();
     /** @brief 根据 waiting_ 更新发送/停止按钮文字。 */
     void update_send_button();
+    /** @brief 刷新 token 用量标签。 */
+    void update_token_label();
 
-    /** @brief 设置思考等级并更新按钮高亮。 */
+    /** @brief 设置思考等级并更新下拉框高亮。 */
     void set_reasoning_level(reasoning_level l);
-    /** @brief 刷新思考等级按钮高亮。 */
-    void update_reasoning_buttons();
+    /** @brief 刷新待办胶囊。 */
+    void update_todo_capsule();
     /** @brief 创建一个胶囊，返回其指针。 */
     collapsible* create_capsule(const std::string& summary);
     /** @brief 追加一个工具调用胶囊，返回其指针。 */
-    collapsible* append_tool_capsule(const std::string& summary);
+    collapsible* append_tool_capsule(const std::string& summary, const std::string& args);
     /** @brief 把工具结果填入当前胶囊内容。 */
     void append_tool_result(const std::string& text);
+    /** @brief 从历史记录重建思考/工具胶囊。 */
+    void restore_history_ui(const std::vector<chat_message>& msgs);
+
+    /** @brief 后台线程回调：征询用户批准，阻塞直到 UI 决定或停止。 */
+    bool approve_request(const tool_call& tc);
+    /** @brief UI 线程：用户已决定，解除后台阻塞。 */
+    void resolve_approval(bool ok);
 };
 
 } // namespace agent

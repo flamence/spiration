@@ -21,6 +21,7 @@ class radio_button : public widget {
 public:
     radio_button() {
         widget_style.cursor = cursor_type::pointer;
+        focusable = true;
     }
     std::string text;
     bool selected = false;

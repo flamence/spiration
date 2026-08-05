@@ -21,6 +21,7 @@ class list_view : public widget {
 public:
     list_view() {
         widget_style.cursor = cursor_type::pointer;
+        focusable = true;
     }
 
     std::vector<std::string> items;

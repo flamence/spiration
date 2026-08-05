@@ -5,6 +5,7 @@
  */
 
 #include <ui/list_view.h>
+#include <ui/focus_manager.h>
 #include <algorithm>
 
 namespace spiration {
@@ -44,6 +45,7 @@ void list_view::handle_event(const event_type& type, void* data) {
                 if (idx >= 0 && idx < static_cast<int>(items.size())) {
                     selected_index = idx;
                     md->consumed = true;
+                    focus_manager::instance().request_focus(this);
                     if (on_selected) on_selected(idx);
                     if (request_repaint_) request_repaint_();
                 }

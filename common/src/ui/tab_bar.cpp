@@ -5,6 +5,7 @@
  */
 
 #include <ui/tab_bar.h>
+#include <ui/focus_manager.h>
 #include <ui/theme_manager.h>
 #include <cmath>
 #include <algorithm>
@@ -17,6 +18,7 @@ tab_head_item::tab_head_item(const std::string& title)
     , text_(theme_manager::get(theme_manager::TAB_INACTIVE_TEXT))
     , close_fg_(theme_manager::get(theme_manager::TAB_CLOSE_FG)) {
     widget_style.cursor = cursor_type::pointer;
+    focusable = true;
 }
 
 void tab_head_item::sync_colors() {
@@ -75,6 +77,7 @@ void tab_head_item::handle_event(const event_type& type, void* data) {
             }
             if (hovering_) {
                 md->consumed = true;
+                focus_manager::instance().request_focus(this);
                 if (on_activate_) on_activate_();
                 return;
             }

@@ -122,6 +122,16 @@ bool platform::file_exists(const std::string& path) {
 }
 
 bool platform::create_directory(const std::string& path) {
+    if (path.empty()) return false;
+    if (file_exists(path)) return true;
+    std::string parent = path;
+    while (!parent.empty() && (parent.back() == '\\' || parent.back() == '/'))
+        parent.pop_back();
+    auto slash = parent.find_last_of("\\/");
+    if (slash != std::string::npos && slash > 0) {
+        std::string p = parent.substr(0, slash);
+        if (!p.empty() && !file_exists(p)) create_directory(p);
+    }
     std::wstring wpath = utf8_to_wide(path);
     return CreateDirectoryW(wpath.c_str(), nullptr) != 0 ||
            GetLastError() == ERROR_ALREADY_EXISTS;

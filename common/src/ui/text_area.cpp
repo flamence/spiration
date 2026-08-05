@@ -6,6 +6,7 @@
 
 #include <ui/text_area.h>
 #include <ui/context_menu.h>
+#include <ui/focus_manager.h>
 #include <extension/builtin/i18n/i18n.h>
 #include <utils/clipboard.h>
 #include <window/event.h>
@@ -64,14 +65,28 @@ bool text_area::hit_test(float x, float y) const {
 }
 
 void text_area::focus() {
-    focused_ = true;
+    focus_manager::instance().request_focus(this);
     cursor_visible_ = true;
     cursor_timer_ = 0.0f;
     if (request_repaint_) request_repaint_();
 }
 
 void text_area::blur() {
+    if (focus_manager::instance().focused() == this)
+        focus_manager::instance().clear_focus();
+    if (request_repaint_) request_repaint_();
+}
+
+void text_area::on_focus() {
+    focused_ = true;
+    cursor_visible_ = true;
+    cursor_timer_ = 0.0f;
+    if (request_repaint_) request_repaint_();
+}
+
+void text_area::on_blur() {
     focused_ = false;
+    selecting_ = false;
     if (request_repaint_) request_repaint_();
 }
 

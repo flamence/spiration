@@ -696,6 +696,8 @@ float markdown::measure_height(std::shared_ptr<renderer> r, float avail_w) const
 
 void markdown::layout() {
     auto r = measure_renderer();
+    if (r) content_w_ = measure_content_width(r);
+    scroll_x_ = std::max(0.0f, std::min(scroll_x_, scroll_max_x()));
     float h = measure_height(r, effective_width());
     if (h > 0.0f) height = h;
 }
@@ -704,6 +706,52 @@ size markdown::layout_preferred_size() const {
     auto r = measure_renderer();
     float h = measure_height(r, effective_width());
     return {effective_width(), h};
+}
+
+float markdown::table_natural_width(
+    std::shared_ptr<renderer> r,
+    const std::vector<std::vector<std::vector<run>>>& table,
+    float font_size, const std::string& family,
+    std::vector<float>* col_w_out) {
+    const float cell_pad = 8.0f;
+    size_t cols = 0;
+    for (const auto& row : table)
+        cols = std::max(cols, row.size());
+    if (cols == 0) return 0.0f;
+    std::vector<float> col_w(cols, 0.0f);
+    for (const auto& row : table) {
+        for (size_t c = 0; c < row.size(); ++c) {
+            float cw = line_width(r, row[c], font_size, family);
+            col_w[c] = std::max(col_w[c], cw + cell_pad * 2.0f);
+        }
+    }
+    float total = 0.0f;
+    for (float w : col_w) total += w;
+    if (col_w_out) *col_w_out = std::move(col_w);
+    return total;
+}
+
+float markdown::measure_content_width(std::shared_ptr<renderer> r) const {
+    ensure_parsed();
+    const float base_size = font_size > 0.0f ? font_size : 14.0f;
+    std::string bf = ui_font();
+    float w = 0.0f;
+    for (const auto& b : blocks_) {
+        if (b.k == block::kind::table) {
+            w = std::max(w, table_natural_width(r, b.table, base_size, bf));
+        } else if (b.k == block::kind::code) {
+            const float pad = 6.0f;
+            float cfont = base_size * 0.95f;
+            float cw = 0.0f;
+            for (const auto& cl : b.code_lines) {
+                float lw = r ? r->measure_text_width(cl, cfont, mono_font())
+                             : approx_width(cl, cfont);
+                cw = std::max(cw, lw);
+            }
+            w = std::max(w, cw + pad * 2.0f);
+        }
+    }
+    return w;
 }
 
 void markdown::draw_block(std::shared_ptr<renderer> r, const block& b,
@@ -751,11 +799,17 @@ void markdown::draw_block(std::shared_ptr<renderer> r, const block& b,
             const float pad = 6.0f;
             size_t rows = std::max<size_t>(b.code_lines.size(), 1);
             float ch = pad * 2.0f + static_cast<float>(rows) * line_h;
-            r->draw_rectangle({x, y, avail_w, ch}, code_bg);
-            r->draw_rectangle_outline({x, y, avail_w, ch},
+            float cfont = base_size * 0.95f;
+            float nat_w = 0.0f;
+            for (const auto& cl : b.code_lines) {
+                float lw = r ? r->measure_text_width(cl, cfont, mono_font()) : 0.0f;
+                nat_w = std::max(nat_w, lw);
+            }
+            float bg_w = std::max(avail_w, nat_w + pad * 2.0f);
+            r->draw_rectangle({x, y, bg_w, ch}, code_bg);
+            r->draw_rectangle_outline({x, y, bg_w, ch},
                                       theme_manager::get(theme_manager::SEPARATOR), 1.0f);
             float cy = y + pad;
-            float cfont = base_size * 0.95f;
             for (size_t ci = 0; ci < b.code_lines.size(); ++ci) {
                 const auto& cl = b.code_lines[ci];
                 r->draw_text(cl, {x + pad, cy}, code_col, cfont, mono_font(), false);
@@ -810,24 +864,9 @@ void markdown::draw_block(std::shared_ptr<renderer> r, const block& b,
         }
         case block::kind::table: {
             const float cell_pad = 8.0f;
-            size_t cols = 0;
-            for (const auto& row : b.table)
-                cols = std::max(cols, row.size());
-            if (cols == 0) break;
-            std::vector<float> col_w(cols, 0.0f);
-            for (const auto& row : b.table) {
-                for (size_t c = 0; c < row.size(); ++c) {
-                    float cw = line_width(r, row[c], base_size, bf);
-                    col_w[c] = std::max(col_w[c], cw + cell_pad * 2.0f);
-                }
-            }
-            float total = 0.0f;
-            for (float w : col_w) total += w;
-            if (total > avail_w) {
-                float scale = avail_w / total;
-                for (auto& w : col_w) w *= scale;
-                total = avail_w;
-            }
+            std::vector<float> col_w;
+            float total = table_natural_width(r, b.table, base_size, bf, &col_w);
+            if (total <= 0.0f || col_w.empty()) break;
             color tbl_border = theme_manager::get(theme_manager::SEPARATOR);
             color tbl_hdr    = theme_manager::get(theme_manager::CODE_BG);
             float row_h = line_h;
@@ -837,11 +876,11 @@ void markdown::draw_block(std::shared_ptr<renderer> r, const block& b,
             for (size_t ri = 0; ri < b.table.size(); ++ri) {
                 const auto& row = b.table[ri];
                 float cx = x;
-                for (size_t ci = 0; ci < cols; ++ci) {
+                for (size_t ci = 0; ci < col_w.size(); ++ci) {
                     if (ci < row.size())
                         draw_word_line(r, row[ci], cx + cell_pad, ry,
                                        base_size, bf, base, code_bg, line_h, link);
-                    if (ci + 1 < cols)
+                    if (ci + 1 < col_w.size())
                         r->draw_line({cx + col_w[ci], ry}, {cx + col_w[ci], ry + row_h},
                                      tbl_border, 1.0f);
                     cx += col_w[ci];
@@ -983,6 +1022,7 @@ float markdown::word_prefix_width(const word_rect& wr, size_t byte_len, std::sha
 }
 
 std::string markdown::link_at(float x, float y) const {
+    x += scroll_x_;  // 内容已横向滚动
     for (const auto& wr : word_rects_) {
         if (!wr.href.empty() && x >= wr.x && x <= wr.x + wr.w &&
             y >= wr.y && y <= wr.y + wr.h)
@@ -991,7 +1031,18 @@ std::string markdown::link_at(float x, float y) const {
     return {};
 }
 
+bool markdown::hit_text_area(float x, float y) const {
+    if (word_rects_.empty()) return false;
+    x += scroll_x_;
+    for (const auto& wr : word_rects_) {
+        if (x >= wr.x && x <= wr.x + wr.w && y >= wr.y && y <= wr.y + wr.h)
+            return true;
+    }
+    return false;
+}
+
 size_t markdown::hit_test_text(float x, float y) const {
+    x += scroll_x_;
     if (word_rects_.empty()) return 0;
     size_t best = text.size();
     bool found = false;
@@ -1033,8 +1084,9 @@ void markdown::draw_selection_highlight(std::shared_ptr<renderer> r) const {
 }
 
 cursor_type markdown::effective_cursor(float lx, float ly) const {
+    const float cx = lx + scroll_x_;
     for (const auto& wr : word_rects_) {
-        if (lx >= wr.x && lx <= wr.x + wr.w && ly >= wr.y && ly <= wr.y + wr.h) {
+        if (cx >= wr.x && cx <= wr.x + wr.w && ly >= wr.y && ly <= wr.y + wr.h) {
             if (!wr.href.empty() || wr.style == run_style::link ||
                 wr.style == run_style::image)
                 return cursor_type::pointer;
@@ -1048,6 +1100,48 @@ void markdown::handle_event(const event_type& type, void* data) {
         auto* md = static_cast<mouse_event_data*>(data);
         const float mx = md->position.x;
         const float my = md->position.y;
+        mouse_over_ = (mx >= 0.0f && mx <= width && my >= 0.0f && my <= height);
+        const float smax = scroll_max_x();
+        const float sb_h = 6.0f;
+
+        if (md->action == mouse_action::down && md->button == mouse_button::left) {
+            if (mouse_over_ && smax > 0.0f && my >= height - sb_h && my <= height) {
+                scroll_dragging_ = true;
+                scroll_drag_start_x_ = mx;
+                scroll_drag_start_offset_ = scroll_x_;
+                set_mouse_capture(this);
+                md->consumed = true;
+                return;
+            }
+        } else if (md->action == mouse_action::move && scroll_dragging_) {
+            float track = std::max(1.0f, width - scroll_thumb_w());
+            scroll_x_ = std::max(0.0f, std::min(
+                scroll_drag_start_offset_ + (mx - scroll_drag_start_x_) / track * smax, smax));
+            md->consumed = true;
+            if (request_repaint_) request_repaint_();
+            return;
+        } else if (md->action == mouse_action::up && scroll_dragging_) {
+            scroll_dragging_ = false;
+            set_mouse_capture(nullptr);
+            md->consumed = true;
+            return;
+        }
+
+        if (md->action == mouse_action::wheel) {
+            if (md->shift && mouse_over_ && smax > 0.0f) {
+                float step = (md->wheel_delta > 0) ? -40.0f : 40.0f;
+                float nx = std::max(0.0f, std::min(scroll_x_ + step, smax));
+                if (nx != scroll_x_) {
+                    scroll_x_ = nx;
+                    md->consumed = true;
+                    if (request_repaint_) request_repaint_();
+                    return;
+                }
+            }
+            label::handle_event(type, data);
+            return;
+        }
+
         if (md->action == mouse_action::down && md->button == mouse_button::left) {
             pressed_link_ = link_at(mx, my);
         } else if (md->action == mouse_action::up && md->button == mouse_button::left &&
@@ -1056,6 +1150,8 @@ void markdown::handle_event(const event_type& type, void* data) {
                 platform::open_url(pressed_link_);
             pressed_link_.clear();
         }
+        label::handle_event(type, data);
+        return;
     }
     label::handle_event(type, data);
 }
@@ -1064,11 +1160,28 @@ void markdown::paint(std::shared_ptr<renderer> renderer) {
     cached_renderer_ = renderer;
     ensure_parsed();
     word_rects_.clear();
+    content_w_ = measure_content_width(renderer);
+    scroll_x_ = std::max(0.0f, std::min(scroll_x_, scroll_max_x()));
+
     float y = 0.0f;
     float avail_w = effective_width();
+
+    renderer->push_clip({0, 0, width, height});
+    renderer->push_transform(-scroll_x_, 0.0f);
     for (const auto& b : blocks_)
         draw_block(renderer, b, 0.0f, y, avail_w, y);
     draw_selection_highlight(renderer);
+    renderer->pop_transform();
+    renderer->pop_clip();
+
+    const float smax = scroll_max_x();
+    if (smax > 0.0f && (mouse_over_ || scroll_dragging_)) {
+        const float sb_h = 6.0f;
+        renderer->draw_rectangle({0, height - sb_h, width, sb_h}, {0.12f, 0.12f, 0.12f, 0.6f});
+        float thumb_w = scroll_thumb_w();
+        float tx = (width - thumb_w) * (scroll_x_ / smax);
+        renderer->draw_rectangle({tx, height - sb_h, thumb_w, sb_h}, {0.55f, 0.55f, 0.55f, 0.85f});
+    }
 }
 
 } // namespace spiration

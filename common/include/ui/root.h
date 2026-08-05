@@ -40,6 +40,16 @@ public:
     void dismiss_context_menu();
     bool has_context_menu() const { return m_context_menu != nullptr; }
 
+    /**
+     * @brief 注册一个浮层控件。
+     *        浮层在鼠标事件分发时优先接收；未消费则放行给普通内容。
+     */
+    void add_overlay(widget* w);
+    /// @brief 注销浮层控件。
+    void remove_overlay(widget* w);
+    /// @brief 当前活跃浮层。
+    widget* overlay() const { return m_overlay; }
+
     void set_mouse_capture(widget* w) override;
 
     /**
@@ -74,6 +84,8 @@ private:
     bool create_appbar_ = true;
     widget* captured_ = nullptr;
     widget* selecting_widget_ = nullptr;
+    /// @brief 当前活跃浮层，事件优先路由给它。
+    widget* m_overlay = nullptr;
 };
 
 } 
