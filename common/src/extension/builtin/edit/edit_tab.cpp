@@ -89,6 +89,20 @@ void edit_tab::load_file(const std::string& path) {
     spiration::console::info("edit", "loaded %zu bytes: %s", editor_->text.size(), path.c_str());
 }
 
+void edit_tab::open_content(const std::string& path, const std::string& content) {
+    size_t sep = path.find_last_of("/\\");
+    base_title_ = (sep != std::string::npos) ? path.substr(sep + 1) : path;
+    title_ = base_title_;
+
+    editor_->text = content;
+    editor_->reset_view();
+    file_path_ = path;
+    mark_clean();
+
+    spiration::console::info("edit", "opened content %zu bytes: %s",
+                             content.size(), path.c_str());
+}
+
 bool edit_tab::save() {
     if (file_path_.empty()) return false;
     return save_as(file_path_);
@@ -141,6 +155,17 @@ bool edit_tab::save_as(const std::string& path) {
     spiration::console::info("edit", "saved %zu bytes to: %s", editor_->text.size(), file_path_.c_str());
     return true;
 }
+
+void edit_tab::confirm_saved(const std::string& path) {
+    file_path_ = path;
+
+    size_t sep = file_path_.find_last_of("/\\");
+    base_title_ = (sep != std::string::npos) ? file_path_.substr(sep + 1) : file_path_;
+    mark_clean();
+
+    spiration::console::info("edit", "confirmed saved to: %s", path.c_str());
+}
+
 void edit_tab::paint(std::shared_ptr<renderer> r) {
     if (widget_style.background_color.a > 0.0f) {
         r->draw_rectangle({0, 0, width, height}, widget_style.background_color);

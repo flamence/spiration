@@ -13,12 +13,8 @@ file(GLOB_RECURSE COMMON_SOURCES
     "${SPIRATION_ROOT_PATH}/common/src/*.cpp"
 )
 
-# 排除依赖 curl 的文件和桌面平台 application
 list(FILTER COMMON_SOURCES EXCLUDE REGEX ".*chat\\.cpp$")
 list(FILTER COMMON_SOURCES EXCLUDE REGEX ".*web_tool\\.cpp$")
-list(FILTER COMMON_SOURCES EXCLUDE REGEX ".*/common/src/application\\.cpp$")
-# 排除 Windows 版本的 clipboard 实现
-list(FILTER COMMON_SOURCES EXCLUDE REGEX ".*/common/src/utils/clipboard\\.cpp$")
 file(GLOB_RECURSE OHOS_SOURCES
     "${NATIVERENDER_ROOT_PATH}/src/*.c"
     "${NATIVERENDER_ROOT_PATH}/src/*.cpp"
@@ -26,14 +22,16 @@ file(GLOB_RECURSE OHOS_SOURCES
 
 add_library(entry SHARED ${COMMON_SOURCES} ${OHOS_SOURCES})
 
-# 定义 OHOS 平台宏，禁用 curl 依赖
 target_compile_definitions(entry PRIVATE OHOS_PLATFORM)
 
 target_include_directories(entry PRIVATE
     ${NATIVERENDER_ROOT_PATH}/include
+)
+
+target_include_directories(entry PUBLIC
     ${SPIRATION_ROOT_PATH}/common/include
-    ${SPIRATION_ROOT_PATH}/linux/deps/stb
-    ${SPIRATION_ROOT_PATH}/build/_deps/json-src/include
+    ${NATIVERENDER_ROOT_PATH}/deps/stb
+    ${NATIVERENDER_ROOT_PATH}/deps/json/include
 )
 
 add_custom_command(TARGET entry PRE_BUILD COMMAND

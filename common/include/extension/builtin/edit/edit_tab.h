@@ -1,6 +1,6 @@
 /**
  * @file edit_tab.h
- * @brief 编辑标签页（组合：tab 包装内嵌 text_area 编辑器）。
+ * @brief 编辑标签页。
  * @author clk
  */
 
@@ -16,9 +16,6 @@ namespace edit {
 
 /**
  * @brief 文本编辑标签页。
- *
- * 通过组合实现：内部持有一个 `text_area` 编辑器子控件（含完整编辑能力与分块渲染），
- * 本类负责标签页集成（文件 IO、脏标记、标题、保存回调）。
  */
 class edit_tab : public tab {
 public:
@@ -31,7 +28,7 @@ public:
      */
     explicit edit_tab(const std::string& title);
 
-    /** @brief 绘制标签页内容（背景 + 内嵌编辑器）。 */
+    /** @brief 绘制标签页内容。 */
     void paint(std::shared_ptr<renderer> renderer) override;
 
     /** @brief 布局：编辑器撑满整个标签页。 */
@@ -49,11 +46,24 @@ public:
     /** @brief 从文件加载文本内容。 */
     void load_file(const std::string& path);
 
+    /**
+     * @brief 以预读内容打开。
+     * @param path    文件路径/URI
+     * @param content 已读取的文件内容
+     */
+    void open_content(const std::string& path, const std::string& content);
+
     /** @brief 保存当前内容到已打开的文件。 */
     bool save();
 
     /** @brief 另存当前内容到指定路径。 */
     bool save_as(const std::string& path);
+
+    /**
+     * @brief 确认已保存到指定路径。
+     * @param path 目标路径/URI
+     */
+    void confirm_saved(const std::string& path);
 
     /** @brief 获取编辑器的文本内容。 */
     const std::string& text() const { return editor_->text; }

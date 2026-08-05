@@ -1,18 +1,22 @@
 #include "napi/native_api.h"
 #include "napi_bridge.h"
 
-#include <ohos_application.h>
+#include <application.h>
 #include <renderer/opengl_renderer.h>
-#include <ohos_window.h>
-#include <ohos_clipboard.h>
+#include <window/ohos_window.h>
+#include <utils/ohos_clipboard.h>
+#include <io/file_dialog.h>
+#include <io/ohos_file_dialog.h>
 #include <ui/root.h>
+#include <ui/theme_manager.h>
 #include <utils/platform.h>
 #include <utils/console.h>
-#include <extension/builtin/i18n/i18n.h>
+#include <utils/crash_log.h>
 
 #include <native_window/external_window.h>
 #include <rawfile/raw_file_manager.h>
 #include <rawfile/raw_file.h>
+#include <rawfile/raw_dir.h>
 #include <fstream>
 
 static std::shared_ptr<spiration::ohos_window> g_window;
@@ -44,6 +48,61 @@ DECL_NAPI_CALLBACK(MaximizeCallback)  /* → win.maximize() / win.recover() */
 DECL_NAPI_CALLBACK(MinimizeCallback)  /* → win.minimize() */
 DECL_NAPI_CALLBACK(StartMoveCallback) /* → win.startMoving() */
 
+static napi_value NapiOnFilePicked(napi_env env, napi_callback_info info);
+
+/* 剪贴板回调：ArkTS 侧注册 (copyFn, pasteFn)，C++ 剪贴板同步调用 */
+static napi_env g_clipboardEnv = nullptr;
+static napi_ref g_clipboardCopyRef = nullptr;
+static napi_ref g_clipboardPasteRef = nullptr;
+
+static napi_value NapiRegisterClipboardCallback(napi_env env, napi_callback_info info) {
+    size_t argc = 2;
+    napi_value args[2];
+    napi_get_cb_info(env, info, &argc, args, nullptr, nullptr);
+    g_clipboardEnv = env;
+    if (g_clipboardCopyRef) {
+        napi_delete_reference(env, g_clipboardCopyRef);
+        g_clipboardCopyRef = nullptr;
+    }
+    if (g_clipboardPasteRef) {
+        napi_delete_reference(env, g_clipboardPasteRef);
+        g_clipboardPasteRef = nullptr;
+    }
+    if (argc >= 1) napi_create_reference(env, args[0], 1, &g_clipboardCopyRef);
+    if (argc >= 2) napi_create_reference(env, args[1], 1, &g_clipboardPasteRef);
+    return args[0];
+}
+
+namespace spiration {
+bool clipboard_copy_to_arkts(const std::string& text) {
+    if (!g_clipboardEnv || !g_clipboardCopyRef) return false;
+    napi_value cb;
+    napi_get_reference_value(g_clipboardEnv, g_clipboardCopyRef, &cb);
+    napi_value undefined;
+    napi_get_undefined(g_clipboardEnv, &undefined);
+    napi_value arg;
+    napi_create_string_utf8(g_clipboardEnv, text.c_str(), text.size(), &arg);
+    napi_call_function(g_clipboardEnv, undefined, cb, 1, &arg, nullptr);
+    return true;
+}
+
+std::string clipboard_paste_from_arkts() {
+    if (!g_clipboardEnv || !g_clipboardPasteRef) return "";
+    napi_value cb;
+    napi_get_reference_value(g_clipboardEnv, g_clipboardPasteRef, &cb);
+    napi_value undefined;
+    napi_get_undefined(g_clipboardEnv, &undefined);
+    napi_value result;
+    napi_call_function(g_clipboardEnv, undefined, cb, 0, nullptr, &result);
+    size_t len = 0;
+    if (napi_get_value_string_utf8(g_clipboardEnv, result, nullptr, 0, &len) != napi_ok) return "";
+    if (len == 0) return "";
+    std::string str(len, '\0');
+    napi_get_value_string_utf8(g_clipboardEnv, result, &str[0], len + 1, &len);
+    return str;
+}
+} // namespace spiration
+
 static napi_value NapiInitNativeWindow(napi_env env, napi_callback_info info);
 static napi_value NapiInitResourceManager(napi_env env, napi_callback_info info);
 static napi_value NapiOnTouchEvent(napi_env env, napi_callback_info info);
@@ -62,7 +121,12 @@ static napi_value NapiRegisterStartMoveCallback(napi_env env, napi_callback_info
 EXTERN_C_START
 static napi_value Init(napi_env env, napi_value exports) {
 
-    spiration::set_clipboard_napi_env(env);
+    std::string log_dir = spiration::platform::join_path(
+        spiration::platform::executable_directory(), "logs");
+    spiration::platform::create_directory(log_dir);
+    std::string log_path = spiration::console::make_log_path(log_dir, "spiration");
+    spiration::console::set_log_file(log_path);
+    spiration::crash_log::install(log_path);
 
     napi_value spirationNs;
     napi_create_object(env, &spirationNs);
@@ -92,6 +156,9 @@ static napi_value Init(napi_env env, napi_value exports) {
         {"registerMaximizeCallback", nullptr, NapiRegisterMaximizeCallback, nullptr, nullptr, nullptr, napi_default, nullptr},
         {"registerMinimizeCallback", nullptr, NapiRegisterMinimizeCallback, nullptr, nullptr, nullptr, napi_default, nullptr},
         {"registerStartMoveCallback", nullptr, NapiRegisterStartMoveCallback, nullptr, nullptr, nullptr, napi_default, nullptr},
+        {"registerFilePickerCallback", nullptr, NapiRegisterFilePickerCallback, nullptr, nullptr, nullptr, napi_default, nullptr},
+        {"onFilePicked", nullptr, NapiOnFilePicked, nullptr, nullptr, nullptr, napi_default, nullptr},
+        {"registerClipboardCallback", nullptr, NapiRegisterClipboardCallback, nullptr, nullptr, nullptr, napi_default, nullptr},
     };
 
     napi_define_properties(env, exports, sizeof(desc) / sizeof(desc[0]), desc);
@@ -103,9 +170,10 @@ static napi_value Init(napi_env env, napi_value exports) {
 EXTERN_C_END
 
 /**
- * @brief 将 rawfile 内容写出到文件系统后加载到 i18n。
+ * @brief 将 rawfile 中的翻译文件写出到沙箱 lang 目录。
+ * @note rawfile 只读，普通文件 API 无法直接访问，需先落到沙箱。
  */
-static bool load_lang_from_rawfile(const std::string& locale, const std::string& filename) {
+static bool copy_lang_from_rawfile(const std::string& filename) {
     if (!g_resourceMgr) return false;
     RawFile* raw = OH_ResourceManager_OpenRawFile(g_resourceMgr, ("lang/" + filename).c_str());
     if (!raw) {
@@ -122,7 +190,7 @@ static bool load_lang_from_rawfile(const std::string& locale, const std::string&
     OH_ResourceManager_CloseRawFile(raw);
     if (read <= 0) return false;
 
-    std::string tmpDir = spiration::platform::app_data_dir() + "/lang";
+    std::string tmpDir = spiration::platform::executable_directory() + "/lang";
     spiration::platform::create_directory(tmpDir);
     std::string tmpFile = tmpDir + "/" + filename;
     std::ofstream out(tmpFile, std::ios::binary);
@@ -130,11 +198,32 @@ static bool load_lang_from_rawfile(const std::string& locale, const std::string&
     out.write(content.data(), content.size());
     out.close();
 
-    return spiration::i18n_manager::get().load(locale, tmpFile);
+    return true;
 }
 
 /**
- * @brief 从 ArkUI 接收 resourceManager，初始化原生资源管理器并加载翻译文件。
+ * @brief 枚举 rawfile 中 lang/ 目录下全部翻译文件并写入沙箱。
+ * @note 相较硬编码文件名，新增语言无需改动代码。
+ */
+static void copy_all_lang_from_rawfile() {
+    if (!g_resourceMgr) return;
+    RawDir* rawDir = OH_ResourceManager_OpenRawDir(g_resourceMgr, "lang");
+    if (!rawDir) {
+        spiration::console::warning("napi", "rawfile lang dir not found");
+        return;
+    }
+    int count = OH_ResourceManager_GetRawFileCount(rawDir);
+    for (int i = 0; i < count; ++i) {
+        const char* name = OH_ResourceManager_GetRawFileName(rawDir, i);
+        if (name) copy_lang_from_rawfile(name);
+    }
+    OH_ResourceManager_CloseRawDir(rawDir);
+}
+
+/**
+ * @brief 从 ArkUI 接收 resourceManager，初始化原生资源管理器。
+ * @note 将 rawfile 翻译文件写入沙箱后初始化应用（扩展 + early 阶段），
+ *       由 i18n 扩展从沙箱 lang 目录统一加载翻译，与桌面平台一致。
  */
 static napi_value NapiInitResourceManager(napi_env env, napi_callback_info info) {
     size_t argc = 1;
@@ -155,10 +244,13 @@ static napi_value NapiInitResourceManager(napi_env env, napi_callback_info info)
         return ret;
     }
 
+    // 将 rawfile 翻译文件落到沙箱，供 i18n 扩展加载
+    copy_all_lang_from_rawfile();
+
+    // 与其它平台一致：扩展注册 + early 阶段（i18n 扩展读取沙箱 lang 目录）
+    spiration::application::instance()->initialize_early();
+
     std::string sysLocale = spiration::platform::system_locale();
-    load_lang_from_rawfile("zh-CN", "zh-CN.properties");
-    load_lang_from_rawfile(sysLocale, sysLocale + ".properties");
-    spiration::i18n_manager::get().set_locale(sysLocale);
     spiration::console::info("napi", "ResourceManager initialized, locale=%s", sysLocale.c_str());
     napi_value ret;
     napi_get_boolean(env, true, &ret);
@@ -237,8 +329,13 @@ static napi_value NapiInitNativeWindow(napi_env env, napi_callback_info info) {
     g_window->initialize(params);
     g_window->set_renderer(g_renderer);
 
-    // 使用 ohos_application 单例设置窗口
-    spiration::ohos_application::instance()->set_window(g_window,
+    // 设置 HarmonyOS 兼容字体（OpenHarmony 系统字体：sans-serif / monospace）
+    spiration::theme_manager::set_str(spiration::theme_manager::UI_FONT, "sans-serif");
+    spiration::theme_manager::set_str(spiration::theme_manager::INPUT_FONT, "sans-serif");
+    spiration::theme_manager::set_str(spiration::theme_manager::EDITOR_FONT, "monospace");
+
+    // 与其它平台一致：使用 application 单例附加窗口并创建根控件
+    spiration::application::instance()->set_window(g_window,
         static_cast<int32_t>(logical_w), static_cast<int32_t>(logical_h));
 
     // 设置回调函数
@@ -247,8 +344,9 @@ static napi_value NapiInitNativeWindow(napi_env env, napi_callback_info info) {
     g_window->set_on_minimize([](void*) { invoke_MinimizeCallback_callback(); });
     g_window->set_on_start_move([](void*) { invoke_StartMoveCallback_callback(); });
 
-    // 初始化 normal 阶段扩展
-    spiration::ohos_application::instance()->initialize_normal();
+    // 初始化 normal 阶段扩展并显示窗口
+    spiration::application::instance()->initialize_normal();
+    g_window->show();
 
     // 渲染第一帧
     if (g_renderer) {
@@ -312,8 +410,8 @@ static napi_value NapiOnFrameTick(napi_env env, napi_callback_info info) {
                                     static_cast<int32_t>(vp_h));
         }
 
-        // 使用 ohos_application 单例驱动动画
-        spiration::ohos_application::instance()->tick(static_cast<float>(dt_ms));
+        // 与其它平台一致：由 application 单例驱动根控件每帧逻辑
+        spiration::application::instance()->tick(static_cast<float>(dt_ms));
         g_window->render(g_renderer);
     }
 
@@ -408,6 +506,32 @@ static napi_value NapiOnWindowResize(napi_env env, napi_callback_info info) {
 
         g_window->render(g_renderer);
     }
+
+    napi_value ret;
+    napi_get_undefined(env, &ret);
+    return ret;
+}
+
+/**
+ * @brief 接收 ArkTS 文件选择器结果（URI + 内容）并交付给 io::deliver_file_dialog_result。
+ */
+static napi_value NapiOnFilePicked(napi_env env, napi_callback_info info) {
+    size_t argc = 2;
+    napi_value args[2];
+    napi_get_cb_info(env, info, &argc, args, nullptr, nullptr);
+
+    std::string path;
+    std::string content;
+    for (size_t i = 0; i < 2 && i < argc; ++i) {
+        size_t len = 0;
+        napi_get_value_string_utf8(env, args[i], nullptr, 0, &len);
+        if (len == 0) continue;
+        std::string str(len, '\0');
+        napi_get_value_string_utf8(env, args[i], &str[0], len + 1, &len);
+        if (i == 0) path = std::move(str);
+        else content = std::move(str);
+    }
+    spiration::io::deliver_file_dialog_result(path, content);
 
     napi_value ret;
     napi_get_undefined(env, &ret);

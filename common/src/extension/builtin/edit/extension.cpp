@@ -60,12 +60,22 @@ void extension::new_editor_tab() {
 }
 
 void extension::open_editor_tab() {
+#if defined(OHOS_PLATFORM)
+    spiration::io::open_file_async(api->tr("file_dialog.open_title"),
+                                   api->tr("file_dialog.all_files"), {"*"},
+                                   [this](const std::string& path, const std::string& content) {
+                                       complete_open_editor_tab(path, content);
+                                   });
+#else
     std::string path = spiration::io::open_file(
         api->tr("file_dialog.open_title"),
         api->tr("file_dialog.all_files"),
-        {"*"}
-    );
+        {"*"});
+    complete_open_editor_tab(path);
+#endif
+}
 
+void extension::complete_open_editor_tab(const std::string& path, const std::string& content) {
     if (path.empty()) {
         api->log_info("file dialog cancelled");
         return;
@@ -92,7 +102,11 @@ void extension::open_editor_tab() {
     }
 
     auto tab = std::make_unique<edit_tab>(filename);
+#if defined(OHOS_PLATFORM)
+    tab->open_content(path, content);
+#else
     tab->load_file(path);
+#endif
 
     auto* raw = tab.get();
     setup_editor_callbacks(raw);
@@ -121,23 +135,42 @@ void extension::save_current_as() {
         api->log_info("no active editor to save");
         return;
     }
-
+#if defined(OHOS_PLATFORM)
+    spiration::io::save_file_async(api->tr("file_dialog.save_title"),
+                                   api->tr("file_dialog.all_files"), {"*"},
+                                   editor->text(),
+                                   [this](const std::string& path) {
+                                       complete_save_as(path);
+                                   });
+#else
     std::string path = spiration::io::save_file(
         api->tr("file_dialog.save_title"),
         api->tr("file_dialog.all_files"),
-        {"*"}
-    );
+        {"*"});
+    complete_save_as(path);
+#endif
+}
 
+void extension::complete_save_as(const std::string& path) {
     if (path.empty()) {
         api->log_info("save-as cancelled");
         return;
     }
-
+    auto* editor = active_editor();
+    if (!editor) {
+        api->log_info("no active editor to save");
+        return;
+    }
+#if defined(OHOS_PLATFORM)
+    editor->confirm_saved(path);
+    api->log_info("saved as: %s", path.c_str());
+#else
     if (editor->save_as(path)) {
         api->log_info("saved as: %s", path.c_str());
     } else {
         api->log_warning("save-as failed: %s", path.c_str());
     }
+#endif
 }
 
 } // namespace edit

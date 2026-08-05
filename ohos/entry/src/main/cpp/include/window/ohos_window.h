@@ -1,6 +1,6 @@
 /**
  * @file ohos_window.h
- * @brief OHOS 平台窗口。
+ * @brief 窗口实现。
  * @author clk
  */
 
@@ -15,7 +15,7 @@
 namespace spiration {
 
 /**
- * @brief OHOS 窗口实现。
+ * @brief 鸿蒙窗口实现。
  */
 class ohos_window : public window {
 public:

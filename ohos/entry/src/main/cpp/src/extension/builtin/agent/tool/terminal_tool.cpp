@@ -6,9 +6,6 @@
 
 #include <extension/builtin/agent/tool/terminal_tool.h>
 
-#include <memory>
-#include <string>
-
 namespace spiration {
 namespace agent {
 

@@ -1,6 +1,6 @@
 /**
  * @file napi_bridge.h
- * @brief Spiration OHOS NAPI 桥接模块。
+ * @brief 原生接口桥接模块定义。
  * @author clk
  */
 
@@ -12,17 +12,6 @@
 
 namespace spiration {
 namespace bridge {
-
-/**
- * @brief 初始化 Spiration 运行时。
- * 应在 Ability 启动时调用。
- */
-bool initialize_runtime(const std::string& data_dir);
-
-/**
- * @brief 关闭 Spiration 运行时。
- */
-void shutdown_runtime();
 
 napi_value CreatePlatformNamespace(napi_env env);
 napi_value CreateI18nNamespace(napi_env env);

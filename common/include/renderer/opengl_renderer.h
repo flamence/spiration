@@ -29,7 +29,7 @@
 namespace spiration {
 
 /**
- * @brief OpenGL 3.3 Core Profile 渲染器实现。
+ * @brief OpenGL 3.3 Core Profile 渲染器。
  */
 class opengl_renderer : public renderer {
 public:

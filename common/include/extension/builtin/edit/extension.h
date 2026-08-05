@@ -22,7 +22,7 @@ class extension : public spiration::extension {
 public:
     std::string id() const override          { return ID; }
     std::string name() const override        { return api->tr("extension.edit.name"); }
-    std::string version() const override     { return "0.3"; }
+    std::string version() const override     { return "0.4"; }
     std::string description() const override { return api->tr("extension.edit.description"); }
 
     bool initialize() override;
@@ -45,10 +45,18 @@ private:
     void new_editor_tab();
     /** @brief 弹出文件选择对话框，打开文件到新标签页。 */
     void open_editor_tab();
+    /**
+     * @brief 文件选择完成后按路径打开。
+     * @param path    路径/URI
+     * @param content 预读内容
+     */
+    void complete_open_editor_tab(const std::string& path, const std::string& content = "");
     /** @brief 保存当前激活的编辑标签页。 */
     void save_current();
     /** @brief 另存当前激活的编辑标签页到新路径。 */
     void save_current_as();
+    /** @brief 另存对话框完成后按路径保存。 */
+    void complete_save_as(const std::string& path);
 };
 
 } // namespace edit

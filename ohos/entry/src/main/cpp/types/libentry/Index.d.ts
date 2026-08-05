@@ -51,6 +51,27 @@ export function registerMaximizeCallback(callback: () => void): void;
 export function registerMinimizeCallback(callback: () => void): void;
 export function registerStartMoveCallback(callback: () => void): void;
 
+/**
+ * 注册文件选择器回调。C++ 侧 io::open_file_async / save_file_async 触发，
+ * ArkTS 侧收到后拉起系统文件选择窗口并完成文件读写。
+ * @param callback 回调（标题, 是否另存, 另存时的文件内容）
+ */
+export function registerFilePickerCallback(callback: (title: string, isSave: boolean, content: string) => void): void;
+
+/**
+ * 文件选择完成后将结果回传 C++ 侧。
+ * @param uri     选择的文件 URI；取消传空字符串
+ * @param content 打开时读取的文件内容（另存时为空串）
+ */
+export function onFilePicked(uri: string, content: string): void;
+
+/**
+ * 注册剪贴板回调（同步）。C++ 侧复制/粘贴时调用。
+ * @param copy  复制回调（文本）
+ * @param paste 粘贴回调（返回文本）
+ */
+export function registerClipboardCallback(copy: (text: string) => void, paste: () => string): void;
+
 export const spiration: {
   /** 系统信息与平台 API */
   readonly platform: {
