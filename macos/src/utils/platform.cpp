@@ -11,6 +11,7 @@
 #include <sys/stat.h>
 #include <sys/utsname.h>
 #include <dirent.h>
+#include <mach-o/dyld.h>
 #include <cstdlib>
 #include <cerrno>
 #include <cstring>
@@ -49,14 +50,12 @@ std::string platform::app_data_dir() {
 }
 
 std::string platform::executable_directory() {
-    char buf[1024];
-    ssize_t len = readlink("/proc/self/exe", buf, sizeof(buf) - 1);
-    if (len != -1) {
-        buf[len] = '\0';
-        std::string path(buf);
-        auto pos = path.find_last_of('/');
-        if (pos != std::string::npos) path.resize(pos);
-        return path;
+    char buf[4096];
+    uint32_t size = sizeof(buf);
+    if (_NSGetExecutablePath(buf, &size) == 0) {
+        char* slash = std::strrchr(buf, '/');
+        if (slash) *slash = '\0';
+        return std::string(buf);
     }
     return ".";
 }
