@@ -62,7 +62,7 @@ struct chat_message {
 /// @brief 发送给 provider 的补全请求。
 struct provider_request {
     std::string model;
-    int max_tokens = 4096;
+    int max_tokens = 0;
     float temperature = 0.7f;
     bool stream = false;
     reasoning_level reasoning = reasoning_level::standard;
