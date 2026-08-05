@@ -19,6 +19,7 @@
 #include <future>
 #include <map>
 #include <memory>
+#include <mutex>
 #include <set>
 #include <sstream>
 #include <thread>
@@ -47,6 +48,7 @@ std::string chat_client::provider_name() const {
 }
 
 void chat_client::set_system_prompt(const std::string& prompt) {
+    std::lock_guard<std::mutex> lk(history_mtx_);
     history_.erase(
         std::remove_if(history_.begin(), history_.end(),
                        [](const chat_message& m) { return m.role == "system"; }),
@@ -57,10 +59,12 @@ void chat_client::set_system_prompt(const std::string& prompt) {
 }
 
 void chat_client::add_message(const chat_message& msg) {
+    std::lock_guard<std::mutex> lk(history_mtx_);
     history_.push_back(msg);
 }
 
 void chat_client::clear_history() {
+    std::lock_guard<std::mutex> lk(history_mtx_);
     history_.erase(
         std::remove_if(history_.begin(), history_.end(),
                        [](const chat_message& m) { return m.role != "system"; }),
@@ -69,6 +73,18 @@ void chat_client::clear_history() {
 
 void chat_client::register_tool(tool* t) {
     if (t) tools_.push_back(t);
+}
+
+std::vector<chat_message> chat_client::history() const {
+    std::lock_guard<std::mutex> lk(history_mtx_);
+    return history_;
+}
+
+void chat_client::wait_all_tools() {
+    std::unique_lock<std::mutex> lk(active_tools_mtx_);
+    active_tools_cv_.wait(lk, [this]() {
+        return active_tool_count_.load(std::memory_order_acquire) == 0;
+    });
 }
 
 void chat_client::clear_tools() {
@@ -149,6 +165,7 @@ void chat_client::append_assistant(const chat_response& resp) {
         assistant.content         = resp.content;
         assistant.reasoning_content = resp.reasoning_content;
         assistant.tool_calls      = resp.tool_calls;
+        std::lock_guard<std::mutex> lk(history_mtx_);
         history_.push_back(assistant);
     }
 }
@@ -210,7 +227,12 @@ chat_response chat_client::send_stream(const chat_events& events) {
         console::error("extension/agent", "no provider configured");
         return {};
     }
-    sanitize_history();
+    std::vector<chat_message> msgs;
+    {
+        std::lock_guard<std::mutex> lk(history_mtx_);
+        sanitize_history();
+        msgs = history_;
+    }
 
     provider_request req;
     req.model       = cfg_.model;
@@ -218,7 +240,7 @@ chat_response chat_client::send_stream(const chat_events& events) {
     req.temperature = cfg_.temperature;
     req.stream      = cfg_.stream;
     req.reasoning   = cfg_.reasoning;
-    req.messages    = history_;
+    req.messages    = msgs;
     for (const auto* t : tools_) {
         if (t) req.tools.push_back(t->to_definition());
     }
@@ -351,8 +373,16 @@ std::future<std::string> chat_client::launch_tool(const tool_call& tc,
     if (!t->should_stop) t->should_stop = should_stop;
     console::info("extension/agent", "executing tool: %s", tc.function_name.c_str());
 
+    active_tool_count_.fetch_add(1, std::memory_order_release);
     auto task = std::make_shared<std::packaged_task<std::string()>>(
-        [t, args = tc.arguments]() { return t->execute(args); });
+        [t, args = tc.arguments, this]() {
+            std::string result = t->execute(args);
+            if (active_tool_count_.fetch_sub(1, std::memory_order_acq_rel) == 1) {
+                std::lock_guard<std::mutex> lk(active_tools_mtx_);
+                active_tools_cv_.notify_all();
+            }
+            return result;
+        });
     std::future<std::string> fut = task->get_future();
     std::thread([task]() { (*task)(); }).detach();
     return fut;
@@ -476,7 +506,10 @@ chat_response chat_client::run(int max_rounds, const chat_events& events) {
             tool_msg.content      = results[j];
             tool_msg.tool_call_id = last.tool_calls[j].id;
             tool_msg.name         = last.tool_calls[j].function_name;
-            history_.push_back(std::move(tool_msg));
+            {
+                std::lock_guard<std::mutex> lk(history_mtx_);
+                history_.push_back(std::move(tool_msg));
+            }
         }
     }
 

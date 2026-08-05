@@ -67,10 +67,7 @@ void message_dialog::add_button(const std::string& label, std::function<void()> 
     btn->widget_style.width = 80;
     btn->widget_style.height = 28;
     btn->hover_color = theme_manager::get(theme_manager::BUTTON_HOVER);
-    if (callback) {
-        auto* raw = btn.get();
-        raw->handle_event(event_type::mouse, nullptr);
-    }
+    btn->on_click = std::move(callback);
     add_child(std::move(btn));
     layout();
 }

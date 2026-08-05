@@ -240,6 +240,19 @@ void metal_renderer::clear(const color& clear_color) {
         if (m_CommandEncoder) {
             [m_CommandEncoder endEncoding];
             m_CommandEncoder = nil;
+            if (!m_Drawable || !m_CommandBuffer) return;
+
+            m_CurrentDrawableTexture = [m_Drawable texture];
+            MTLRenderPassDescriptor* desc = [MTLRenderPassDescriptor renderPassDescriptor];
+            desc.colorAttachments[0].texture = m_CurrentDrawableTexture;
+            desc.colorAttachments[0].loadAction = MTLLoadActionClear;
+            desc.colorAttachments[0].storeAction = MTLStoreActionStore;
+            desc.colorAttachments[0].clearColor = MTLClearColorMake(clear_color.r, clear_color.g, clear_color.b, clear_color.a);
+
+            m_CommandEncoder = [m_CommandBuffer renderCommandEncoderWithDescriptor:desc];
+            [m_CommandEncoder setFrontFacingWinding:MTLWindingCounterClockwise];
+            [m_CommandEncoder setCullMode:MTLCullModeNone];
+            return;
         }
 
         m_Drawable = [m_MetalLayer nextDrawable];

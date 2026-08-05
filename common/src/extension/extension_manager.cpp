@@ -75,7 +75,7 @@ bool extension_manager::load_extension(const std::string& path) {
 
     loaded_extension le;
     le.handle = std::move(ext.handle);
-    le.instance = ext.instance;
+    le.instance = std::unique_ptr<extension>(ext.instance);
     le.initialized = false;
     extensions_.push_back(std::move(le));
 
@@ -179,10 +179,10 @@ size_t extension_manager::load_extensions_from(const std::string& directory) {
                             }
                         }
                         if (ok || extensions_.empty() ||
-                            extensions_.back().instance != result.instance) {
+                            extensions_.back().instance.get() != result.instance) {
                             loaded_extension le;
                             le.handle = std::move(result.handle);
-                            le.instance = result.instance;
+                            le.instance = std::unique_ptr<extension>(result.instance);
                             le.initialized = false;
                             le.dir_path = info.dir_path;
                             extensions_.push_back(std::move(le));
@@ -276,7 +276,7 @@ std::vector<extension*> extension_manager::extensions() {
     std::vector<extension*> result;
     for (const auto& le : extensions_) {
         if (le.instance) {
-            result.push_back(le.instance);
+            result.push_back(le.instance.get());
         }
     }
     return result;
@@ -285,7 +285,7 @@ std::vector<extension*> extension_manager::extensions() {
 extension* extension_manager::find_extension(const std::string& id) {
     for (const auto& le : extensions_) {
         if (le.instance && le.instance->id() == id) {
-            return le.instance;
+            return le.instance.get();
         }
     }
     return nullptr;
@@ -320,7 +320,7 @@ void extension_manager::register_builtin(std::unique_ptr<extension> ext) {
     loaded_extension le;
     le.handle = extension_loader::lib_handle(nullptr);
     std::string ext_id = ext->id();
-    le.instance = ext.release();
+    le.instance = std::move(ext);
     le.initialized = false;
     le.dir_path = platform::join_path(platform::extension_directory(), ext_id);
     extensions_.push_back(std::move(le));

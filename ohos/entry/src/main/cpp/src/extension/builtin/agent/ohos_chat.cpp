@@ -54,6 +54,13 @@ void chat_client::register_tool(tool* t) {
     if (t) tools_.push_back(t);
 }
 
+std::vector<chat_message> chat_client::history() const {
+    return history_;
+}
+
+void chat_client::wait_all_tools() {
+}
+
 chat_response chat_client::send() {
     console::warning("chat", "Chat send not implemented on OHOS platform");
     return chat_response{};

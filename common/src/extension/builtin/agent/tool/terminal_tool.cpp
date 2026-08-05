@@ -21,7 +21,7 @@ terminal_manager& terminal_manager::instance() {
 }
 
 std::string terminal_manager::create(const std::string& shell, const std::string& cwd) {
-    std::unique_ptr<terminal_session> s = create_terminal_session(shell, cwd);
+    std::shared_ptr<terminal_session> s = create_terminal_session(shell, cwd);
     if (!s) return "[error] failed to create terminal session";
     std::lock_guard<std::mutex> lk(mtx_);
     std::string id = "t" + std::to_string(next_id_++);
@@ -32,12 +32,12 @@ std::string terminal_manager::create(const std::string& shell, const std::string
 }
 
 std::string terminal_manager::write(const std::string& id, const std::string& data, bool newline) {
-    terminal_session* s;
+    std::shared_ptr<terminal_session> s;
     {
         std::lock_guard<std::mutex> lk(mtx_);
         auto it = sessions_.find(id);
         if (it == sessions_.end()) return "[error] terminal not found: " + id;
-        s = it->second.get();
+        s = it->second;
     }
     if (!s->is_alive()) return "[error] terminal " + id + " is not alive: " + s->error();
     std::string payload = data;
@@ -47,12 +47,12 @@ std::string terminal_manager::write(const std::string& id, const std::string& da
 }
 
 std::string terminal_manager::read(const std::string& id, size_t from_bottom, size_t to_bottom) {
-    terminal_session* s;
+    std::shared_ptr<terminal_session> s;
     {
         std::lock_guard<std::mutex> lk(mtx_);
         auto it = sessions_.find(id);
         if (it == sessions_.end()) return "[error] terminal not found: " + id;
-        s = it->second.get();
+        s = it->second;
     }
     if (s->line_count() == 0) return "[empty]";
     std::vector<std::string> lines = s->read_window(from_bottom, to_bottom);

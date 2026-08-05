@@ -152,7 +152,7 @@ public:
 
 private:
     /**
-     * @brief 初始化拓展管理器（注册内置扩展）。私有：只能通过 instance() 创建。
+     * @brief 初始化拓展管理器。
      */
     extension_manager();
 
@@ -161,7 +161,7 @@ private:
         /** @brief 动态库句柄。 */
         extension_loader::lib_handle handle;
         /** @brief 扩展实例指针。 */
-        extension* instance = nullptr;
+        std::unique_ptr<extension> instance;
         /** @brief 是否已调用 initialize()。 */
         bool initialized = false;
         /** @brief 扩展所在目录路径。 */
@@ -177,7 +177,7 @@ private:
     static std::map<std::string, std::map<int, std::function<void(const std::string&)>>> events_;
     /** @brief 下一个可用的订阅 ID。 */
     static int next_subscription_id_;
-    /** @brief 拓展服务注册表: ext_id -> (name -> ptr)。 */
+    /** @brief 拓展服务注册表。 */
     static std::map<std::string, std::map<std::string, void*>> services_;
 };
 
