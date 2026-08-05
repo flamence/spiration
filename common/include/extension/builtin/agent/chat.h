@@ -45,7 +45,7 @@ public:
         std::string api_key;
         std::string model;
         std::string provider = "openai";
-        int max_tokens = 4096;
+        int max_tokens = 0;
         float temperature = 0.7f;
         bool stream = true;
         reasoning_level reasoning = reasoning_level::standard;

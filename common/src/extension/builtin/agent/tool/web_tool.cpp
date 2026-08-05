@@ -25,11 +25,7 @@ namespace {
 size_t fetch_write_cb(void* contents, size_t size, size_t nmemb, void* userp) {
     size_t total = size * nmemb;
     auto* out = static_cast<std::string*>(userp);
-    if (out->size() + total > 65536) {
-        out->append(static_cast<char*>(contents), 65536 - out->size());
-    } else {
-        out->append(static_cast<char*>(contents), total);
-    }
+    out->append(static_cast<char*>(contents), total);
     return total;
 }
 
@@ -196,7 +192,6 @@ std::string fetch_tool::execute(const std::string& args_json) {
     if (!response.empty()) {
         out += "\n" + response;
     }
-    if (out.size() > 65536) out = out.substr(0, 65536) + "\n[output truncated]";
     console::info("extension/agent/web", "fetch %s -> status %ld, %zu bytes", full_url.c_str(), status, response.size());
     return out;
 }

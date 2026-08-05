@@ -52,7 +52,7 @@ public:
     std::string build_request_body(const provider_request& req) const override {
         nlohmann::json body;
         body["model"]       = req.model;
-        body["max_tokens"]  = req.max_tokens;
+        if (req.max_tokens > 0) body["max_tokens"] = req.max_tokens;
         body["temperature"] = req.temperature;
         body["stream"]      = req.stream;
 
@@ -225,13 +225,15 @@ public:
     std::string build_request_body(const provider_request& req) const override {
         nlohmann::json body;
         body["model"]       = req.model;
-        body["max_tokens"]  = req.max_tokens;
+        // max_tokens <= 0 表示不限制输出；Anthropic API 要求该字段，此时传较大默认值
+        long out_tokens = req.max_tokens > 0 ? static_cast<long>(req.max_tokens) : 32768L;
+        body["max_tokens"] = out_tokens;
         body["temperature"] = req.temperature;
         body["stream"]      = req.stream;
 
-        // 深度思考：启用 thinking 块（预算取 max_tokens 的 3/4）
+        // 深度思考：启用 thinking 块（预算取有效输出 token 的 3/4）
         if (req.reasoning == reasoning_level::deep) {
-            long budget = std::max(1024L, static_cast<long>(req.max_tokens) * 3L / 4L);
+            long budget = std::max(1024L, out_tokens * 3L / 4L);
             body["thinking"] = {{"type", "enabled"}, {"budget_tokens", budget}};
         }
 

@@ -966,8 +966,6 @@ void agent_tab::begin_run() {
         stream_event ev;
         ev.t = stream_event::type::tool_result;
         ev.text = ex.result;
-        if (ev.text.size() > 2000)
-            ev.text = ev.text.substr(0, 2000) + "\n" + i18n_manager::get().tr("chat.result_truncated");
         stream_events_.push_back(std::move(ev));
     };
     events.should_stop = [this, alive]() {
