@@ -109,6 +109,13 @@ public:
     void open_tab(std::unique_ptr<tab> t);
 
     /**
+     * @brief 若指定标签页实例仍存在则激活它。
+     * @param t 标签页实例
+     * @return true 已找到并激活；false 标签页不存在
+     */
+    bool activate_tab(tab* t);
+
+    /**
      * @brief 注册新主题 profile。
      * @param name profile 名称
      */

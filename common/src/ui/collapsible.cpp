@@ -6,6 +6,7 @@
 
 #include <ui/collapsible.h>
 #include <ui/container.h>
+#include <ui/focus_manager.h>
 #include <ui/layout.h>
 #include <ui/theme_manager.h>
 
@@ -101,6 +102,7 @@ void collapsible::handle_event(const event_type& type, void* data) {
         }
 
         if (md->action == mouse_action::down && md->button == mouse_button::left && in_summary) {
+            focus_manager::instance().request_focus(this);
             toggle();
             md->consumed = true;
             return;
@@ -115,10 +117,16 @@ void collapsible::handle_event(const event_type& type, void* data) {
             if (in_content) {
                 point orig = md->position;
                 md->position.y -= summary_height;
+                const bool before = md->consumed;
                 content_->handle_event(type, data);
                 md->position = orig;
-                return;
+                if (md->consumed && !before) return;
             }
+        }
+        bool in_bounds = md->position.x >= 0.0f && md->position.x <= width &&
+                         md->position.y >= 0.0f && md->position.y <= height;
+        if (in_bounds && (md->action == mouse_action::down || md->action == mouse_action::up)) {
+            md->consumed = true;
         }
         return;
     }

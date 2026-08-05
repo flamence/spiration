@@ -64,6 +64,7 @@ public:
     std::string description() const override;
     std::string parameters_json() const override;
     std::string execute(const std::string& args_json) override;
+    bool requires_approval() const override { return true; }
 };
 
 } // namespace agent

@@ -5,6 +5,7 @@
  */
 
 #include <ui/context_menu.h>
+#include <ui/focus_manager.h>
 #include <algorithm>
 
 namespace spiration {
@@ -35,6 +36,7 @@ void context_menu::show_at(float px, float py) {
     visible_ = true;
     hovered_ = -1;
     hover_bg_.snap_to(color::transparent());
+    focus_manager::instance().clear_focus();
 }
 
 void context_menu::dismiss() {

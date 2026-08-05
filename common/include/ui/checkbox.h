@@ -21,6 +21,7 @@ class checkbox : public widget {
 public:
     checkbox() {
         widget_style.cursor = cursor_type::pointer;
+        focusable = true;
     }
 
     std::string text;

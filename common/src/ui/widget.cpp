@@ -1,21 +1,30 @@
 /**
  * @file widget.cpp
- * @brief Widget 基类实现（含需要 context_menu 完整类型的方法）。
+ * @brief 控件基类实现。
  * @author clk
  */
 
 #include <ui/widget.h>
 #include <ui/context_menu.h>
+#include <ui/focus_manager.h>
 #include <ui/root.h>
 
 namespace spiration {
 
 void widget::notify_destroyed() {
+    focus_manager::instance().on_widget_destroyed(this);
     for (widget* p = parent_; p; p = p->parent()) {
         if (auto* r = dynamic_cast<root*>(p)) {
             r->on_widget_destroyed(this);
             break;
         }
+    }
+}
+
+void widget::notify_destroyed_recursive() {
+    notify_destroyed();
+    for (auto& child : children_) {
+        child->notify_destroyed_recursive();
     }
 }
 
@@ -41,6 +50,13 @@ void widget::relayout_chain() {
         w->layout();
         w = w->parent_;
     }
+}
+
+root* widget::find_root() {
+    for (widget* w = parent_; w; w = w->parent_) {
+        if (auto* r = dynamic_cast<root*>(w)) return r;
+    }
+    return nullptr;
 }
 
 } // namespace spiration

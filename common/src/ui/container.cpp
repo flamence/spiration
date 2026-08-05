@@ -100,10 +100,9 @@ void container::paint(std::shared_ptr<renderer> renderer) {
 
 void container::paint_children_culled(std::shared_ptr<renderer> renderer) {
     for (auto& child : children()) {
+        if (child->width <= 0.0f || child->height <= 0.0f) continue;
         float vx, vy, vw, vh;
-        if (child->width > 0.0f && child->height > 0.0f &&
-            !child->visible_rect(vx, vy, vw, vh))
-            continue;
+        if (!child->visible_rect(vx, vy, vw, vh)) continue;
         renderer->push_transform(child->x, child->y);
         child->paint(renderer);
         renderer->pop_transform();
@@ -136,8 +135,10 @@ void container::handle_event(const event_type& type, void* data) {
     float my = md->position.y;
 
     bool over_v = scroll_v && scroll_max_y_ > 0.0f &&
-                  mx >= width - scroll_bar_width && mx <= width;
+                  mx >= width - scroll_bar_width && mx <= width &&
+                  my >= 0.0f && my <= height;
     bool over_h = scroll_h && scroll_max_x_ > 0.0f &&
+                  mx >= 0.0f && mx <= width &&
                   my >= height - scroll_bar_width && my <= height;
 
     if (hovering_v_ != over_v) {
@@ -161,6 +162,10 @@ void container::handle_event(const event_type& type, void* data) {
         widget::handle_event(type, data);
         md->position = w_orig;
         if (md->consumed && !child_consumed_before) return;
+
+        bool in_bounds = w_orig.x >= 0.0f && w_orig.x <= width &&
+                         w_orig.y >= 0.0f && w_orig.y <= height;
+        if (!in_bounds) return;
 
         if (scroll_v && !md->shift) {
             float step = (md->wheel_delta > 0) ? -40.0f : 40.0f;

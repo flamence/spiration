@@ -44,10 +44,21 @@ public:
 };
 
 /**
+ * @brief 终端会话快照。
+ */
+struct terminal_snapshot {
+    std::string id;
+    std::string shell;
+    std::vector<std::string> lines;
+};
+
+/**
  * @brief 创建平台终端会话。
  * @param shell_path 指定的 shell 路径。
+ * @param cwd 子进程初始工作目录。
  */
-std::unique_ptr<terminal_session> create_terminal_session(const std::string& shell_path);
+std::unique_ptr<terminal_session> create_terminal_session(const std::string& shell_path,
+                                                          const std::string& cwd = "");
 
 /**
  * @brief 终端管理器。
@@ -57,18 +68,23 @@ public:
     static terminal_manager& instance();
 
     /// @brief 创建终端会话，返回会话 id。
-    std::string create(const std::string& shell);
+    std::string create(const std::string& shell, const std::string& cwd = "");
     /// @brief 向指定终端写入内容。
     std::string write(const std::string& id, const std::string& data, bool newline);
     /// @brief 读取指定终端的输出窗口。
     std::string read(const std::string& id, size_t from_bottom, size_t to_bottom);
+    /// @brief 关闭指定终端会话。
+    void kill(const std::string& id);
+    /// @brief 导出全部会话快照。
+    std::vector<terminal_snapshot> snapshots() const;
     /// @brief 关闭全部会话。
     void close_all();
 
 private:
     terminal_manager() = default;
-    std::mutex mtx_;
+    mutable std::mutex mtx_;
     std::map<std::string, std::unique_ptr<terminal_session>> sessions_;
+    std::map<std::string, std::string> shells_;
     size_t next_id_ = 1;
 };
 
@@ -79,6 +95,7 @@ public:
     std::string description() const override;
     std::string parameters_json() const override;
     std::string execute(const std::string& args_json) override;
+    bool serial() const override { return true; }
 };
 
 /// @brief 向指定终端发送内容。
@@ -88,6 +105,8 @@ public:
     std::string description() const override;
     std::string parameters_json() const override;
     std::string execute(const std::string& args_json) override;
+    bool serial() const override { return true; }
+    bool requires_approval() const override { return true; }
 };
 
 /// @brief 按窗口读取终端输出。
@@ -97,6 +116,17 @@ public:
     std::string description() const override;
     std::string parameters_json() const override;
     std::string execute(const std::string& args_json) override;
+    bool serial() const override { return true; }
+};
+
+/// @brief 关闭/释放指定终端。
+class kill_terminal_tool : public tool {
+public:
+    std::string name() const override { return "kill_terminal"; }
+    std::string description() const override;
+    std::string parameters_json() const override;
+    std::string execute(const std::string& args_json) override;
+    bool serial() const override { return true; }
 };
 
 } // namespace agent

@@ -20,6 +20,7 @@ class slider : public widget {
 public:
     slider() {
         widget_style.cursor = cursor_type::pointer;
+        focusable = true;
     }
     float value = 0.0f;
     float min_value = 0.0f;

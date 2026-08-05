@@ -77,7 +77,8 @@ std::string create_file_tool::execute(const std::string& args_json) {
     } catch (const std::exception& e) {
         return "[error] invalid arguments: " + std::string(e.what());
     }
-    if (path.empty()) return "[error] missing 'path'";
+    if (path.empty()) return "[error] missing \"path\"";
+    path = resolve_path(path);
     if (!write_file(path, content))
         return "[error] create_file failed: " + path;
     console::info("extension/agent/edit", "created file: %s (%zu bytes)", path.c_str(), content.size());
@@ -87,7 +88,7 @@ std::string create_file_tool::execute(const std::string& args_json) {
 std::string read_file_tool::description() const {
     return "Read a file and return its content. "
            "Inspect files before editing them. "
-           "Use 'start_line'/'end_line' (1-based, inclusive) to read a range; "
+           "Use \"start_line\"/\"end_line\" (1-based, inclusive) to read a range; "
            "by default only the first 200 lines are returned.";
 }
 
@@ -124,7 +125,8 @@ std::string read_file_tool::execute(const std::string& args_json) {
     } catch (const std::exception& e) {
         return "[error] invalid arguments: " + std::string(e.what());
     }
-    if (path.empty()) return "[error] missing 'path'";
+    if (path.empty()) return "[error] missing \"path\"";
+    path = resolve_path(path);
 
     std::error_code ec;
     uintmax_t sz = std::filesystem::file_size(path::u8path(path), ec);
@@ -193,7 +195,8 @@ std::string create_directory_tool::execute(const std::string& args_json) {
     } catch (const std::exception& e) {
         return "[error] invalid arguments: " + std::string(e.what());
     }
-    if (path.empty()) return "[error] missing 'path'";
+    if (path.empty()) return "[error] missing \"path\"";
+    path = resolve_path(path);
     std::error_code ec;
     std::filesystem::create_directories(path::u8path(path), ec);
     if (ec) return "[error] create_directory failed: " + path + " (" + ec.message() + ")";
@@ -202,8 +205,8 @@ std::string create_directory_tool::execute(const std::string& args_json) {
 }
 
 std::string edit_file_tool::description() const {
-    return "Edit a file. Provide 'content' to rewrite the whole file, "
-           "or 'search'+'replace' to do a targeted find-and-replace "
+    return "Edit a file. Provide \"content\" to rewrite the whole file, "
+           "or \"search\"+\"replace\" to do a targeted find-and-replace "
            "(replace_all=true replaces every occurrence, default replaces the first).";
 }
 
@@ -221,7 +224,7 @@ std::string edit_file_tool::parameters_json() const {
         },
         "search": {
             "type": "string",
-            "description": "Text to find (used with 'replace')."
+            "description": "Text to find (used with \"replace\")."
         },
         "replace": {
             "type": "string",
@@ -251,7 +254,8 @@ std::string edit_file_tool::execute(const std::string& args_json) {
     } catch (const std::exception& e) {
         return "[error] invalid arguments: " + std::string(e.what());
     }
-    if (path.empty()) return "[error] missing 'path'";
+    if (path.empty()) return "[error] missing \"path\"";
+    path = resolve_path(path);  // 相对路径 → 会话工作目录
 
     if (has_content) {
         if (!write_file(path, content))
@@ -263,7 +267,7 @@ std::string edit_file_tool::execute(const std::string& args_json) {
     if (has_search) {
         std::string data;
         if (!read_file(path, data)) return "[error] edit_file failed (read): " + path;
-        if (search.empty()) return "[error] 'search' must not be empty";
+        if (search.empty()) return "[error] \"search\" must not be empty";
         if (replace_all) {
             size_t p = 0;
             size_t count = 0;
@@ -272,18 +276,18 @@ std::string edit_file_tool::execute(const std::string& args_json) {
                 p += replace.size();
                 ++count;
             }
-            if (count == 0) return "[error] 'search' text not found in " + path;
+            if (count == 0) return "[error] \"search\" text not found in " + path;
             console::info("extension/agent/edit", "replaced %zu occurrence(s) in %s", count, path.c_str());
         } else {
             size_t pos = data.find(search);
-            if (pos == std::string::npos) return "[error] 'search' text not found in " + path;
+            if (pos == std::string::npos) return "[error] \"search\" text not found in " + path;
             data.replace(pos, search.size(), replace);
         }
         if (!write_file(path, data)) return "[error] edit_file failed (write): " + path;
         return "ok";
     }
 
-    return "[error] no edit operation: provide 'content' or 'search'";
+    return "[error] no edit operation: provide \"content\" or \"search\"";
 }
 
 std::string rename_tool::description() const {
@@ -316,7 +320,9 @@ std::string rename_tool::execute(const std::string& args_json) {
     } catch (const std::exception& e) {
         return "[error] invalid arguments: " + std::string(e.what());
     }
-    if (path.empty() || new_path.empty()) return "[error] missing 'path' or 'new_path'";
+    if (path.empty() || new_path.empty()) return "[error] missing \"path\" or \"new_path\"";
+    path = resolve_path(path);        // 相对路径 → 会话工作目录
+    new_path = resolve_path(new_path);
     std::error_code ec;
     std::filesystem::rename(path::u8path(path), path::u8path(new_path), ec);
     if (ec) return "[error] rename failed: " + path + " -> " + new_path + " (" + ec.message() + ")";
@@ -349,7 +355,8 @@ std::string delete_tool::execute(const std::string& args_json) {
     } catch (const std::exception& e) {
         return "[error] invalid arguments: " + std::string(e.what());
     }
-    if (path.empty()) return "[error] missing 'path'";
+    if (path.empty()) return "[error] missing \"path\"";
+    path = resolve_path(path);  // 相对路径 → 会话工作目录
     std::error_code ec;
     auto p = path::u8path(path);
     bool is_dir = std::filesystem::is_directory(p, ec);

@@ -13,6 +13,9 @@
 
 namespace spiration {
 
+/** @brief 固定宽度下文本溢出处理方式。 */
+enum class text_overflow { none, ellipsis, hide };
+
 /**
  * @brief 静态文本标签，显示单行或多行文本。
  */
@@ -23,8 +26,14 @@ public:
     text_alignment h_align = text_alignment::left;
     vertical_alignment v_align = vertical_alignment::center;
 
+    /// @brief 固定宽度下文本溢出处理。
+    text_overflow overflow = text_overflow::none;
+
     /// @brief 是否允许鼠标选择文本。
     bool selectable = false;
+
+    /// @brief 测量当前文本的像素宽度。
+    float text_width() const;
 
     /// @brief 当前是否有非空选择。
     bool has_selection() const { return selecting_ && sel_anchor_ != sel_pos_; }
@@ -37,8 +46,15 @@ public:
 
     void clear_text_selection() override { clear_selection(); }
 
-    cursor_type effective_cursor(float, float) const override {
-        return selectable ? cursor_type::text : widget_style.cursor;
+    /**
+     * @brief 点 (x, y) 是否落在文本可视区域内。
+     */
+    virtual bool hit_text_area(float x, float y) const;
+
+    cursor_type effective_cursor(float lx, float ly) const override {
+        if (selectable)
+            return hit_text_area(lx, ly) ? cursor_type::text : cursor_type::default_cursor;
+        return widget_style.cursor;
     }
 
     void paint(std::shared_ptr<renderer> renderer) override;
@@ -80,7 +96,7 @@ private:
     float align_x(float line_width, float wrap_width) const;
     float layout_lines(std::shared_ptr<renderer> r, std::vector<line_info>& out) const;
 
-    /// @brief 沿父链通知 root：本控件开始新的文本选择（清除其它控件的旧选区）。
+    /// @brief 沿父链通知 root：本控件开始新的文本选择。
     void notify_root_selection_started();
 
     std::shared_ptr<renderer> cached_renderer_;

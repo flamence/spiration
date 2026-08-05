@@ -1,32 +1,50 @@
 /**
  * @file chat.cpp
- * @brief OpenAI 兼容对话客户端实现。
+ * @brief 对话客户端实现。
  * @author clk
  */
 
 #include <extension/builtin/agent/chat.h>
+#include <extension/builtin/agent/registry.h>
 #include <utils/console.h>
 
 #include <nlohmann/json.hpp>
 
 #include <algorithm>
+#include <atomic>
 #include <cassert>
+#include <chrono>
+#include <cstdio>
 #include <exception>
+#include <future>
 #include <map>
+#include <memory>
 #include <set>
 #include <sstream>
-#include <cstdio>
+#include <thread>
+#include <utility>
 
-#ifndef OHOS_PLATFORM
 #include <curl/curl.h>
-#endif
 
 namespace spiration {
 namespace agent {
 
-chat_client::chat_client(const config& cfg) : cfg_(cfg) {}
+chat_client::chat_client(const config& cfg) : cfg_(cfg) {
+    provider_ = agent_registry::instance().create_provider(cfg_.provider);
+}
+
+void chat_client::configure(const config& c) {
+    cfg_ = c;
+    provider_ = agent_registry::instance().create_provider(cfg_.provider);
+    console::info("extension/agent", "configured: provider=%s model=%s",
+                  cfg_.provider.c_str(), cfg_.model.c_str());
+}
 
 chat_client::~chat_client() = default;
+
+std::string chat_client::provider_name() const {
+    return provider_ ? provider_->name() : cfg_.provider;
+}
 
 void chat_client::set_system_prompt(const std::string& prompt) {
     history_.erase(
@@ -57,109 +75,6 @@ void chat_client::clear_tools() {
     tools_.clear();
 }
 
-std::string chat_client::build_request_body() const {
-    nlohmann::json body;
-    body["model"]      = cfg_.model;
-    body["max_tokens"] = cfg_.max_tokens;
-    body["temperature"] = cfg_.temperature;
-    body["stream"]     = cfg_.stream;
-
-    switch (cfg_.reasoning) {
-        case reasoning_level::none: break;
-        case reasoning_level::standard: body["reasoning_effort"] = "medium"; break;
-        case reasoning_level::deep:     body["reasoning_effort"] = "high"; break;
-    }
-
-    nlohmann::json messages = nlohmann::json::array();
-    for (const auto& m : history_) {
-        nlohmann::json msg;
-        msg["role"] = m.role;
-
-        if (m.role == "assistant" && !m.tool_calls.empty()) {
-            msg["content"] = nullptr;
-            nlohmann::json tcs = nlohmann::json::array();
-            for (const auto& tc : m.tool_calls) {
-                nlohmann::json j;
-                j["id"]   = tc.id;
-                j["type"] = "function";
-                j["function"]["name"]      = tc.function_name;
-                j["function"]["arguments"] = tc.arguments;
-                tcs.push_back(std::move(j));
-            }
-            msg["tool_calls"] = std::move(tcs);
-        } else {
-            msg["content"] = m.content;
-        }
-
-        if (!m.tool_call_id.empty())
-            msg["tool_call_id"] = m.tool_call_id;
-        if (!m.name.empty())
-            msg["name"] = m.name;
-        messages.push_back(std::move(msg));
-    }
-    body["messages"] = std::move(messages);
-
-    if (!tools_.empty()) {
-        nlohmann::json tools = nlohmann::json::array();
-        for (const auto* t : tools_) {
-            tool_definition def = t->to_definition();
-            nlohmann::json tool;
-            tool["type"] = "function";
-            tool["function"]["name"]        = def.function_name;
-            tool["function"]["description"] = def.description;
-            tool["function"]["parameters"]  = nlohmann::json::parse(def.parameters_json);
-            tools.push_back(std::move(tool));
-        }
-        body["tools"]       = std::move(tools);
-        body["tool_choice"] = "auto";
-    }
-
-    return body.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace);
-}
-
-chat_response chat_client::parse_response(const std::string& body) const {
-    chat_response resp;
-
-    nlohmann::json j = nlohmann::json::parse(body);
-    if (!j.contains("choices") || j["choices"].empty())
-        return resp;
-
-    auto& choice = j["choices"][0];
-    resp.finish_reason = choice.value("finish_reason", "");
-
-    if (!choice.contains("message"))
-        return resp;
-
-    auto& msg = choice["message"];
-    resp.content = msg.value("content", "");
-    resp.reasoning_content = msg.value("reasoning_content", "");
-
-    if (msg.contains("tool_calls")) {
-        for (auto& tc : msg["tool_calls"]) {
-            tool_call tc_out;
-            tc_out.id = tc.value("id", "");
-            if (tc.contains("function")) {
-                tc_out.function_name = tc["function"].value("name", "");
-                tc_out.arguments     = tc["function"].value("arguments", "");
-            }
-            resp.tool_calls.push_back(std::move(tc_out));
-        }
-    }
-
-    return resp;
-}
-
-struct stream_context {
-    std::string line_buf;
-    std::string content;
-    std::string reasoning;
-    std::string finish_reason;
-    std::map<int, tool_call> tc_map;
-    std::function<void(const std::string&)> on_delta;
-    std::function<void(const std::string&)> on_reasoning_delta;
-    std::function<bool()> should_stop;
-};
-
 static size_t stream_write_callback(void* contents, size_t size, size_t nmemb, void* userp) {
     auto* ctx = static_cast<stream_context*>(userp);
     size_t total = size * nmemb;
@@ -173,45 +88,7 @@ static size_t stream_write_callback(void* contents, size_t size, size_t nmemb, v
         std::string line = ctx->line_buf.substr(0, pos);
         ctx->line_buf.erase(0, pos + 1);
         if (!line.empty() && line.back() == '\r') line.pop_back();
-        if (line.rfind("data:", 0) != 0) continue;
-
-        std::string payload = line.substr(5);
-        if (!payload.empty() && payload.front() == ' ') payload.erase(0, 1);
-        if (payload == "[DONE]") continue;
-
-        nlohmann::json j;
-        try { j = nlohmann::json::parse(payload); } catch (...) { continue; }
-        if (!j.contains("choices") || j["choices"].empty()) continue;
-
-        auto& choice = j["choices"][0];
-        if (choice.contains("finish_reason") && choice["finish_reason"].is_string())
-            ctx->finish_reason = choice["finish_reason"].get<std::string>();
-        if (!choice.contains("delta")) continue;
-
-        auto& delta = choice["delta"];
-        if (delta.contains("content") && delta["content"].is_string()) {
-            std::string piece = delta["content"].get<std::string>();
-            ctx->content += piece;
-            if (ctx->on_delta) ctx->on_delta(piece);
-        }
-        if (delta.contains("reasoning_content") && delta["reasoning_content"].is_string()) {
-            std::string piece = delta["reasoning_content"].get<std::string>();
-            ctx->reasoning += piece;
-            if (ctx->on_reasoning_delta) ctx->on_reasoning_delta(piece);
-        }
-        if (delta.contains("tool_calls") && delta["tool_calls"].is_array()) {
-            for (auto& t : delta["tool_calls"]) {
-                int idx = t.value("index", 0);
-                tool_call& tc = ctx->tc_map[idx];
-                if (t.contains("id")) tc.id = t.value("id", "");
-                if (t.contains("function")) {
-                    if (t["function"].contains("name"))
-                        tc.function_name = t["function"].value("name", "");
-                    if (t["function"].contains("arguments"))
-                        tc.arguments += t["function"].value("arguments", "");
-                }
-            }
-        }
+        if (ctx->provider) ctx->provider->handle_stream_line(line, *ctx);
     }
     return total;
 }
@@ -223,7 +100,7 @@ static size_t write_callback(void* contents, size_t size, size_t nmemb, void* us
 }
 
 std::string chat_client::http_post(const std::string& url, const std::string& body,
-                                    const std::string& api_key) const {
+                                   const std::vector<std::pair<std::string, std::string>>& headers) const {
     CURL* curl = curl_easy_init();
     if (!curl) {
         console::error("extension/agent", "curl_easy_init failed");
@@ -231,7 +108,7 @@ std::string chat_client::http_post(const std::string& url, const std::string& bo
     }
 
     std::string response;
-    struct curl_slist* headers = nullptr;
+    struct curl_slist* hdr_list = nullptr;
 
     curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
     curl_easy_setopt(curl, CURLOPT_POST, 1L);
@@ -239,15 +116,15 @@ std::string chat_client::http_post(const std::string& url, const std::string& bo
     curl_easy_setopt(curl, CURLOPT_POSTFIELDSIZE, static_cast<long>(body.size()));
     curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_callback);
     curl_easy_setopt(curl, CURLOPT_WRITEDATA, &response);
-    curl_easy_setopt(curl, CURLOPT_TIMEOUT, 60L);
+    curl_easy_setopt(curl, CURLOPT_TIMEOUT, cfg_.timeout_seconds);
     curl_easy_setopt(curl, CURLOPT_USERAGENT, "spiration/1.0");
 
-    headers = curl_slist_append(headers, "Content-Type: application/json");
-    if (!api_key.empty()) {
-        std::string auth = "Authorization: Bearer " + api_key;
-        headers = curl_slist_append(headers, auth.c_str());
+    hdr_list = curl_slist_append(hdr_list, "Content-Type: application/json");
+    for (const auto& h : headers) {
+        if (h.first.empty()) continue;
+        hdr_list = curl_slist_append(hdr_list, (h.first + ": " + h.second).c_str());
     }
-    curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
+    curl_easy_setopt(curl, CURLOPT_HTTPHEADER, hdr_list);
 
     CURLcode res = curl_easy_perform(curl);
     if (res != CURLE_OK) {
@@ -255,7 +132,7 @@ std::string chat_client::http_post(const std::string& url, const std::string& bo
         response.clear();
     }
 
-    curl_slist_free_all(headers);
+    curl_slist_free_all(hdr_list);
     curl_easy_cleanup(curl);
     return response;
 }
@@ -265,11 +142,13 @@ chat_response chat_client::send() {
 }
 
 void chat_client::append_assistant(const chat_response& resp) {
-    if (!resp.content.empty() || !resp.tool_calls.empty()) {
+    if (!resp.content.empty() || !resp.tool_calls.empty() ||
+        !resp.reasoning_content.empty()) {
         chat_message assistant;
-        assistant.role       = "assistant";
-        assistant.content    = resp.content;
-        assistant.tool_calls = resp.tool_calls;
+        assistant.role            = "assistant";
+        assistant.content         = resp.content;
+        assistant.reasoning_content = resp.reasoning_content;
+        assistant.tool_calls      = resp.tool_calls;
         history_.push_back(assistant);
     }
 }
@@ -281,7 +160,8 @@ void chat_client::sanitize_history() {
                            if (m.role == "system") return false;
                            if (m.role == "assistant")
                                return m.content.empty() && m.tool_calls.empty() &&
-                                      m.tool_call_id.empty();
+                                      m.tool_call_id.empty() &&
+                                      m.reasoning_content.empty();
                            return m.content.empty();
                        }),
         history_.end());
@@ -326,28 +206,52 @@ void chat_client::sanitize_history() {
 }
 
 chat_response chat_client::send_stream(const chat_events& events) {
+    if (!provider_) {
+        console::error("extension/agent", "no provider configured");
+        return {};
+    }
     sanitize_history();
 
-    std::string url = cfg_.endpoint + "/chat/completions";
+    provider_request req;
+    req.model       = cfg_.model;
+    req.max_tokens  = cfg_.max_tokens;
+    req.temperature = cfg_.temperature;
+    req.stream      = cfg_.stream;
+    req.reasoning   = cfg_.reasoning;
+    req.messages    = history_;
+    for (const auto* t : tools_) {
+        if (t) req.tools.push_back(t->to_definition());
+    }
+
+    std::string url = provider_->chat_url(cfg_.endpoint);
+    auto headers = provider_->request_headers(cfg_.api_key);
     std::string body;
     try {
-        body = build_request_body();
+        body = provider_->build_request_body(req);
     } catch (const std::exception& e) {
         console::error("extension/agent", "build request body failed: %s", e.what());
         return {};
     }
 
-    console::info("extension/agent", "POST %s (stream=%d)", url.c_str(), cfg_.stream ? 1 : 0);
+    console::info("extension/agent", "POST %s (provider=%s, stream=%d)",
+                  url.c_str(), provider_->name().c_str(), cfg_.stream ? 1 : 0);
 
     if (!cfg_.stream) {
-        std::string response = http_post(url, body, cfg_.api_key);
+        std::string response = http_post(url, body, headers);
         if (response.empty()) {
             console::warning("extension/agent", "empty response");
             return {};
         }
         chat_response resp;
         try {
-            resp = parse_response(response);
+            provider_response pr = provider_->parse_response(response);
+            resp.content           = pr.content;
+            resp.reasoning_content = pr.reasoning_content;
+            resp.tool_calls        = std::move(pr.tool_calls);
+            resp.finish_reason     = pr.finish_reason;
+            total_input_  += pr.prompt_tokens;
+            total_output_ += pr.completion_tokens;
+            if (on_tokens_updated) on_tokens_updated();
         } catch (const std::exception& e) {
             console::error("extension/agent", "parse response failed: %s", e.what());
             return {};
@@ -367,6 +271,7 @@ chat_response chat_client::send_stream(const chat_events& events) {
     }
 
     stream_context ctx;
+    ctx.provider = provider_.get();
     ctx.on_delta = events.on_delta;
     ctx.on_reasoning_delta = events.on_reasoning_delta;
     ctx.should_stop = events.should_stop;
@@ -377,16 +282,16 @@ chat_response chat_client::send_stream(const chat_events& events) {
     curl_easy_setopt(curl, CURLOPT_POSTFIELDSIZE, static_cast<long>(body.size()));
     curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, stream_write_callback);
     curl_easy_setopt(curl, CURLOPT_WRITEDATA, &ctx);
-    curl_easy_setopt(curl, CURLOPT_TIMEOUT, 120L);
+    curl_easy_setopt(curl, CURLOPT_TIMEOUT, cfg_.timeout_seconds);
     curl_easy_setopt(curl, CURLOPT_USERAGENT, "spiration/1.0");
 
-    struct curl_slist* headers = nullptr;
-    headers = curl_slist_append(headers, "Content-Type: application/json");
-    if (!cfg_.api_key.empty()) {
-        std::string auth = "Authorization: Bearer " + cfg_.api_key;
-        headers = curl_slist_append(headers, auth.c_str());
+    struct curl_slist* hdr_list = nullptr;
+    hdr_list = curl_slist_append(hdr_list, "Content-Type: application/json");
+    for (const auto& h : headers) {
+        if (h.first.empty()) continue;
+        hdr_list = curl_slist_append(hdr_list, (h.first + ": " + h.second).c_str());
     }
-    curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
+    curl_easy_setopt(curl, CURLOPT_HTTPHEADER, hdr_list);
 
     CURLcode res = curl_easy_perform(curl);
     if (res != CURLE_OK) {
@@ -396,13 +301,16 @@ chat_response chat_client::send_stream(const chat_events& events) {
         }
     }
 
-    curl_slist_free_all(headers);
+    curl_slist_free_all(hdr_list);
     curl_easy_cleanup(curl);
 
     chat_response resp;
     resp.content           = ctx.content;
     resp.reasoning_content = ctx.reasoning;
     resp.finish_reason     = ctx.finish_reason;
+    total_input_  += ctx.prompt_tokens;
+    total_output_ += ctx.completion_tokens;
+    if (on_tokens_updated) on_tokens_updated();
     for (auto& [idx, tc] : ctx.tc_map)
         resp.tool_calls.push_back(std::move(tc));
 
@@ -410,26 +318,72 @@ chat_response chat_client::send_stream(const chat_events& events) {
     return resp;
 }
 
-std::string chat_client::execute_tool(const tool_call& tc) {
+tool* chat_client::find_tool(const std::string& name) const {
     for (auto* t : tools_) {
-        if (t && t->name() == tc.function_name) {
-            try {
-                console::info("extension/agent", "executing tool: %s", tc.function_name.c_str());
-                return t->execute(tc.arguments);
-            } catch (const std::exception& e) {
-                console::error("extension/agent", "tool '%s' threw: %s",
-                               tc.function_name.c_str(), e.what());
-                return "[error] tool execution failed: " + std::string(e.what());
-            }
-        }
+        if (t && t->name() == name) return t;
     }
-    console::warning("extension/agent", "tool not found: %s", tc.function_name.c_str());
-    return "[error] tool not found: " + tc.function_name;
+    return nullptr;
+}
+
+bool chat_client::switch_provider(const std::string& name) {
+    if (name.empty()) return true;
+    if (provider_ && provider_->name() == name) return true;
+    auto p = agent_registry::instance().create_provider(name);
+    if (!p) {
+        console::warning("extension/agent", "switch provider failed: %s", name.c_str());
+        return false;
+    }
+    provider_ = std::move(p);
+    console::info("extension/agent", "switched provider to %s", name.c_str());
+    return true;
+}
+
+std::future<std::string> chat_client::launch_tool(const tool_call& tc,
+                                                  const std::function<bool()>& should_stop) {
+    tool* t = find_tool(tc.function_name);
+    if (!t) {
+        console::warning("extension/agent", "tool not found: %s", tc.function_name.c_str());
+        std::promise<std::string> p;
+        p.set_value("[error] tool not found: " + tc.function_name);
+        return p.get_future();
+    }
+
+    if (!t->should_stop) t->should_stop = should_stop;
+    console::info("extension/agent", "executing tool: %s", tc.function_name.c_str());
+
+    auto task = std::make_shared<std::packaged_task<std::string()>>(
+        [t, args = tc.arguments]() { return t->execute(args); });
+    std::future<std::string> fut = task->get_future();
+    std::thread([task]() { (*task)(); }).detach();
+    return fut;
+}
+
+std::string chat_client::execute_tool(const tool_call& tc,
+                                      const std::function<bool()>& should_stop) {
+    tool* t = find_tool(tc.function_name);
+    long timeout = t ? t->default_timeout_seconds() : 30;
+
+    std::future<std::string> fut = launch_tool(tc, should_stop);
+    if (timeout > 0 && fut.wait_for(std::chrono::seconds(timeout)) == std::future_status::timeout) {
+        console::warning("extension/agent", "tool '%s' timed out after %lds",
+                         tc.function_name.c_str(), timeout);
+        return "[error] tool '" + tc.function_name + "' timed out after " +
+               std::to_string(timeout) + "s";
+    }
+    try {
+        return fut.get();
+    } catch (const std::exception& e) {
+        console::error("extension/agent", "tool '%s' threw: %s",
+                       tc.function_name.c_str(), e.what());
+        return "[error] tool execution failed: " + std::string(e.what());
+    }
 }
 
 chat_response chat_client::run(int max_rounds, const chat_events& events) {
     chat_response last;
     std::vector<tool_execution> all_executions;
+
+    constexpr size_t MAX_CONCURRENT = 4;
 
     for (int round = 0; round < max_rounds; ++round) {
         if (events.should_stop && events.should_stop()) break;
@@ -439,26 +393,89 @@ chat_response chat_client::run(int max_rounds, const chat_events& events) {
         if (last.tool_calls.empty())
             break;
 
-        for (auto& tc : last.tool_calls) {
+        const size_t n = last.tool_calls.size();
+        std::vector<std::string> results(n);
+        std::vector<bool> executed(n, false);
+
+        for (size_t i = 0; i < n; ++i) {
             if (events.should_stop && events.should_stop()) break;
             if (events.should_yield && events.should_yield()) break;
-            if (events.on_tool_call) events.on_tool_call(tc);
+            tool* t = find_tool(last.tool_calls[i].function_name);
+            if (!t || (!t->serial() && !t->requires_approval())) continue;
 
-            std::string result = execute_tool(tc);
+            if (events.on_tool_call) events.on_tool_call(last.tool_calls[i]);
+            if (t->requires_approval()) {
+                bool approved = events.on_approve ? events.on_approve(last.tool_calls[i]) : false;
+                if (!approved) {
+                    results[i] = "[error] user denied approval for " +
+                                 last.tool_calls[i].function_name;
+                    executed[i] = true;
+                    continue;
+                }
+            }
+            results[i] = execute_tool(last.tool_calls[i], events.should_stop);
+            executed[i] = true;
+        }
+
+        size_t i = 0;
+        while (i < n) {
+            if (events.should_stop && events.should_stop()) break;
+            if (events.should_yield && events.should_yield()) break;
+
+            tool* t = find_tool(last.tool_calls[i].function_name);
+            if (t && (t->serial() || t->requires_approval())) { ++i; continue; }
+
+            std::vector<size_t> batch;
+            while (i < n && batch.size() < MAX_CONCURRENT) {
+                tool* bt = find_tool(last.tool_calls[i].function_name);
+                if (bt && (bt->serial() || bt->requires_approval())) { ++i; continue; }
+                batch.push_back(i);
+                ++i;
+            }
+
+            std::vector<std::future<std::string>> futs;
+            futs.reserve(batch.size());
+            for (size_t j : batch) {
+                if (events.on_tool_call) events.on_tool_call(last.tool_calls[j]);
+                futs.push_back(launch_tool(last.tool_calls[j], events.should_stop));
+            }
+            for (size_t k = 0; k < batch.size(); ++k) {
+                if (events.should_stop && events.should_stop()) break;
+                size_t j = batch[k];
+                tool* bt = find_tool(last.tool_calls[j].function_name);
+                long timeout = bt ? bt->default_timeout_seconds() : 30;
+                if (timeout > 0 &&
+                    futs[k].wait_for(std::chrono::seconds(timeout)) == std::future_status::timeout) {
+                    results[j] = "[error] tool '" + last.tool_calls[j].function_name +
+                                 "' timed out after " + std::to_string(timeout) + "s";
+                } else {
+                    try {
+                        results[j] = futs[k].get();
+                    } catch (const std::exception& e) {
+                        results[j] = "[error] tool execution failed: " + std::string(e.what());
+                    }
+                }
+                executed[j] = true;
+            }
+        }
+
+        for (size_t j = 0; j < n; ++j) {
+            if (!executed[j]) continue;
+            if (events.should_yield && events.should_yield()) break;
 
             tool_execution ex;
-            ex.function_name = tc.function_name;
-            ex.arguments     = tc.arguments;
-            ex.result        = result;
+            ex.function_name = last.tool_calls[j].function_name;
+            ex.arguments     = last.tool_calls[j].arguments;
+            ex.result        = results[j];
             all_executions.push_back(ex);
 
             if (events.on_tool_result) events.on_tool_result(ex);
 
             chat_message tool_msg;
             tool_msg.role         = "tool";
-            tool_msg.content      = result;
-            tool_msg.tool_call_id = tc.id;
-            tool_msg.name         = tc.function_name;
+            tool_msg.content      = results[j];
+            tool_msg.tool_call_id = last.tool_calls[j].id;
+            tool_msg.name         = last.tool_calls[j].function_name;
             history_.push_back(std::move(tool_msg));
         }
     }

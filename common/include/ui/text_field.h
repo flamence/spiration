@@ -17,15 +17,23 @@ namespace spiration {
  */
 class text_field : public text_area {
 public:
+    text_field() = default;
+
     std::string placeholder;
     std::function<void(const std::string&)> on_submit;
 
     /** @brief 光标自动跟随阈值 */
     float scroll_margin = 30.0f;
 
+    /** @brief 使当前聚焦的 text_field 失焦。组合框/菜单打开时调用。 */
+    static void blur_current();
+    /** @brief 当前聚焦的 text_field。 */
+    static text_field* current_focused();
+
     bool hit_test(float x, float y) const override;
 
     void tick(float dt_ms) override;
+    void layout() override;
 
     void handle_event(const event_type& type, void* data) override;
 
@@ -36,6 +44,14 @@ public:
     void focus();
     void blur();
     bool focused() const { return focused_; }
+
+    /// @brief 全选（text_field 用字节偏移光标，需覆写 text_area 的行列版本）。
+    void select_all() override;
+
+    /// @brief 获得焦点（由 focus_manager 驱动）。
+    void on_focus() override;
+    /// @brief 失去焦点（由 focus_manager 驱动）。
+    void on_blur() override;
 
 private:
     bool focused_ = false;

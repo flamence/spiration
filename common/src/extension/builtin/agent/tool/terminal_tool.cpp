@@ -20,12 +20,13 @@ terminal_manager& terminal_manager::instance() {
     return inst;
 }
 
-std::string terminal_manager::create(const std::string& shell) {
-    std::unique_ptr<terminal_session> s = create_terminal_session(shell);
+std::string terminal_manager::create(const std::string& shell, const std::string& cwd) {
+    std::unique_ptr<terminal_session> s = create_terminal_session(shell, cwd);
     if (!s) return "[error] failed to create terminal session";
     std::lock_guard<std::mutex> lk(mtx_);
     std::string id = "t" + std::to_string(next_id_++);
     sessions_[id] = std::move(s);
+    shells_[id] = shell;
     console::info("extension/agent/terminal", "created session %s", id.c_str());
     return id;
 }
@@ -65,15 +66,46 @@ std::string terminal_manager::read(const std::string& id, size_t from_bottom, si
     return out;
 }
 
+void terminal_manager::kill(const std::string& id) {
+    std::lock_guard<std::mutex> lk(mtx_);
+    auto it = sessions_.find(id);
+    if (it == sessions_.end()) {
+        console::warning("extension/agent/terminal", "kill: session not found: %s", id.c_str());
+        return;
+    }
+    sessions_.erase(it);
+    shells_.erase(id);
+    console::info("extension/agent/terminal", "killed session %s", id.c_str());
+}
+
+std::vector<terminal_snapshot> terminal_manager::snapshots() const {
+    std::lock_guard<std::mutex> lk(mtx_);
+    std::vector<terminal_snapshot> out;
+    out.reserve(sessions_.size());
+    for (const auto& [id, s] : sessions_) {
+        terminal_snapshot snap;
+        snap.id = id;
+        auto sit = shells_.find(id);
+        snap.shell = (sit != shells_.end()) ? sit->second : "";
+        size_t n = s->line_count();
+        if (n > 0) snap.lines = s->read_window(1, n);
+        out.push_back(std::move(snap));
+    }
+    return out;
+}
+
 void terminal_manager::close_all() {
     std::lock_guard<std::mutex> lk(mtx_);
     sessions_.clear();
+    shells_.clear();
 }
 
 std::string create_terminal_tool::description() const {
     return "Create an interactive terminal session that stays alive between calls. "
            "Returns a terminal_id used with write_terminal and read_terminal. "
-           "The session keeps its working directory and environment across commands.";
+           "The session keeps its working directory and environment across commands. "
+           "The initial working directory is the current conversation directory, "
+           "so relative paths in commands refer to that directory.";
 }
 
 std::string create_terminal_tool::parameters_json() const {
@@ -96,7 +128,8 @@ std::string create_terminal_tool::execute(const std::string& args_json) {
     } catch (const std::exception& e) {
         return "[error] invalid arguments: " + std::string(e.what());
     }
-    return terminal_manager::instance().create(shell);
+    std::string cwd = workdir_getter_ ? workdir_getter_() : "";
+    return terminal_manager::instance().create(shell, cwd);
 }
 
 std::string write_terminal_tool::description() const {
@@ -183,6 +216,38 @@ std::string read_terminal_tool::execute(const std::string& args_json) {
     }
     if (id.empty()) return "[error] missing 'terminal_id'";
     return terminal_manager::instance().read(id, from_line, to_line);
+}
+
+std::string kill_terminal_tool::description() const {
+    return "Kill and release a terminal created by create_terminal. "
+           "Provide the terminal_id. The session process is terminated "
+           "and its resources are freed; further reads/writes will fail.";
+}
+
+std::string kill_terminal_tool::parameters_json() const {
+    return R"({
+    "type": "object",
+    "properties": {
+        "terminal_id": {
+            "type": "string",
+            "description": "The terminal id returned by create_terminal."
+        }
+    },
+    "required": ["terminal_id"]
+})";
+}
+
+std::string kill_terminal_tool::execute(const std::string& args_json) {
+    std::string id;
+    try {
+        nlohmann::json j = nlohmann::json::parse(args_json);
+        id = j.value("terminal_id", "");
+    } catch (const std::exception& e) {
+        return "[error] invalid arguments: " + std::string(e.what());
+    }
+    if (id.empty()) return "[error] missing 'terminal_id'";
+    terminal_manager::instance().kill(id);
+    return "ok";
 }
 
 } // namespace agent

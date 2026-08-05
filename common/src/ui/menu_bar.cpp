@@ -9,6 +9,7 @@
 #include <ui/layout.h>
 #include <ui/popup_menu.h>
 #include <ui/theme_manager.h>
+#include <ui/text_field.h>
 #include <extension/builtin/i18n/i18n.h>
 
 namespace spiration {
@@ -45,6 +46,7 @@ void menu_bar::handle_event(const event_type& type, void* data) {
 
 void menu_bar::show_menu_popup(int index) {
     if (index < 0 || index >= static_cast<int>(menus_.size()) || !show_popup_) return;
+    text_field::blur_current();
 
     auto popup = std::make_unique<popup_menu>();
     auto& menu = menus_[index];

@@ -7,6 +7,7 @@
 #pragma once
 
 #include <ui/label.h>
+#include <algorithm>
 #include <map>
 #include <memory>
 #include <string>
@@ -55,6 +56,8 @@ public:
 protected:
     size_t hit_test_text(float x, float y) const override;
     void draw_selection_highlight(std::shared_ptr<renderer> r) const override;
+    /// @brief 点是否落在渲染出的文本可视区域内。
+    bool hit_text_area(float x, float y) const override;
 
 private:
     std::vector<block> parse(const std::string& src) const;
@@ -69,6 +72,14 @@ private:
     std::shared_ptr<renderer> measure_renderer() const;
     float effective_width() const;
     float measure_height(std::shared_ptr<renderer> r, float avail_w) const;
+    /// @brief 遍历块级元素，返回内容自然宽度。
+    float measure_content_width(std::shared_ptr<renderer> r) const;
+    /// @brief 计算表格按自然列宽展开后的总宽度。
+    static float table_natural_width(
+        std::shared_ptr<renderer> r,
+        const std::vector<std::vector<std::vector<run>>>& table,
+        float font_size, const std::string& family,
+        std::vector<float>* col_w_out = nullptr);
     void draw_block(std::shared_ptr<renderer> r, const block& b,
                     float x, float y, float avail_w, float& y_out) const;
     void draw_word_line(std::shared_ptr<renderer> r, const std::vector<run>& line,
@@ -102,6 +113,24 @@ private:
     mutable float cached_h_height_ = 0.0f;
 
     std::string pressed_link_;
+    bool scroll_dragging_ = false;
+    float scroll_drag_start_x_ = 0.0f;
+    float scroll_drag_start_offset_ = 0.0f;
+
+    /// @brief 内容自然宽度，横向滚动用。
+    mutable float content_w_ = 0.0f;
+    /// @brief 横向滚动偏移。
+    float scroll_x_ = 0.0f;
+    /// @brief 鼠标是否位于本控件内。
+    bool mouse_over_ = false;
+
+    /// @brief 横向最大滚动距离。
+    float scroll_max_x() const { return std::max(0.0f, content_w_ - width); }
+    /// @brief 横向滚动条缩略宽度。
+    float scroll_thumb_w() const {
+        if (content_w_ <= width) return 0.0f;
+        return std::max(20.0f, width * (width / content_w_));
+    }
 };
 
 }

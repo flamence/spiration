@@ -5,6 +5,7 @@
  */
 
 #include <ui/checkbox.h>
+#include <ui/focus_manager.h>
 
 namespace spiration {
 
@@ -29,6 +30,7 @@ void checkbox::handle_event(const event_type& type, void* data) {
 
         if (md->action == mouse_action::down && is_hovered()) {
             md->consumed = true;
+            focus_manager::instance().request_focus(this);
             checked = !checked;
             if (on_changed) on_changed(checked);
             if (request_repaint_) request_repaint_();
@@ -43,9 +45,10 @@ void checkbox::paint(std::shared_ptr<renderer> renderer) {
     float by = cy - box_size * 0.5f;
 
     renderer->draw_rectangle({bx, by, box_size, box_size}, bg_transition_.current());
+    color box_border = focused_ ? theme_manager::get(theme_manager::INPUT_FOCUS_BORDER)
+                                : theme_manager::get(theme_manager::CHECKBOX_BORDER);
     renderer->draw_rectangle_outline(
-        {bx, by, box_size, box_size},
-        theme_manager::get(theme_manager::CHECKBOX_BORDER), 1.5f);
+        {bx, by, box_size, box_size}, box_border, 1.5f);
 
     if (checked) {
         renderer->draw_rectangle(

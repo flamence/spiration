@@ -1,4 +1,5 @@
 #include <ui/toggle_switch.h>
+#include <ui/focus_manager.h>
 #include <ui/theme_manager.h>
 
 namespace spiration {
@@ -22,6 +23,7 @@ void toggle_switch::handle_event(const event_type& type, void* data) {
 
         if (md->action == mouse_action::down && is_hovered()) {
             md->consumed = true;
+            focus_manager::instance().request_focus(this);
             set_active(!active);
             if (on_changed) on_changed(active);
             if (request_repaint_) request_repaint_();

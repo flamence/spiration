@@ -28,10 +28,20 @@ protected:
 public:
     button() {
         widget_style.cursor = cursor_type::pointer;
+        focusable = true;
     }
 
     std::string text;
     std::function<void()> on_click;
+
+    /// @brief 右键点击回调。
+    std::function<void(float, float)> on_right_click;
+
+    /// @brief 文本水平对齐方式。
+    text_alignment h_align = text_alignment::center;
+
+    /// @brief 固定宽度下文本超出时以省略号截断。
+    bool ellipsize = false;
 
     /// @brief 非悬停状态的基础背景色。
     color base_bg = color::transparent();
