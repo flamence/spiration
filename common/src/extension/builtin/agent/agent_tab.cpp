@@ -260,32 +260,15 @@ agent_tab::agent_tab(chat_client* client, chat_store* store) : client_(client), 
     }
 
     if (store_) {
-        auto convos = store_->list();
-        if (!convos.empty()) {
-            current_uuid_ = convos.front().uuid;
-            store_->set_current_uuid(current_uuid_);
-            chat_archive archive;
-            if (store_->load(current_uuid_, archive)) {
-                if (client_) {
-                    client_->clear_history();
-                    for (const auto& m : archive.messages) {
-                        if (m.role == "system") continue;
-                        client_->add_message(m);
-                    }
-                    client_->set_tokens(archive.tokens_in, archive.tokens_out);
-                }
-                auto_approve_on_ = archive.auto_approve;
-                if (auto_approve_) auto_approve_->checked = archive.auto_approve;
-                todo_store::instance().set_current_uuid(current_uuid_);
-                todo_store::instance().set(archive.todos);
-                restore_history_ui(archive.messages);
-                if (archive.can_continue) add_continue_button();
-                update_token_label();
+        initial_load_ = std::async(std::launch::async, [store = store_]() {
+            initial_load_result res;
+            res.convos = store->list();
+            if (!res.convos.empty()) {
+                res.uuid = res.convos.front().uuid;
+                res.loaded = store->load(res.uuid, res.archive);
             }
-        } else {
-            new_conversation();
-        }
-        rebuild_conversation_list();
+            return res;
+        });
     }
 }
 
@@ -559,6 +542,7 @@ void agent_tab::add_message(const std::string& role, const std::string& content)
 }
 
 void agent_tab::relayout_scroll_repaint() {
+    if (layout_batch_) return;
     bool at_bottom = true;
     if (scroll_ && scroll_->scroll_max_y() > 0.0f) {
         at_bottom = scroll_->scroll_offset_y() >= scroll_->scroll_max_y() - 1.0f;
@@ -705,6 +689,39 @@ markdown* agent_tab::append_bubble(const display_message& msg) {
 
 void agent_tab::save_current() {
     if (on_conversation_done) on_conversation_done(this);
+}
+
+void agent_tab::wait_initial_load() {
+    if (initial_load_.valid()) initial_load_.wait();
+}
+
+void agent_tab::apply_initial_load(const initial_load_result& res) {
+    if (!store_) return;
+    if (res.convos.empty()) {
+        new_conversation();
+        return;
+    }
+    current_uuid_ = res.uuid.empty() ? res.convos.front().uuid : res.uuid;
+    store_->set_current_uuid(current_uuid_);
+    if (res.loaded) {
+        if (client_) {
+            client_->clear_history();
+            for (const auto& m : res.archive.messages) {
+                if (m.role == "system") continue;
+                client_->add_message(m);
+            }
+            client_->set_tokens(res.archive.tokens_in, res.archive.tokens_out);
+        }
+        auto_approve_on_ = res.archive.auto_approve;
+        if (auto_approve_) auto_approve_->checked = res.archive.auto_approve;
+        todo_store::instance().set_current_uuid(current_uuid_);
+        todo_store::instance().set(res.archive.todos);
+        restore_history_ui(res.archive.messages);
+        if (res.archive.can_continue) add_continue_button();
+        update_token_label();
+    }
+    rebuild_conversation_list(&res.convos);
+    relayout_scroll_repaint();
 }
 
 void agent_tab::clear_messages() {
@@ -855,13 +872,13 @@ void agent_tab::request_list_rebuild() {
     list_rebuild_pending_ = true;
 }
 
-void agent_tab::rebuild_conversation_list() {
+void agent_tab::rebuild_conversation_list(const std::vector<conversation_meta>* preset) {
     if (!list_scroll_) return;
     while (!list_scroll_->children().empty())
         list_scroll_->remove_child(list_scroll_->children().front().get());
 
     std::vector<conversation_meta> convos =
-        store_ ? store_->list() : std::vector<conversation_meta>{};
+        preset ? *preset : (store_ ? store_->list() : std::vector<conversation_meta>{});
     for (const auto& c : convos) {
         bool active = (c.uuid == current_uuid_);
 
@@ -1106,6 +1123,7 @@ void agent_tab::append_tool_result(const std::string& text) {
 }
 
 void agent_tab::restore_history_ui(const std::vector<chat_message>& msgs) {
+    layout_batch_ = true;
     std::vector<container*> pending_output;
     for (const auto& m : msgs) {
         if (m.role == "user") {
@@ -1148,6 +1166,8 @@ void agent_tab::restore_history_ui(const std::vector<chat_message>& msgs) {
     tool_capsule_ = nullptr;
     tool_capsule_scroll_ = nullptr;
     tool_label_ = nullptr;
+    layout_batch_ = false;
+    relayout_scroll_repaint();
 }
 
 void agent_tab::show_inline_approval() {
@@ -1248,6 +1268,14 @@ void agent_tab::resolve_approval(bool ok) {
 }
 
 void agent_tab::tick(float dt_ms) {
+    if (initial_load_.valid()) {
+        auto st = initial_load_.wait_for(std::chrono::milliseconds(0));
+        if (st == std::future_status::ready) {
+            initial_load_result res = initial_load_.get();
+            apply_initial_load(res);
+        }
+    }
+
     if (list_rebuild_pending_) {
         list_rebuild_pending_ = false;
         rebuild_conversation_list();
