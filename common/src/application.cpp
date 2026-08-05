@@ -56,6 +56,10 @@ void application::loop() {
     }
 }
 
+void application::tick(float dt_ms) {
+    if (widget_) widget_->tick(dt_ms);
+}
+
 void application::shutdown() {
     spiration::extension_manager::shutdown();
 }

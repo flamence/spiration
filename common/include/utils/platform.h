@@ -1,6 +1,6 @@
 /**
  * @file platform.h
- * @brief 跨平台抽象 API — 系统信息、文件系统、语言检测。
+ * @brief 跨平台抽象 API。
  * @author clk
  */
 

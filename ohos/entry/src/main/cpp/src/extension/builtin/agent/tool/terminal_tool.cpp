@@ -12,7 +12,8 @@
 namespace spiration {
 namespace agent {
 
-std::unique_ptr<terminal_session> create_terminal_session(const std::string&) {
+std::unique_ptr<terminal_session> create_terminal_session(const std::string&,
+                                                          const std::string&) {
     return nullptr;
 }
 
