@@ -60,11 +60,7 @@ cmake --build ./build
 
 通过 [DevEco Studio](https://developer.huawei.com/consumer/cn/deveco-studio/) 打开 [ohos](ohos/) 文件夹。
 
-借助菜单栏 **Build**>**Build Hap(s)/APP(s)** 的选项来构建。
-
-> [Command Line Tools](https://developer.huawei.com/consumer/cn/download/command-line-tools-for-hmos) 需要登录后才能下载，因而 [Actions](https://github.com/flamence/spiration/actions) 不会提供 `.hap` 文件的下载。
-> 目前仅通过 [Release](https://github.com/flamence/spiration/releases) 发布。
-> [CoolCLK/build-hap](#) 由于构建需要 Git LFS、Cache 而被放弃。
+借助菜单栏 **构建(<u>B</u>)**>**编译 Hap(s)/APP(s)** 的选项来构建。
 
 ## 贡献支持
 

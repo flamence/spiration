@@ -1,0 +1,62 @@
+name: 编译 Hap
+
+on:
+  push:
+    branches: [ "main" ]
+    paths:
+      - 'CMakeLists.txt'
+      - 'common/**'
+      - 'ohos/**'
+      - '.github/workflows/**'
+  pull_request:
+    branches: [ "main" ]
+    paths:
+      - 'CMakeLists.txt'
+      - 'common/**'
+      - 'ohos/**'
+      - '.github/workflows/**'
+  release:
+    types: [ published ]
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    container: ubuntu:latest
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: 设置复用变量
+        id: strings
+        shell: bash
+        run: |
+          WORKSPACE="$GITHUB_WORKSPACE/ohos"
+          echo "workspace=$WORKSPACE" >> "$GITHUB_OUTPUT"
+          echo "build-hap=$WORKSPACE/entry/build/default/outputs/default/entry-default-unsigned.hap" >> "$GITHUB_OUTPUT"
+          if [ "${{ github.event_name }}" == "release" ]; then
+            VERSION="${{ github.event.release.tag_name }}"
+          else
+            VERSION="${GITHUB_SHA:0:7}"
+          fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+      - uses: CoolCLK/build-hap@v1
+        with:
+          workspace: ${{ steps.strings.outputs.workspace }}
+
+      - name: 上传工件
+        if: github.event_name != 'release'
+        uses: actions/upload-artifact@v6
+        with:
+          name: ${{ steps.strings.outputs.archive-name }}
+          path: ${{ steps.strings.outputs.build-hap }}
+
+      - name: 上传到 GitHub Release
+        if: github.event_name == 'release'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release upload ${{ github.event.release.tag_name }} "${{ steps.strings.outputs.build-hap }}#spiration-${{ steps.strings.outputs.version }}-harmonyos.hap" --repo ${{ github.repository }}
