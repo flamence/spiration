@@ -50,6 +50,14 @@ struct model_option {
     chat_client::config cfg;
 };
 
+/// @brief 后台初始加载结果。
+struct initial_load_result {
+    std::vector<conversation_meta> convos;  ///< 全部会话元信息（按 updated_at 倒序）。
+    std::string uuid;                       ///< 需要打开的会话 UUID，空表示无会话。
+    chat_archive archive;                   ///< 该会话的完整存档。
+    bool loaded = false;                    ///< 会话存档是否加载成功。
+};
+
 /**
  * @brief 智能体标签页。
  */
@@ -59,6 +67,7 @@ public:
     ~agent_tab() override {
         *alive_ = false;
         if (pending_.valid()) pending_.wait();
+        if (initial_load_.valid()) initial_load_.wait();
         if (on_conversation_done) on_conversation_done(this);
         if (on_destroyed) on_destroyed();
     }
@@ -84,6 +93,9 @@ public:
 
     /// @brief 设置可选模型列表。
     void set_models(std::vector<model_option> models);
+
+    /// @brief 等待后台初始加载完成（释放存储前调用，避免访问已释放的存储）。
+    void wait_initial_load();
 
     /// @brief 是否可以继续生成。
     bool can_continue() const { return continue_btn_ != nullptr; }
@@ -125,6 +137,7 @@ private:
     std::vector<display_message> messages_;
     std::string current_uuid_;
     bool list_rebuild_pending_ = false;
+    bool layout_batch_ = false;  ///< 批量布局期间抑制逐条 relayout。
 
     bool landscape_      = true;
     bool list_collapsed_ = false;
@@ -140,6 +153,7 @@ private:
     markdown* thinking_label_ = nullptr;
 
     std::future<chat_response> pending_;
+    std::future<initial_load_result> initial_load_;
     bool waiting_ = false;
 
     std::shared_ptr<std::atomic<bool>> alive_ = std::make_shared<std::atomic<bool>>(true);
@@ -179,7 +193,10 @@ private:
     void new_conversation(bool to_chat = true);
     void open_conversation(const std::string& uuid, bool to_chat = true);
     void delete_conversation(const std::string& uuid);
-    void rebuild_conversation_list();
+    /** @brief 重建会话列表。preset 非空时直接使用该列表，避免重复读盘。 */
+    void rebuild_conversation_list(const std::vector<conversation_meta>* preset = nullptr);
+    /** @brief 将后台初始加载结果应用到 UI（UI 线程调用）。 */
+    void apply_initial_load(const initial_load_result& res);
     /** @brief 请求在下一帧 tick 重建会话列表。 */
     void request_list_rebuild();
     void clear_messages();

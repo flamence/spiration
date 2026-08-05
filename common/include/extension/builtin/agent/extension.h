@@ -28,7 +28,7 @@ class extension : public spiration::extension {
 public:
     std::string id() const override          { return ID; }
     std::string name() const override        { return api->tr("extension.agent.name"); }
-    std::string version() const override     { return "0.5"; }
+    std::string version() const override     { return "0.6"; }
     std::string description() const override { return api->tr("extension.agent.description"); }
 
     bool initialize() override;

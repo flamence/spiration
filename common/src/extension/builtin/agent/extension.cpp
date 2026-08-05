@@ -48,10 +48,9 @@ bool extension::initialize() {
     std::string models_path = data_dir_ + "/cnf/models.json";
     std::string legacy_path = data_dir_ + "/cnf/model.json";
 
-    chat_client::config cfg;  // 默认/回退配置
+    chat_client::config cfg;
     bool has_config = false;
 
-    // 首选 cnf/models.json：对象（按模型 id 键）或数组（每项完整配置）
     if (platform::file_exists(models_path)) {
         std::string json = extension_loader::read_file_text(models_path);
         if (!json.empty()) {
@@ -73,7 +72,6 @@ bool extension::initialize() {
         has_config = !models_.empty();
         if (has_config) cfg = models_.front().cfg;
     } else if (platform::file_exists(legacy_path)) {
-        // 旧版单配置 model.json（全局配置 + 可选 models[]）
         std::string json = extension_loader::read_file_text(legacy_path);
         if (!json.empty()) {
             try {
@@ -143,8 +141,6 @@ bool extension::initialize() {
         edit_file_ = std::make_unique<edit_file_tool>();
         rename_ = std::make_unique<rename_tool>();
         delete_ = std::make_unique<delete_tool>();
-        // 文件工具相对路径默认解析到当前会话的 chat/<uuid>/ 目录，
-        // 防止 agent 在程序运行路径下生成大量脚本/文件
         auto workdir = [this]() -> std::string {
             return store_ ? store_->conversation_dir(store_->current_uuid()) : std::string();
         };
@@ -154,7 +150,6 @@ bool extension::initialize() {
         edit_file_->set_workdir(workdir);
         rename_->set_workdir(workdir);
         delete_->set_workdir(workdir);
-        // 终端初始工作目录同样默认 = 会话目录
         create_terminal_->set_workdir(workdir);
         client_->register_tool(create_file_.get());
         client_->register_tool(create_directory_.get());
@@ -172,32 +167,26 @@ bool extension::initialize() {
         sleep_ = std::make_unique<sleep_tool>();
         client_->register_tool(sleep_.get());
 
-        // 记忆工具（读写当前会话 memory.md）
         memory_ = std::make_unique<memory_tool>();
         client_->register_tool(memory_.get());
 
-        api->log_info("agent extension initialized (provider=%s, endpoint=%s, model=%s, %zu model(s))",
-                      client_->provider_name().c_str(), cfg.endpoint.c_str(),
-                      cfg.model.c_str(), models_.size());
+        api->log_info("agent extension initialized (%zu model(s))", models_.size());
     } else {
         api->log_info("agent extension initialized (no config at %s)", models_path.c_str());
     }
 
-    // 聊天记录存档目录（与 cnf/ 同级）
     store_ = std::make_unique<chat_store>(data_dir_);
 
     if (memory_) {
         memory_->bind(store_.get(), [this]() { return store_->current_uuid(); });
     }
 
-    // 纳入其它拓展经注册表注册的工具
     if (client_) {
         for (auto* t : agent_registry::instance().tools()) {
             if (t) client_->register_tool(t);
         }
     }
 
-    // 注册服务，供其它拓展查询（注册 provider / tool）
     extension_manager::register_service(id(), agent_registry::SERVICE_NAME,
                                         &agent_registry::instance());
 
@@ -214,6 +203,7 @@ void extension::shutdown() {
     if (agent_tab_) {
         agent_tab_->on_conversation_done = nullptr;
         agent_tab_->on_destroyed = nullptr;
+        agent_tab_->wait_initial_load();
         agent_tab_ = nullptr;
     }
     terminal_manager::instance().close_all();
@@ -236,10 +226,9 @@ void extension::shutdown() {
 }
 
 void extension::open_agent_tab() {
-    // 只允许一个智能体标签页：已存在则激活，否则新建
     if (agent_tab_) {
         if (api->activate_tab(agent_tab_)) return;
-        agent_tab_ = nullptr;  // 标签页已关闭（指针悬空，仅作比较用）
+        agent_tab_ = nullptr;
     }
     auto tab = std::make_unique<agent_tab>(client_.get(), store_.get());
     tab->set_repaint_callback([this]() { if (api) api->request_repaint(); });
