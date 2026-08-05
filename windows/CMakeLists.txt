@@ -35,6 +35,7 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
     comdlg32
     imm32
     winhttp
+    dbghelp
 )
 
 if(WINDOWS_SOURCES MATCHES "\\.rc$")
