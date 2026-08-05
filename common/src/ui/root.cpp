@@ -181,6 +181,8 @@ void root::handle_event(const event_type& type, void* data) {
 }
 
 void root::tick(float dt_ms) {
+    if (m_popup_pending_) m_popup_pending_.reset();
+    if (m_context_menu_pending_) m_context_menu_pending_.reset();
     container::tick(dt_ms);
     if (m_popup) m_popup->tick(dt_ms);
     if (m_context_menu) m_context_menu->tick(dt_ms);
@@ -260,7 +262,7 @@ void root::open_tab(std::unique_ptr<tab> t) {
 
 void root::show_popup(float x, float y, std::unique_ptr<popup_menu> popup) {
     dismiss_popup();
-    popup->x = x;
+    m_popup_pending_.reset();
     popup->y = y;
     popup->set_dismiss_callback([this]() { dismiss_popup(); });
     popup->init();
@@ -273,19 +275,20 @@ void root::show_popup(float x, float y, std::unique_ptr<popup_menu> popup) {
 
 void root::dismiss_popup() {
     if (m_popup) {
-        m_popup.reset();
+        m_popup_pending_ = std::move(m_popup);
         if (request_repaint_) request_repaint_();
     }
 }
 
 void root::show_context_menu(float x, float y, std::unique_ptr<context_menu> menu) {
     if (m_context_menu) m_context_menu.reset();
+    m_context_menu_pending_.reset();
     if (!menu) return;
     if (x + menu->width > width) x = std::max(0.0f, width - menu->width);
     if (y + menu->height > height) y = std::max(0.0f, height - menu->height);
     menu->set_repaint_callback(request_repaint_);
     menu->set_window_action_callback(window_action_);
-    menu->on_dismiss = [this]() { m_context_menu.reset(); };
+    menu->on_dismiss = [this]() { dismiss_context_menu(); };
     menu->show_at(x, y);
     m_context_menu = std::move(menu);
     if (request_repaint_) request_repaint_();
@@ -294,7 +297,7 @@ void root::show_context_menu(float x, float y, std::unique_ptr<context_menu> men
 void root::dismiss_context_menu() {
     if (m_context_menu) {
         m_context_menu->on_dismiss = nullptr;
-        m_context_menu.reset();
+        m_context_menu_pending_ = std::move(m_context_menu);
         if (request_repaint_) request_repaint_();
     }
 }

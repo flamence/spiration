@@ -17,6 +17,9 @@ private:
     std::shared_ptr<spiration::window> m_window;
     std::unique_ptr<popup_menu> m_popup = nullptr;
     std::unique_ptr<context_menu> m_context_menu = nullptr;
+    /// @brief 延迟销毁的浮层，避免在控件自身事件处理中 delete-this。
+    std::unique_ptr<popup_menu> m_popup_pending_ = nullptr;
+    std::unique_ptr<context_menu> m_context_menu_pending_ = nullptr;
 
 public:
     /**

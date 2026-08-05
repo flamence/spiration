@@ -8,9 +8,12 @@
 
 #include <extension/builtin/agent/provider.h>
 
+#include <atomic>
+#include <condition_variable>
 #include <functional>
 #include <future>
 #include <memory>
+#include <mutex>
 #include <string>
 #include <vector>
 
@@ -100,7 +103,7 @@ public:
     const config& get_config() const { return cfg_; }
 
     /// @brief 获取当前对话历史。
-    const std::vector<chat_message>& history() const { return history_; }
+    std::vector<chat_message> history() const;
 
     /// @brief 累计输入 token 数。
     long long input_tokens() const { return total_input_; }
@@ -127,11 +130,23 @@ public:
     /// @brief 按名称切换 provider。
     bool switch_provider(const std::string& name);
 
+    /// @brief 等待所有已启动的工具执行结束。
+    void wait_all_tools();
+
 private:
     config cfg_;
     std::unique_ptr<provider> provider_;
+
+    /// @brief 保护对话历史。
+    mutable std::mutex history_mtx_;
     std::vector<chat_message> history_;
     std::vector<tool*> tools_;
+
+    /// @brief 正在执行的工具任务数。
+    std::atomic<int> active_tool_count_{0};
+    std::mutex active_tools_mtx_;
+    std::condition_variable active_tools_cv_;
+
     long long total_input_ = 0;
     long long total_output_ = 0;
 

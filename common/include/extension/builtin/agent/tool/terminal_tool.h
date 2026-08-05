@@ -83,7 +83,8 @@ public:
 private:
     terminal_manager() = default;
     mutable std::mutex mtx_;
-    std::map<std::string, std::unique_ptr<terminal_session>> sessions_;
+    /// @brief 会话表。使用 shared_ptr 以便锁外安全使用。
+    std::map<std::string, std::shared_ptr<terminal_session>> sessions_;
     std::map<std::string, std::string> shells_;
     size_t next_id_ = 1;
 };

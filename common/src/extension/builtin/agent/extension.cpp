@@ -211,7 +211,13 @@ bool extension::initialize() {
 void extension::shutdown() {
     if (api) api->log_info("agent extension shutdown");
     save_conversation(nullptr);
+    if (agent_tab_) {
+        agent_tab_->on_conversation_done = nullptr;
+        agent_tab_->on_destroyed = nullptr;
+        agent_tab_ = nullptr;
+    }
     terminal_manager::instance().close_all();
+    if (client_) client_->wait_all_tools();
     create_terminal_.reset();
     write_terminal_.reset();
     read_terminal_.reset();
