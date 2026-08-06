@@ -113,6 +113,16 @@ size_t extension_manager::load_extensions_from(const std::string& directory) {
         if (!json.empty()) {
             auto m = parse_extension_manifest(json);
             if (m) {
+                // api_version 校验：未声明（0）视为兼容，声明了非支持版本则拒绝。
+                if (m->api_version != 0 &&
+                    m->api_version != kSupportedExtensionApiVersion) {
+                    console::warning(
+                        "extension/manager",
+                        "skip \"%s\": unsupported api_version=%d (supported=%d)",
+                        m->id.c_str(), m->api_version,
+                        kSupportedExtensionApiVersion);
+                    continue;
+                }
                 info.manifest = std::move(*m);
                 info.has_manifest = true;
             }
@@ -145,6 +155,19 @@ size_t extension_manager::load_extensions_from(const std::string& directory) {
             if (info.has_manifest) {
                 for (const auto& [dep_id, constraint] : info.manifest.depends) {
                     if (loaded_ids.find(dep_id) == loaded_ids.end()) {
+                        deps_ok = false;
+                        break;
+                    }
+                    // 依赖版本约束校验（约束为空表示不限定版本）。
+                    if (constraint.empty()) continue;
+                    extension* dep = find_extension(dep_id);
+                    std::string dep_ver = dep ? dep->version() : "";
+                    if (dep_ver.empty() || !version_matches(dep_ver, constraint)) {
+                        console::warning(
+                            "extension/manager",
+                            "dependency \"%s\" version \"%s\" does not satisfy \"%s\" for \"%s\"",
+                            dep_id.c_str(), dep_ver.c_str(),
+                            constraint.c_str(), info.manifest.id.c_str());
                         deps_ok = false;
                         break;
                     }
