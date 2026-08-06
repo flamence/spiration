@@ -45,7 +45,8 @@ float token_text_estimate_width(const label* lb) {
 
 } // namespace
 
-agent_tab::agent_tab(chat_client* client, chat_store* store) : client_(client), store_(store) {
+agent_tab::agent_tab(std::shared_ptr<chat_client> client, std::shared_ptr<chat_store> store)
+    : client_(std::move(client)), store_(std::move(store)) {
     title_ = i18n_manager::get().tr("tab.agent");
     widget_style.background_color = theme_manager::get(theme_manager::CONTENT_BG);
 
@@ -238,7 +239,7 @@ agent_tab::agent_tab(chat_client* client, chat_store* store) : client_(client), 
     btn->set_base_bg(theme_manager::get(theme_manager::BUTTON_BG));
     btn->on_click = [this]() {
         if (waiting_) {
-            stop_requested_ = true;
+            stop_flag_->store(true);
         } else {
             send();
         }
@@ -943,7 +944,7 @@ void agent_tab::begin_run() {
     thinking_scroll_ = nullptr;
     thinking_label_ = nullptr;
     waiting_ = true;
-    stop_requested_ = false;
+    stop_flag_->store(false);
     supplement_requested_ = false;
     streamed_content_ = false;
     remove_continue_button();
@@ -985,8 +986,9 @@ void agent_tab::begin_run() {
         ev.text = ex.result;
         stream_events_.push_back(std::move(ev));
     };
-    events.should_stop = [this, alive]() {
-        return !alive->load() || stop_requested_.load();
+    events.should_stop = [alive, stop = stop_flag_]() {
+        // 只捕获共享标志，不触碰 this，避免工具线程复用旧回调时访问已析构对象。
+        return !alive->load() || stop->load();
     };
     events.should_yield = [this, alive]() {
         return !alive->load() || supplement_requested_.load();
@@ -1263,7 +1265,7 @@ bool agent_tab::approve_request(const tool_call& tc) {
 
     auto fut = promise->get_future();
     while (true) {
-        if (stop_requested_.load() || !alive_->load()) {
+        if (stop_flag_->load() || !alive_->load()) {
             resolve_approval(false);
             return false;
         }
@@ -1351,7 +1353,7 @@ void agent_tab::tick(float dt_ms) {
 
             stream_label_ = nullptr;
 
-            if (stop_requested_.load() && queued_inputs_.empty()) {
+            if (stop_flag_->load() && queued_inputs_.empty()) {
                 add_continue_button();
             }
 

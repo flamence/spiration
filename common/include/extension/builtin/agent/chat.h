@@ -56,13 +56,21 @@ public:
     ~chat_client();
 
     /// @brief 运行时指定模型。
-    void set_model(const std::string& model) { cfg_.model = model; }
+    /// @brief 设置模型。运行期间忽略，避免与后台读配置产生数据竞争。
+    void set_model(const std::string& model) {
+        if (running_.load(std::memory_order_acquire)) return;
+        cfg_.model = model;
+    }
 
     /// @brief 用完整配置替换当前配置并重建 provider。
     void configure(const config& c);
 
     /// @brief 运行时指定思考等级。
-    void set_reasoning_level(reasoning_level level) { cfg_.reasoning = level; }
+    /// @brief 设置思考等级。运行期间忽略，避免与后台读配置产生数据竞争。
+    void set_reasoning_level(reasoning_level level) {
+        if (running_.load(std::memory_order_acquire)) return;
+        cfg_.reasoning = level;
+    }
 
     /// @brief 获取当前思考等级。
     reasoning_level reasoning_level() const { return cfg_.reasoning; }
@@ -118,24 +126,28 @@ public:
     std::vector<chat_message> history() const;
 
     /// @brief 累计输入 token 数。
-    long long input_tokens() const { return total_input_; }
+    long long input_tokens() const {
+        return total_input_.load(std::memory_order_relaxed);
+    }
     /// @brief 累计输出 token 数。
-    long long output_tokens() const { return total_output_; }
+    long long output_tokens() const {
+        return total_output_.load(std::memory_order_relaxed);
+    }
 
     /// @brief 每次 provider 响应更新 token 计数后回调。
     std::function<void()> on_tokens_updated;
 
     /// @brief 重置 token 计数。
     void reset_tokens() {
-        total_input_ = 0;
-        total_output_ = 0;
+        total_input_.store(0, std::memory_order_relaxed);
+        total_output_.store(0, std::memory_order_relaxed);
         if (on_tokens_updated) on_tokens_updated();
     }
 
     /// @brief 恢复 token 计数。
     void set_tokens(long long in, long long out) {
-        total_input_ = in;
-        total_output_ = out;
+        total_input_.store(in, std::memory_order_relaxed);
+        total_output_.store(out, std::memory_order_relaxed);
         if (on_tokens_updated) on_tokens_updated();
     }
 
@@ -159,8 +171,11 @@ private:
     std::mutex active_tools_mtx_;
     std::condition_variable active_tools_cv_;
 
-    long long total_input_ = 0;
-    long long total_output_ = 0;
+    /// @brief 是否正在运行一轮对话（run 期间禁止改配置/provider）。
+    std::atomic<bool> running_{false};
+
+    std::atomic<long long> total_input_{0};
+    std::atomic<long long> total_output_{0};
 
     /// @brief 清理不合规的历史消息。
     void sanitize_history();

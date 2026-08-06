@@ -63,7 +63,8 @@ struct initial_load_result {
  */
 class agent_tab : public tab {
 public:
-    explicit agent_tab(chat_client* client, chat_store* store = nullptr);
+    explicit agent_tab(std::shared_ptr<chat_client> client,
+                       std::shared_ptr<chat_store> store = nullptr);
     ~agent_tab() override {
         *alive_ = false;
         if (pending_.valid()) pending_.wait();
@@ -104,8 +105,9 @@ public:
     bool auto_approve() const { return auto_approve_on_.load(); }
 
 private:
-    chat_client* client_ = nullptr;
-    chat_store*  store_  = nullptr;
+    // 共享所有权：后台 run 线程在扩展关闭（client_/store_ 释放）后仍安全使用。
+    std::shared_ptr<chat_client> client_;
+    std::shared_ptr<chat_store>  store_;
 
     split_pane* split_pane_  = nullptr; 
     container* list_pane_   = nullptr;
@@ -158,7 +160,8 @@ private:
 
     std::shared_ptr<std::atomic<bool>> alive_ = std::make_shared<std::atomic<bool>>(true);
 
-    std::atomic<bool> stop_requested_ = false;
+    /// @brief 停止标志（共享原子）：后台线程只读共享指针指向的原子，避免析构后访问成员。
+    std::shared_ptr<std::atomic<bool>> stop_flag_ = std::make_shared<std::atomic<bool>>(false);
     std::atomic<bool> supplement_requested_ = false;
     std::deque<std::string> queued_inputs_;
     button* continue_btn_ = nullptr;

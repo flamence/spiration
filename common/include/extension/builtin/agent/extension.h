@@ -41,8 +41,8 @@ private:
     /// @brief 将当前对话保存到当前会话的 UUID 目录。
     void save_conversation(agent_tab* tab);
 
-    std::unique_ptr<chat_client> client_;
-    std::unique_ptr<chat_store> store_;
+    std::shared_ptr<chat_client> client_;
+    std::shared_ptr<chat_store> store_;
     std::string data_dir_;
     /// 模型选项。
     std::vector<model_option> models_;
