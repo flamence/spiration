@@ -15,8 +15,6 @@ file(GLOB_RECURSE COMMON_SOURCES
 
 list(FILTER COMMON_SOURCES EXCLUDE REGEX ".*chat\\.cpp$")
 list(FILTER COMMON_SOURCES EXCLUDE REGEX ".*web_tool\\.cpp$")
-# FreeType 文本管线仅 Linux 编译（OHOS 使用 native_drawing 文本管线）
-list(FILTER COMMON_SOURCES EXCLUDE REGEX ".*opengl_text_freetype\\.cpp$")
 file(GLOB_RECURSE OHOS_SOURCES
     "${NATIVERENDER_ROOT_PATH}/src/*.c"
     "${NATIVERENDER_ROOT_PATH}/src/*.cpp"
