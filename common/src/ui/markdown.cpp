@@ -695,6 +695,7 @@ float markdown::measure_height(std::shared_ptr<renderer> r, float avail_w) const
 }
 
 void markdown::layout() {
+    on_layout_begin();
     auto r = measure_renderer();
     if (r) content_w_ = measure_content_width(r);
     scroll_x_ = std::max(0.0f, std::min(scroll_x_, scroll_max_x()));

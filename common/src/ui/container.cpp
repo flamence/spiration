@@ -10,6 +10,7 @@
 namespace spiration {
 
 void container::layout() {
+    on_layout_begin();
     bool scroll_v = widget_style.overflow_y;
     bool scroll_h = widget_style.overflow_x;
 
@@ -42,7 +43,7 @@ void container::layout() {
                 if (scroll_h) child_w = std::max(avail_w, pref.width);
                 child->width = child_w;
                 child->height = pref.height > 0.0f ? pref.height : child->height;
-                child->layout();
+                if (child->needs_layout()) child->layout();
                 content_width_ = std::max(content_width_, child_w + pl + pr);
                 y += child->height;
             }

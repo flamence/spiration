@@ -28,6 +28,10 @@ private:
     widget* parent_ = nullptr;
     std::vector<std::unique_ptr<widget>> children_;
 
+    float layout_x_ = 0.0f, layout_y_ = 0.0f;
+    float layout_w_ = -1.0f, layout_h_ = -1.0f; // -1 哨兵：首次布局必执行
+    bool layout_dirty_ = true;                  // 子树内容变更，需强制重排
+
 public:
     
     float x = 0.0f, y = 0.0f;
@@ -79,11 +83,51 @@ public:
     }
 
     virtual void layout() {
+        on_layout_begin();
         for (auto& child : children_) {
-            child->layout();
+            if (child->needs_layout()) {
+                child->layout();
+            }
         }
     }
-    
+
+    /**
+     * @brief 本控件子树是否需要重新布局（几何变化或内容变更）。
+     *        布局管理器/父容器据此跳过未变化的子树，避免全树重排。
+     */
+    bool needs_layout() const {
+        return layout_dirty_ || bounds_changed_since_layout();
+    }
+
+    /**
+     * @brief 标记本控件及全部祖先需要重新布局（内容变更时调用）。
+     */
+    void invalidate_layout() {
+        for (widget* w = this; w; w = w->parent_) w->layout_dirty_ = true;
+    }
+
+    /**
+     * @brief 几何相对上次布局是否发生变化。
+     */
+    bool bounds_changed_since_layout() const {
+        return x != layout_x_ || y != layout_y_ ||
+               width != layout_w_ || height != layout_h_;
+    }
+
+protected:
+    /**
+     * @brief 布局开始钩子：记录本次几何并清除脏标记。
+     *        重写 layout() 的容器应在入口调用（或经由基类 widget::layout()）。
+     */
+    void on_layout_begin() {
+        layout_dirty_ = false;
+        layout_x_ = x;
+        layout_y_ = y;
+        layout_w_ = width;
+        layout_h_ = height;
+    }
+
+public:    
     virtual void handle_event(const event_type& type, void* data) {
         if (!enabled) return;
         if (type == event_type::mouse) {
@@ -162,6 +206,7 @@ public:
         child->parent_ = this;
         widget* rawPtr = child.get();
         children_.push_back(std::move(child));
+        invalidate_layout(); // 子项变化，父链需要重排
         return rawPtr;
     }
     
@@ -176,6 +221,7 @@ public:
             removed->notify_destroyed_recursive();
             removed->parent_ = nullptr;
             children_.erase(it);
+            invalidate_layout(); // 子项变化，父链需要重排
             return removed;
         }
         return nullptr;

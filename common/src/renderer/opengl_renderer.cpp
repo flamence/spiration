@@ -396,6 +396,8 @@ void opengl_renderer::shutdown() {
     }
     font_faces_.clear();
     glyph_cache_.clear();
+    glyph_advance_cache_.clear();
+    measure_cache_.clear();
 
     if (ft_library_) {
         FT_Done_FreeType(ft_library_);
@@ -1042,6 +1044,10 @@ float opengl_renderer::measure_text_width(const std::string& text, float font_si
     if (text.empty()) return 0.0f;
     float dpi = density_ > 0.0f ? density_ : 1.0f;
 
+    measure_cache_key key{text, font_family, font_size, -1.0f};
+    auto cit = measure_cache_.find(key);
+    if (cit != measure_cache_.end()) return cit->second;
+
     OH_Drawing_TypographyStyle* style = OH_Drawing_CreateTypographyStyle();
     OH_Drawing_SetTypographyTextDirection(style, TEXT_DIRECTION_LTR);
     OH_Drawing_SetTypographyTextAlign(style, TEXT_ALIGN_LEFT);
@@ -1063,6 +1069,8 @@ float opengl_renderer::measure_text_width(const std::string& text, float font_si
     OH_Drawing_DestroyTextStyle(tStyle);
     OH_Drawing_DestroyFontCollection(fc);
     OH_Drawing_DestroyTypographyStyle(style);
+    if (measure_cache_.size() >= MEASURE_CACHE_MAX) measure_cache_.clear();
+    measure_cache_.emplace(std::move(key), w);
     return w;
 }
 
@@ -1077,6 +1085,11 @@ float opengl_renderer::measure_text_height(const std::string& text, float font_s
 float opengl_renderer::measure_text_width(const std::string& text, float font_size,
                                           const std::string& font_family) {
     if (!ft_library_ || text.empty()) return 0.0f;
+
+    // 测量缓存：布局/重排阶段会高频重复测量同一文本，命中后免去逐字形迭代。
+    measure_cache_key key{text, font_family, font_size, -1.0f};
+    auto cit = measure_cache_.find(key);
+    if (cit != measure_cache_.end()) return cit->second;
 
     font_face* fface = get_font_face(font_family.empty() ? "DejaVuSans" : font_family, font_size);
     if (!fface || !fface->face) return 0.0f;
@@ -1110,13 +1123,13 @@ float opengl_renderer::measure_text_width(const std::string& text, float font_si
 
         if (codepoint == '\n') break;
 
-        glyph_info* gi = get_glyph(fface, codepoint);
-        if (gi) {
-            width += gi->advance_x;
-        } else {
-            width += font_size * 0.5f;
-        }
+        // 仅取字形 advance（不触发光栅化与纹理上传），避免布局期卡顿。
+        float adv = get_glyph_advance(fface, codepoint);
+        width += (adv >= 0.0f) ? adv : font_size * 0.5f;
     }
+
+    if (measure_cache_.size() >= MEASURE_CACHE_MAX) measure_cache_.clear();
+    measure_cache_.emplace(std::move(key), width);
     return width;
 }
 
@@ -1124,6 +1137,10 @@ float opengl_renderer::measure_text_height(const std::string& text, float font_s
                                             const std::string& font_family,
                                             float wrap_width) {
     if (!ft_library_ || text.empty()) return 0.0f;
+
+    measure_cache_key key{text, font_family, font_size, wrap_width};
+    auto cit = measure_cache_.find(key);
+    if (cit != measure_cache_.end()) return cit->second;
 
     font_face* fface = get_font_face(font_family.empty() ? "DejaVuSans" : font_family, font_size);
     if (!fface || !fface->face) return 0.0f;
@@ -1162,8 +1179,9 @@ float opengl_renderer::measure_text_height(const std::string& text, float font_s
             continue;
         }
 
-        glyph_info* gi = get_glyph(fface, codepoint);
-        float adv = gi ? gi->advance_x : font_size * 0.5f;
+        // 仅取字形 advance（不触发光栅化与纹理上传），避免布局期卡顿。
+        float adv = get_glyph_advance(fface, codepoint);
+        if (adv < 0.0f) adv = font_size * 0.5f;
 
         if (wrap_width > 0.0f && line_width + adv > wrap_width && line_width > 0.0f) {
             ++lines;
@@ -1173,7 +1191,10 @@ float opengl_renderer::measure_text_height(const std::string& text, float font_s
         }
     }
 
-    return lines * font_size * 1.4f;
+    float result = lines * font_size * 1.4f;
+    if (measure_cache_.size() >= MEASURE_CACHE_MAX) measure_cache_.clear();
+    measure_cache_.emplace(std::move(key), result);
+    return result;
 }
 #endif
 
@@ -1479,6 +1500,34 @@ opengl_renderer::glyph_info* opengl_renderer::get_glyph(font_face* face, char32_
 
     auto result = glyph_cache_.emplace(cache_key, gi);
     return &result.first->second;
+}
+
+float opengl_renderer::get_glyph_advance(font_face* face, char32_t codepoint) {
+    if (!face || !face->face) return -1.0f;
+
+    FT_Face active_face = face->face;
+    FT_UInt glyph_index = FT_Get_Char_Index(active_face, codepoint);
+
+    if (!glyph_index && cjk_fallback_ && cjk_fallback_->face) {
+        active_face = cjk_fallback_->face;
+        FT_Set_Pixel_Sizes(active_face, 0, static_cast<FT_UInt>(face->size));
+        glyph_index = FT_Get_Char_Index(active_face, codepoint);
+    }
+
+    if (!glyph_index) return -1.0f;
+
+    uint64_t cache_key = (reinterpret_cast<uintptr_t>(active_face) << 1) ^
+                         static_cast<uint64_t>(codepoint);
+
+    auto it = glyph_advance_cache_.find(cache_key);
+    if (it != glyph_advance_cache_.end()) return it->second;
+
+    // 仅取字形度量（advance）：不执行 FT_LOAD_RENDER，不做光栅化与纹理上传。
+    if (FT_Load_Glyph(active_face, glyph_index, FT_LOAD_DEFAULT)) return -1.0f;
+
+    float advance = static_cast<float>(active_face->glyph->advance.x) / 64.0f;
+    glyph_advance_cache_.emplace(cache_key, advance);
+    return advance;
 }
 
 bool opengl_renderer::init_glyph_atlas(glyph_atlas* atlas) {
