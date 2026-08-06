@@ -23,9 +23,8 @@
 
 ### Linux
 
-需要支持 X11 桌面，Wayland 暂未测试。
-
-*(Ubuntu 20.04.6 LTS 通过测试)*
+需要支持 X11 桌面；
+确保系统 `glibc` 依赖不低于 `2.35`。
 
 ### Open Harmony / Harmony OS
 
