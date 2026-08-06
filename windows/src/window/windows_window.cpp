@@ -287,10 +287,8 @@ LRESULT Window::HandleMessage(UINT uMsg, WPARAM wParam, LPARAM lParam) {
             m_Renderer->resize(widthDIP, heightDIP);
         }
         if (m_Resizing) {
-            // 拖动改变大小期间限频全量重排（约 30fps）：每个 WM_SIZE 都
-            // 全量 relayout+重测文本会导致严重卡顿（宽度变化使高度缓存失效）。
-            DWORD now = GetTickCount();
-            if (now - m_LastResizeLayoutTick >= 33) {
+            auto now = std::chrono::steady_clock::now();
+            if (now - m_LastResizeLayoutTick >= std::chrono::milliseconds(33)) {
                 m_LastResizeLayoutTick = now;
                 NotifyWidgetResize();
                 if (m_OnResize) m_OnResize(this);
@@ -310,7 +308,7 @@ LRESULT Window::HandleMessage(UINT uMsg, WPARAM wParam, LPARAM lParam) {
     case WM_EXITSIZEMOVE:
         // 拖动结束：恢复全量重排并立即刷新一次
         m_Resizing = false;
-        m_LastResizeLayoutTick = 0;
+        m_LastResizeLayoutTick = std::chrono::steady_clock::time_point{};
         NotifyWidgetResize();
         if (m_OnResize) m_OnResize(this);
         InvalidateRect(m_hWnd, nullptr, FALSE);
@@ -723,15 +721,18 @@ void Window::loop() {
         }
 
         if (m_Widget) {
-            if (m_LastTick == 0) m_LastTick = GetTickCount();
-            DWORD now = GetTickCount();
-            float dt_ms = static_cast<float>(now - m_LastTick);
+            if (m_LastTick == std::chrono::steady_clock::time_point{}) {
+                m_LastTick = std::chrono::steady_clock::now();
+            }
+            auto now = std::chrono::steady_clock::now();
+            float dt_ms = std::chrono::duration<float, std::milli>(now - m_LastTick).count();
             m_LastTick = now;
+            // 与 Linux 循环对齐：空闲后首帧 dt 钳位，避免动画跳变。
+            if (dt_ms > 100.0f) dt_ms = 16.0f;
             m_Widget->tick(dt_ms);
         }
 
-        bool hadRepaintReq = m_RepaintRequested;
-        m_RepaintRequested = false;
+        bool hadRepaintReq = m_RepaintRequested.exchange(false);
 
         if (m_NeedsRepaint || processedInput || hadRepaintReq) {
             if (m_hWnd) {
@@ -747,7 +748,7 @@ void Window::loop() {
 }
 
 void Window::request_repaint() {
-    m_RepaintRequested = true;
+    m_RepaintRequested.store(true);
     if (m_hWnd) {
         InvalidateRect(m_hWnd, nullptr, FALSE);
     }

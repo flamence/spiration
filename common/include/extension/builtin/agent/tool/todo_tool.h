@@ -8,6 +8,7 @@
 
 #include <extension/builtin/agent/tool/tool.h>
 
+#include <atomic>
 #include <functional>
 #include <map>
 #include <mutex>
@@ -47,8 +48,10 @@ public:
     /// @brief 获取当前会话的待办列表。
     std::vector<todo_item> items() const;
 
-    /// @brief 变更版本号。
-    uint64_t version() const { return version_; }
+    /// @brief 变更版本号（原子读取，供 UI 线程轮询）。
+    uint64_t version() const {
+        return version_.load(std::memory_order_relaxed);
+    }
 
     /**
      * @brief 用全量列表替换当前会话的列表。
@@ -70,7 +73,7 @@ private:
     mutable std::mutex mtx_;
     std::map<std::string, std::vector<todo_item>> lists_;
     std::string current_;
-    uint64_t version_ = 0;
+    std::atomic<uint64_t> version_{0};
     size_t next_id_ = 1;
 };
 

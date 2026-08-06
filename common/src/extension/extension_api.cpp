@@ -27,7 +27,14 @@ extension_api::extension_api(std::string id)
     : id_(id) {}
 
 std::shared_ptr<renderer> extension_api::get_renderer() const {
-    return nullptr;
+    auto* w = spiration::application::instance()->window();
+    return w ? w->get_renderer() : nullptr;
+}
+
+std::shared_ptr<window> extension_api::get_window() const {
+    auto* w = spiration::application::instance()->window();
+    if (!w) return nullptr;
+    return std::shared_ptr<window>(w, [](window*) {});
 }
 
 std::string extension_api::tr(const std::string& key) const {

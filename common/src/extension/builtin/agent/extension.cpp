@@ -108,7 +108,7 @@ bool extension::initialize() {
     }
 
     if (has_config) {
-        client_ = std::make_unique<chat_client>(cfg);
+        client_ = std::make_shared<chat_client>(cfg);
         client_->set_system_prompt(
             "你是一个有用的助手，可使用以下工具集："
             "1) 终端：create_terminal 创建交互式终端会话得到 terminal_id，write_terminal 发送命令（默认附带回车），read_terminal 按行窗口读取输出（行号自下而上，1 为最新行），会话保持存活可连续操作，kill_terminal 关闭并释放终端；"
@@ -169,7 +169,7 @@ bool extension::initialize() {
         api->log_info("agent extension initialized (no config at %s)", models_path.c_str());
     }
 
-    store_ = std::make_unique<chat_store>(data_dir_);
+    store_ = std::make_shared<chat_store>(data_dir_);
 
     if (memory_) {
         memory_->bind(store_.get(), [this]() { return store_->current_uuid(); });
@@ -224,7 +224,7 @@ void extension::open_agent_tab() {
         if (api->activate_tab(agent_tab_)) return;
         agent_tab_ = nullptr;
     }
-    auto tab = std::make_unique<agent_tab>(client_.get(), store_.get());
+    auto tab = std::make_unique<agent_tab>(client_, store_);
     tab->set_repaint_callback([this]() { if (api) api->request_repaint(); });
     tab->on_conversation_done = [this](agent_tab* t) { save_conversation(t); };
     tab->on_destroyed = [this]() { agent_tab_ = nullptr; };  // 标签页关闭时清引用

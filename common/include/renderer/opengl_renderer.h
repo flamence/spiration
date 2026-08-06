@@ -25,6 +25,7 @@
 #include <vector>
 #include <string>
 #include <cstdint>
+#include <functional>
 
 namespace spiration {
 
@@ -89,9 +90,9 @@ public:
 #endif
 
     float measure_text_width(const std::string& text, float font_size = 16.0f,
-                             const std::string& font_family = "Consolas") override;
+                             const std::string& font_family = "Arial") override;
     float measure_text_height(const std::string& text, float font_size = 16.0f,
-                              const std::string& font_family = "Consolas",
+                              const std::string& font_family = "Arial",
                               float wrap_width = 10000.0f) override;
 
     struct vertex {
@@ -142,6 +143,7 @@ private:
     bool init_cjk_fallback_font();
     font_face* get_font_face(const std::string& family, float size);
     glyph_info* get_glyph(font_face* face, char32_t codepoint);
+    float get_glyph_advance(font_face* face, char32_t codepoint);
     bool init_glyph_atlas(glyph_atlas* atlas);
 #endif
 
@@ -186,11 +188,33 @@ private:
     FT_Library ft_library_ = nullptr;
     std::unordered_map<std::string, font_face> font_faces_;
     std::unordered_map<uint64_t, glyph_info> glyph_cache_;
+    std::unordered_map<uint64_t, float> glyph_advance_cache_;
     glyph_atlas glyph_atlas_;
     font_face* cjk_fallback_ = nullptr;
 #endif
 
     std::unordered_map<std::string, image_resource> images_;
+
+    struct measure_cache_key {
+        std::string text;
+        std::string family;
+        float size = 0.0f;
+        float wrap = 0.0f;
+        bool operator==(const measure_cache_key& o) const {
+            return size == o.size && wrap == o.wrap &&
+                   text == o.text && family == o.family;
+        }
+    };
+    struct measure_cache_hash {
+        size_t operator()(const measure_cache_key& k) const {
+            size_t h = std::hash<std::string>{}(k.text);
+            h ^= std::hash<float>{}(k.size) + 0x9e3779b9u + (h << 6) + (h >> 2);
+            h ^= std::hash<float>{}(k.wrap) + 0x9e3779b9u + (h << 6) + (h >> 2);
+            h ^= std::hash<std::string>{}(k.family) + 0x9e3779b9u + (h << 6) + (h >> 2);
+            return h;
+        }
+    };
+    std::unordered_map<measure_cache_key, float, measure_cache_hash> measure_cache_;
 
     std::vector<transform> transform_stack_;
     std::vector<rectangle> clip_stack_;
@@ -217,6 +241,7 @@ private:
 
     static constexpr int CIRCLE_SEGMENTS = 48;
     static constexpr int MAX_BATCH_VERTICES = 8192;
+    static constexpr size_t MEASURE_CACHE_MAX = 16384;
 };
 
 } // namespace spiration

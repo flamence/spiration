@@ -35,6 +35,10 @@ chat_client::chat_client(const config& cfg) : cfg_(cfg) {
 }
 
 void chat_client::configure(const config& c) {
+    if (running_.load(std::memory_order_acquire)) {
+        console::warning("extension/agent", "configure ignored: a run is in progress");
+        return;
+    }
     cfg_ = c;
     provider_ = agent_registry::instance().create_provider(cfg_.provider);
     console::info("extension/agent", "configured: provider=%s model=%s",
@@ -271,8 +275,8 @@ chat_response chat_client::send_stream(const chat_events& events) {
             resp.reasoning_content = pr.reasoning_content;
             resp.tool_calls        = std::move(pr.tool_calls);
             resp.finish_reason     = pr.finish_reason;
-            total_input_  += pr.prompt_tokens;
-            total_output_ += pr.completion_tokens;
+            total_input_.fetch_add(pr.prompt_tokens, std::memory_order_relaxed);
+            total_output_.fetch_add(pr.completion_tokens, std::memory_order_relaxed);
             if (on_tokens_updated) on_tokens_updated();
         } catch (const std::exception& e) {
             console::error("extension/agent", "parse response failed: %s", e.what());
@@ -330,8 +334,8 @@ chat_response chat_client::send_stream(const chat_events& events) {
     resp.content           = ctx.content;
     resp.reasoning_content = ctx.reasoning;
     resp.finish_reason     = ctx.finish_reason;
-    total_input_  += ctx.prompt_tokens;
-    total_output_ += ctx.completion_tokens;
+    total_input_.fetch_add(ctx.prompt_tokens, std::memory_order_relaxed);
+    total_output_.fetch_add(ctx.completion_tokens, std::memory_order_relaxed);
     if (on_tokens_updated) on_tokens_updated();
     for (auto& [idx, tc] : ctx.tc_map)
         resp.tool_calls.push_back(std::move(tc));
@@ -350,6 +354,10 @@ tool* chat_client::find_tool(const std::string& name) const {
 bool chat_client::switch_provider(const std::string& name) {
     if (name.empty()) return true;
     if (provider_ && provider_->name() == name) return true;
+    if (running_.load(std::memory_order_acquire)) {
+        console::warning("extension/agent", "switch provider ignored: a run is in progress");
+        return false;
+    }
     auto p = agent_registry::instance().create_provider(name);
     if (!p) {
         console::warning("extension/agent", "switch provider failed: %s", name.c_str());
@@ -410,6 +418,12 @@ std::string chat_client::execute_tool(const tool_call& tc,
 }
 
 chat_response chat_client::run(int max_rounds, const chat_events& events) {
+    running_.store(true, std::memory_order_release);
+    struct run_guard {
+        std::atomic<bool>& flag;
+        ~run_guard() { flag.store(false, std::memory_order_release); }
+    } guard{running_};
+
     chat_response last;
     std::vector<tool_execution> all_executions;
 

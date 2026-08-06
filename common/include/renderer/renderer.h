@@ -89,7 +89,7 @@ public:
 
     
     virtual float measure_text_width(const std::string& text, float font_size = 16.0f,
-                                     const std::string& font_family = "Consolas") = 0;
+                                     const std::string& font_family = "Arial") = 0;
 
     /// @brief 测量文本高度（DIP），考虑给定宽度内的自动换行。
     /// @param text  要测量的文本
@@ -98,13 +98,12 @@ public:
     /// @param wrap_width  换行宽度（DIP），超出此宽度自动换行
     /// @return 文本在给定宽度内完整渲染所需的高度（DIP）
     virtual float measure_text_height(const std::string& text, float font_size = 16.0f,
-                                       const std::string& font_family = "Consolas",
+                                       const std::string& font_family = "Arial",
                                        float wrap_width = 10000.0f) = 0;
     
     static std::shared_ptr<renderer> create_direct2d_renderer();
     static std::shared_ptr<renderer> create_opengl_renderer();
     static std::shared_ptr<renderer> create_metal_renderer();
-    static std::shared_ptr<renderer> create_vulkan_renderer();
 };
 
 }
