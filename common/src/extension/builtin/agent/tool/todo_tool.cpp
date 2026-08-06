@@ -59,27 +59,27 @@ void todo_store::set(const std::vector<todo_item>& incoming) {
         next.push_back(std::move(item));
     }
     lists_[current_] = std::move(next);
-    ++version_;
+    version_.fetch_add(1, std::memory_order_relaxed);
 }
 
 void todo_store::clear() {
     std::lock_guard<std::mutex> lk(mtx_);
     lists_[current_].clear();
-    ++version_;
+    version_.fetch_add(1, std::memory_order_relaxed);
 }
 
 void todo_store::set_current_uuid(const std::string& uuid) {
     std::lock_guard<std::mutex> lk(mtx_);
     if (current_ == uuid) return;
     current_ = uuid;
-    ++version_;
+    version_.fetch_add(1, std::memory_order_relaxed);
 }
 
 void todo_store::remove(const std::string& uuid) {
     std::lock_guard<std::mutex> lk(mtx_);
     lists_.erase(uuid);
     if (current_ == uuid) current_.clear();
-    ++version_;
+    version_.fetch_add(1, std::memory_order_relaxed);
 }
 
 std::string todo_tool::description() const {

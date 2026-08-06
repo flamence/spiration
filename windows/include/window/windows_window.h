@@ -11,6 +11,7 @@
 #include <window/window.h>
 #include <window/window_constants.h>
 #include <Windows.h>
+#include <atomic>
 #include <chrono>
 #include <memory>
 #include <functional>
@@ -101,7 +102,7 @@ private:
     bool m_IsFullscreen = false;
     bool m_NeedsRepaint = true;
     bool m_NeedsLayout = true;
-    bool m_RepaintRequested = false;
+    std::atomic<bool> m_RepaintRequested{false};
 
     bool m_Resizing = false;
     std::chrono::steady_clock::time_point m_LastResizeLayoutTick{};

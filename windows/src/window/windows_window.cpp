@@ -732,8 +732,7 @@ void Window::loop() {
             m_Widget->tick(dt_ms);
         }
 
-        bool hadRepaintReq = m_RepaintRequested;
-        m_RepaintRequested = false;
+        bool hadRepaintReq = m_RepaintRequested.exchange(false);
 
         if (m_NeedsRepaint || processedInput || hadRepaintReq) {
             if (m_hWnd) {
@@ -749,7 +748,7 @@ void Window::loop() {
 }
 
 void Window::request_repaint() {
-    m_RepaintRequested = true;
+    m_RepaintRequested.store(true);
     if (m_hWnd) {
         InvalidateRect(m_hWnd, nullptr, FALSE);
     }
