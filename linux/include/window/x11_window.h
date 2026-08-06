@@ -9,6 +9,8 @@
 #include <renderer/renderer.h>
 #include <ui/widget.h>
 #include <window/window.h>
+#include <window/window_constants.h>
+#include <window/virtual_key.h>
 #include <X11/Xlib.h>
 #include <X11/Xutil.h>
 #include <X11/Xatom.h>
@@ -183,9 +185,9 @@ private:
     int resize_start_mx_ = 0;
     int resize_start_my_ = 0;
 
-    static constexpr float RESIZE_MARGIN = 6.0f;
+    static constexpr float RESIZE_MARGIN = kResizeBorderWidth;
 
-    static constexpr float DRAG_AREA_HEIGHT = 34.0f;
+    static constexpr float DRAG_AREA_HEIGHT = kTitleBarDragHeight;
 
     static uint32_t next_window_id_;
     static x11_window* s_active_window_;  // 当前活动窗口（剪贴板后端无捕获 lambda 访问用）
