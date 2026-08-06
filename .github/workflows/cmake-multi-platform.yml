@@ -50,25 +50,14 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - name: 安装 Linux 依赖
+      - name: 安装依赖
         if: runner.os == 'Linux'
         shell: bash
         run: |
-          export DEBIAN_FRONTEND=noninteractive
-          apt-get update
-          apt-get install -y git wget pkg-config lsb-release software-properties-common g++-10 python3-pip libssl-dev libx11-dev libgl1-mesa-dev libfreetype-dev libxcb1-dev libxcb-randr0-dev
-          pip3 install cmake
-          wget -q https://apt.llvm.org/llvm.sh
-          chmod +x llvm.sh
-          ./llvm.sh 18 clang
-          ln -sf /usr/bin/clang-18 /usr/local/bin/clang
-          ln -sf /usr/bin/clang++-18 /usr/local/bin/clang++
-          wget -q https://www.openssl.org/source/openssl-3.5.7.tar.gz
-          tar xzf openssl-3.5.7.tar.gz
-          cd openssl-3.5.7
-          ./config --prefix=/usr/local --libdir=lib
-          make -j2
-          make install_sw
+          sudo apt-get update
+          sudo apt-get install -y pkg-config \
+            libx11-dev libgl1-mesa-dev libfreetype-dev \
+            libxcb1-dev libxcb-randr0-dev libssl-dev
 
       - name: 设置复用变量
         id: strings
