@@ -686,8 +686,8 @@ bool x11_window::create_x11_window(const window_params& params) {
 
     XSizeHints hints = {};
     hints.flags = PMinSize;
-    hints.min_width = static_cast<int>(400 * dpi_scale_);
-    hints.min_height = static_cast<int>(300 * dpi_scale_);
+    hints.min_width = static_cast<int>(kMinWindowWidth * dpi_scale_);
+    hints.min_height = static_cast<int>(kMinWindowHeight * dpi_scale_);
     XSetWMNormalHints(display_, window_, &hints);
 
     if (!params.decorated) {
@@ -982,31 +982,31 @@ void x11_window::handle_resize(uint32_t width, uint32_t height) {
 
 static int keysym_to_vk(KeySym keysym) {
     switch (keysym) {
-        case XK_BackSpace: return 0x08; // VK_BACK
-        case XK_Tab:       return 0x09; // VK_TAB
-        case XK_Return:    return 0x0D; // VK_RETURN
-        case XK_Escape:    return 0x1B; // VK_ESCAPE
-        case XK_Delete:    return 0x2E; // VK_DELETE
-        case XK_Home:      return 0x24; // VK_HOME
-        case XK_Left:      return 0x25; // VK_LEFT
-        case XK_Up:        return 0x26; // VK_UP
-        case XK_Right:     return 0x27; // VK_RIGHT
-        case XK_Down:      return 0x28; // VK_DOWN
-        case XK_Prior:     return 0x21; // VK_PRIOR (Page Up)
-        case XK_Next:      return 0x22; // VK_NEXT (Page Down)
-        case XK_End:       return 0x23; // VK_END
-        case XK_F1:        return 0x70; // VK_F1
-        case XK_F2:        return 0x71;
-        case XK_F3:        return 0x72;
-        case XK_F4:        return 0x73;
-        case XK_F5:        return 0x74;
-        case XK_F6:        return 0x75;
-        case XK_F7:        return 0x76;
-        case XK_F8:        return 0x77;
-        case XK_F9:        return 0x78;
-        case XK_F10:       return 0x79;
-        case XK_F11:       return 0x7A;
-        case XK_F12:       return 0x7B;
+        case XK_BackSpace: return vk::Back;
+        case XK_Tab:       return vk::Tab;
+        case XK_Return:    return vk::Return;
+        case XK_Escape:    return vk::Escape;
+        case XK_Delete:    return vk::Delete;
+        case XK_Home:      return vk::Home;
+        case XK_Left:      return vk::Left;
+        case XK_Up:        return vk::Up;
+        case XK_Right:     return vk::Right;
+        case XK_Down:      return vk::Down;
+        case XK_Prior:     return vk::PageUp; // VK_PRIOR (Page Up)
+        case XK_Next:      return vk::PageDown; // VK_NEXT (Page Down)
+        case XK_End:       return vk::End;
+        case XK_F1:        return vk::F1;
+        case XK_F2:        return vk::F2;
+        case XK_F3:        return vk::F3;
+        case XK_F4:        return vk::F4;
+        case XK_F5:        return vk::F5;
+        case XK_F6:        return vk::F6;
+        case XK_F7:        return vk::F7;
+        case XK_F8:        return vk::F8;
+        case XK_F9:        return vk::F9;
+        case XK_F10:       return vk::F10;
+        case XK_F11:       return vk::F11;
+        case XK_F12:       return vk::F12;
         default:
             if (keysym >= XK_A && keysym <= XK_Z) return static_cast<int>(keysym);
             if (keysym >= XK_a && keysym <= XK_z) return static_cast<int>(keysym - 32);

@@ -9,7 +9,9 @@
 #include <renderer/renderer.h>
 #include <ui/widget.h>
 #include <window/window.h>
+#include <window/window_constants.h>
 #include <Windows.h>
+#include <chrono>
 #include <memory>
 #include <functional>
 #include <string>
@@ -102,8 +104,8 @@ private:
     bool m_RepaintRequested = false;
 
     bool m_Resizing = false;
-    DWORD m_LastResizeLayoutTick = 0;
-    DWORD m_LastTick = 0;
+    std::chrono::steady_clock::time_point m_LastResizeLayoutTick{};
+    std::chrono::steady_clock::time_point m_LastTick{};
 
     RECT m_WindowRectBeforeFullscreen = {};
     DWORD m_WindowStyleBeforeFullscreen = 0;
@@ -119,9 +121,9 @@ private:
 
     float m_DPIScale = 1.0f;
 
-    static constexpr float DRAG_AREA_HEIGHT = 34.0f;
+    static constexpr float DRAG_AREA_HEIGHT = spiration::kTitleBarDragHeight;
 
-    static constexpr float RESIZE_BORDER_WIDTH = 6.0f;
+    static constexpr float RESIZE_BORDER_WIDTH = spiration::kResizeBorderWidth;
 
     std::shared_ptr<renderer> m_Renderer = nullptr;
     std::unique_ptr<widget> m_Widget = nullptr;

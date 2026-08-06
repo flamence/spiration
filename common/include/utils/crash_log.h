@@ -12,9 +12,10 @@ namespace spiration {
 namespace crash_log {
 
 /**
- * @brief 安装崩溃信号处理器。崩溃时将信号与调用栈追加写入指定日志文件。
+ * @brief 安装崩溃处理器。崩溃时将异常/信号与调用栈追加写入指定日志文件。
  * @param path 日志文件完整路径。
- * @note Windows 平台为空实现。
+ * @note Windows 使用结构化异常处理（SEH）+ DbgHelp 符号化；
+ *       POSIX 使用信号处理器 + backtrace_symbols。
  */
 void install(const std::string& path);
 

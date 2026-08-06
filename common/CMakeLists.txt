@@ -21,6 +21,10 @@ target_link_libraries(spiration-common PUBLIC CppProperties::cppproperties)
 target_link_libraries(spiration-common PUBLIC nlohmann_json::nlohmann_json)
 target_link_libraries(spiration-common PUBLIC CURL::libcurl)
 
+if(WIN32)
+    target_link_libraries(spiration-common PUBLIC dbghelp)
+endif()
+
 if(UNIX AND NOT APPLE)
     find_package(OpenGL REQUIRED)
     find_package(Freetype REQUIRED)

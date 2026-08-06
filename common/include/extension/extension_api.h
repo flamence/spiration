@@ -29,12 +29,13 @@ public:
     explicit extension_api(std::string id);
 
     /**
-     * @brief 获取渲染器实例。
+     * @brief 获取当前窗口的渲染器实例。
      */
     std::shared_ptr<renderer> get_renderer() const;
 
     /**
-     * @brief 获取窗口实例。
+     * @brief 获取当前窗口实例。
+     * @note 返回的 shared_ptr 不参与所有权管理，窗口生命周期由 application 管理。
      */
     std::shared_ptr<window> get_window() const;
 

@@ -72,9 +72,9 @@ public:
     void get_viewport_size(uint32_t& width, uint32_t& height) const override;
 
     float measure_text_width(const std::string& text, float font_size = 16.0f,
-                             const std::string& font_family = "Consolas") override;
+                             const std::string& font_family = "Arial") override;
     float measure_text_height(const std::string& text, float font_size = 16.0f,
-                              const std::string& font_family = "Consolas",
+                              const std::string& font_family = "Arial",
                               float wrap_width = 10000.0f) override;
     
 private:

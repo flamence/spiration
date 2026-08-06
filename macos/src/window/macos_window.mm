@@ -9,6 +9,8 @@
 #import <ui/point.h>
 #import <ui/size.h>
 #import <utils/console.h>
+#import <window/window_constants.h>
+#import <window/virtual_key.h>
 #import <Cocoa/Cocoa.h>
 #import <QuartzCore/CAMetalLayer.h>
 #import <string>
@@ -16,38 +18,38 @@
 
 using namespace spiration;
 
-static constexpr float DRAG_AREA_HEIGHT = 34.0f;
-static constexpr float RESIZE_MARGIN = 6.0f;
-static constexpr float MIN_WINDOW_WIDTH = 400.0f;
-static constexpr float MIN_WINDOW_HEIGHT = 300.0f;
+static constexpr float DRAG_AREA_HEIGHT = spiration::kTitleBarDragHeight;
+static constexpr float RESIZE_MARGIN = spiration::kResizeBorderWidth;
+static constexpr float MIN_WINDOW_WIDTH = spiration::kMinWindowWidth;
+static constexpr float MIN_WINDOW_HEIGHT = spiration::kMinWindowHeight;
 
 static int cocoa_key_to_vk(unsigned short keyCode) {
     switch (keyCode) {
-        case 0x33: return 0x08; // VK_BACK
-        case 0x30: return 0x09; // VK_TAB
-        case 0x24: return 0x0D; // VK_RETURN
-        case 0x1B: return 0x1B; // VK_ESCAPE
-        case 0x75: return 0x2E; // VK_DELETE
-        case 0x73: return 0x24; // VK_HOME
-        case 0x7B: return 0x25; // VK_LEFT
-        case 0x7E: return 0x26; // VK_UP
-        case 0x7C: return 0x27; // VK_RIGHT
-        case 0x7D: return 0x28; // VK_DOWN
-        case 0x74: return 0x21; // VK_PRIOR
-        case 0x79: return 0x22; // VK_NEXT
-        case 0x77: return 0x23; // VK_END
-        case 0x7A: return 0x70; // VK_F1
-        case 0x78: return 0x71; // VK_F2
-        case 0x63: return 0x72; // VK_F3
-        case 0x76: return 0x73; // VK_F4
-        case 0x60: return 0x74; // VK_F5
-        case 0x61: return 0x75; // VK_F6
-        case 0x62: return 0x76; // VK_F7
-        case 0x64: return 0x77; // VK_F8
-        case 0x65: return 0x78; // VK_F9
-        case 0x6D: return 0x79; // VK_F10
-        case 0x67: return 0x7A; // VK_F11
-        case 0x6F: return 0x7B; // VK_F12
+        case 0x33: return vk::Back;
+        case 0x30: return vk::Tab;
+        case 0x24: return vk::Return;
+        case 0x1B: return vk::Escape;
+        case 0x75: return vk::Delete;
+        case 0x73: return vk::Home;
+        case 0x7B: return vk::Left;
+        case 0x7E: return vk::Up;
+        case 0x7C: return vk::Right;
+        case 0x7D: return vk::Down;
+        case 0x74: return vk::PageUp;
+        case 0x79: return vk::PageDown;
+        case 0x77: return vk::End;
+        case 0x7A: return vk::F1;
+        case 0x78: return vk::F2;
+        case 0x63: return vk::F3;
+        case 0x76: return vk::F4;
+        case 0x60: return vk::F5;
+        case 0x61: return vk::F6;
+        case 0x62: return vk::F7;
+        case 0x64: return vk::F8;
+        case 0x65: return vk::F9;
+        case 0x6D: return vk::F10;
+        case 0x67: return vk::F11;
+        case 0x6F: return vk::F12;
         default: return static_cast<int>(keyCode);
     }
 }
