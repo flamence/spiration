@@ -118,5 +118,5 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           cd "${{ steps.strings.outputs.build-bin-dir }}"
-          tar -czf "${{ steps.strings.outputs.archive-name }}" *
-          gh release upload ${{ github.event.release.tag_name }} "${{ steps.strings.outputs.archive-name }}" --repo ${{ github.repository }}
+          tar -czf "${{ steps.strings.outputs.archive-name }}.tar.gz" *
+          gh release upload ${{ github.event.release.tag_name }} "${{ steps.strings.outputs.archive-name }}.tar.gz" --repo ${{ github.repository }}
