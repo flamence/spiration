@@ -808,4 +808,4 @@ window::~window() = default;
 window::window(window&&) noexcept = default;
 window& window::operator=(window&&) noexcept = default;
 
-} 
+}
