@@ -2,14 +2,12 @@ name: 编译 Hap
 
 on:
   push:
-    branches: [ "main" ]
     paths:
       - 'CMakeLists.txt'
       - 'common/**'
       - 'ohos/**'
       - '.github/workflows/**'
   pull_request:
-    branches: [ "main" ]
     paths:
       - 'CMakeLists.txt'
       - 'common/**'
