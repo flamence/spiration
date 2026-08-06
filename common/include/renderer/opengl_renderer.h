@@ -2,26 +2,6 @@
  * @file opengl_renderer.h
  * @brief OpenGL 渲染器。
  * @author clk
- *
- * @section platform 双平台架构说明
- *
- * 本文件由 Linux 与 OpenHarmony(OHOS) 两个平台编译，通过 `#if defined(__OHOS__)`
- * 在同一份源码中维护两条差异较大的实现路径（Windows 使用 D2D、macOS 使用 Metal，
- * 不编译本文件）：
- *
- * - **Linux**（`__OHOS__` 未定义）：GL 3.3 Core + GLX（上下文在 x11_window 创建），
- *   文本走 FreeType 字形图集（`get_font_face`/`get_glyph`/`get_glyph_advance`）。
- * - **OHOS**（`__OHOS__` 定义）：GLES 3.0 + EGL（`init_egl`），文本走 native_drawing
- *   （`OH_Drawing_Typography` 排版后光栅化上传纹理），并额外暴露 DPI/物理尺寸 API
- *   （`set_density` 等）。
- *
- * 共享部分（顶点批处理、着色器、矩阵、裁剪、变换、stb 图像）与平台特定部分
- * （着色器源码、文本管线、EGL 上下文、OHOS 尺寸 API）在同一文件中以条件编译共存，
- * 约半数为平台分支代码。
- *
- * @warning 维护注意：修改共享逻辑必须同时考虑两条路径；修改平台分支只能在该平台
- * 上验证。代码拆分（文本管线分文件、共享核心保留）需在 Linux/OHOS 环境执行并回归，
- * 本机（Windows）无法编译验证。
  */
 
 #pragma once
@@ -215,7 +195,6 @@ private:
 
     std::unordered_map<std::string, image_resource> images_;
 
-    /// 文本测量缓存：避免布局/重排阶段高频重复测量同一文本。
     struct measure_cache_key {
         std::string text;
         std::string family;
