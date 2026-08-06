@@ -9,7 +9,10 @@ file(GLOB_RECURSE COMMON_HEADERS
 
 if(NOT (UNIX AND NOT APPLE))
     list(FILTER COMMON_SOURCES EXCLUDE REGEX ".*opengl_renderer\\.cpp$")
+    list(FILTER COMMON_SOURCES EXCLUDE REGEX ".*opengl_text_freetype\\.cpp$")
 endif()
+# OpenGL 渲染器 OHOS 文本管线由 ohos 构建单独编译
+list(FILTER COMMON_SOURCES EXCLUDE REGEX ".*opengl_text_ohos\\.cpp$")
 
 add_library(spiration-common STATIC ${COMMON_SOURCES} ${COMMON_HEADERS})
 
