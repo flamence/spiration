@@ -101,8 +101,8 @@ void vertical_layout::arrange(
             child->height = static_cast<float>(child->widget_style.height);
             currentY += child->height + mt + mb + spacing_;
         } else {
-            // 先设宽度，再调用 layout() 让子 widget 自行更新高度
-            child->layout();
+            // 先设宽度，再调用 layout() 让子 widget 自行更新高度（几何未变则跳过）
+            if (child->needs_layout()) child->layout();
             if (child->height <= 0.0f) {
                 size pref = child->layout_preferred_size();
                 child->height = pref.height;

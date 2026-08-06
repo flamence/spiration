@@ -15,6 +15,7 @@ void scroll_row::init() {
 }
 
 void scroll_row::layout() {
+    on_layout_begin();
     content_width_ = 0.0f;
     if (child_width_ > 0.0f) {
         content_width_ = static_cast<float>(children().size()) * child_width_;
@@ -24,7 +25,7 @@ void scroll_row::layout() {
             child->y = 0.0f;
             child->width = child_width_;
             child->height = height;
-            child->layout();
+            if (child->needs_layout()) child->layout();
             cx += child_width_;
         }
     }

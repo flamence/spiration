@@ -363,6 +363,7 @@ size label::layout_preferred_size() const {
 }
 
 void label::layout() {
+    on_layout_begin();
     if (selectable) {
         std::vector<line_info> lines;
         float h = layout_lines(current_renderer(), lines);

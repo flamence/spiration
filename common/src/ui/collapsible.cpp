@@ -47,7 +47,7 @@ void collapsible::layout() {
         content_->y = summary_height;
         content_->width = width;
         content_->height = (max_content_height > 0.0f) ? max_content_height : 10000.0f;
-        content_->layout();
+        if (content_->needs_layout()) content_->layout();
         if (auto* c = dynamic_cast<container*>(content_)) {
             content_measured_h_ = c->content_height();
         } else {

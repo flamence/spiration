@@ -17,6 +17,7 @@ void split_pane::init() {
 void split_pane::layout() {
     if (!auto_layout) { widget::layout(); return; }
     if (children().size() < 2) return;
+    on_layout_begin();
 
     if (dir == direction::vertical) {
         float avail = height - handle_size;
@@ -24,20 +25,20 @@ void split_pane::layout() {
         float h2 = avail - h1;
         children()[0]->x = 0.0f; children()[0]->y = 0.0f;
         children()[0]->width = width; children()[0]->height = h1;
-        children()[0]->layout();
+        if (children()[0]->needs_layout()) children()[0]->layout();
         children()[1]->x = 0.0f; children()[1]->y = h1 + handle_size;
         children()[1]->width = width; children()[1]->height = h2;
-        children()[1]->layout();
+        if (children()[1]->needs_layout()) children()[1]->layout();
     } else {
         float avail = width - handle_size;
         float w1 = avail * split_ratio_;
         float w2 = avail - w1;
         children()[0]->x = 0.0f; children()[0]->y = 0.0f;
         children()[0]->width = w1; children()[0]->height = height;
-        children()[0]->layout();
+        if (children()[0]->needs_layout()) children()[0]->layout();
         children()[1]->x = w1 + handle_size; children()[1]->y = 0.0f;
         children()[1]->width = w2; children()[1]->height = height;
-        children()[1]->layout();
+        if (children()[1]->needs_layout()) children()[1]->layout();
     }
 }
 
