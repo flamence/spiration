@@ -2,6 +2,11 @@
  * @file opengl_renderer.cpp
  * @brief OpenGL 渲染器实现。
  * @author clk
+ *
+ * 平台架构见 opengl_renderer.h 顶部说明：
+ * Linux 走 GLX + FreeType，OHOS 走 EGL + native_drawing，两条路径在
+ * `#if defined(__OHOS__)` 条件块中共存。共享核心与平台文本管线尚未拆分，
+ * 拆分需在 Linux/OHOS 环境执行并回归。
  */
 
 #include <renderer/opengl_renderer.h>
