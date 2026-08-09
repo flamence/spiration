@@ -60,7 +60,7 @@ cmake --build ./build
 
 ## 贡献支持
 
-详见 [CONTRIBUTING.md](CONTRIBUTION.md)
+详见 [CONTRIBUTING.md](CONTRIBUTING.md)。
 
 ## 协议许可
 
