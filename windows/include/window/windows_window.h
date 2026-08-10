@@ -60,25 +60,18 @@ public:
     void loop() override;
     bool should_close() const override;
 
-    void* user_data() const override;
-    void set_user_data(void* data) override;
-
     void request_repaint() override;
     void request_layout() override;
 
-    void set_cursor(cursor_type c) override;
+    void set_cursor(cursor_style c) override;
 
-    void set_on_close(void_function callback) override;
-    void set_on_resize(void_function callback) override;
-    void set_on_key(void_function callback) override;
-    void set_on_mouse(void_function callback) override;
     void set_mouse_capture(bool capture) override;
 
     void set_widget(std::unique_ptr<widget> widget) override;
 
     std::shared_ptr<class renderer> get_renderer() const override { return m_Renderer; }
 
-    bool initialize(const window_params& params) override;
+    bool initialize(const window_parameters& params) override;
 
 private:
     void shutdown() override;
@@ -91,7 +84,7 @@ private:
     void RestoreWindowFromFullscreen();
     bool CreateRenderer();
     bool CreateWindowClass();
-    bool CreateActualWindow(const window_params& params);
+    bool CreateActualWindow(const window_parameters& params);
     void NotifyWidgetResize();
 
     HWND m_hWnd = nullptr;
@@ -112,12 +105,6 @@ private:
     DWORD m_WindowStyleBeforeFullscreen = 0;
     DWORD m_WindowExStyleBeforeFullscreen = 0;
 
-    void_function m_OnClose = nullptr;
-    void_function m_OnResize = nullptr;
-    void_function m_OnKey = nullptr;
-    void_function m_OnMouse = nullptr;
-
-    void* m_UserData = nullptr;
     uint32_t m_WindowId = 0;
 
     float m_DPIScale = 1.0f;

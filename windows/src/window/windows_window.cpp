@@ -29,18 +29,18 @@ namespace spiration {
 namespace {
 
 /// cursor_type → Win32 系统光标。
-HCURSOR load_cursor(cursor_type c) {
+HCURSOR load_cursor(cursor_style c) {
     switch (c) {
-    case cursor_type::text:        return LoadCursorW(nullptr, IDC_IBEAM);
-    case cursor_type::pointer:     return LoadCursorW(nullptr, IDC_HAND);
-    case cursor_type::crosshair:   return LoadCursorW(nullptr, IDC_CROSS);
-    case cursor_type::move:        return LoadCursorW(nullptr, IDC_SIZEALL);
-    case cursor_type::resize_h:    return LoadCursorW(nullptr, IDC_SIZEWE);
-    case cursor_type::resize_v:    return LoadCursorW(nullptr, IDC_SIZENS);
-    case cursor_type::resize_nwse: return LoadCursorW(nullptr, IDC_SIZENWSE);
-    case cursor_type::resize_nesw: return LoadCursorW(nullptr, IDC_SIZENESW);
-    case cursor_type::forbidden:   return LoadCursorW(nullptr, IDC_NO);
-    case cursor_type::default_cursor:
+    case cursor_style::text:        return LoadCursorW(nullptr, IDC_IBEAM);
+    case cursor_style::pointer:     return LoadCursorW(nullptr, IDC_HAND);
+    case cursor_style::crosshair:   return LoadCursorW(nullptr, IDC_CROSS);
+    case cursor_style::move:        return LoadCursorW(nullptr, IDC_SIZEALL);
+    case cursor_style::resize_h:    return LoadCursorW(nullptr, IDC_SIZEWE);
+    case cursor_style::resize_v:    return LoadCursorW(nullptr, IDC_SIZENS);
+    case cursor_style::resize_nwse: return LoadCursorW(nullptr, IDC_SIZENWSE);
+    case cursor_style::resize_nesw: return LoadCursorW(nullptr, IDC_SIZENESW);
+    case cursor_style::forbidden:   return LoadCursorW(nullptr, IDC_NO);
+    case cursor_style::default_cursor:
     default:                       return LoadCursorW(nullptr, IDC_ARROW);
     }
 }
@@ -63,11 +63,6 @@ Window::Window(Window&& other) noexcept
     , m_WindowRectBeforeFullscreen(other.m_WindowRectBeforeFullscreen)
     , m_WindowStyleBeforeFullscreen(other.m_WindowStyleBeforeFullscreen)
     , m_WindowExStyleBeforeFullscreen(other.m_WindowExStyleBeforeFullscreen)
-    , m_OnClose(std::move(other.m_OnClose))
-    , m_OnResize(std::move(other.m_OnResize))
-    , m_OnKey(std::move(other.m_OnKey))
-    , m_OnMouse(std::move(other.m_OnMouse))
-    , m_UserData(other.m_UserData)
     , m_WindowId(other.m_WindowId)
     , m_DPIScale(other.m_DPIScale)
     , m_Renderer(std::move(other.m_Renderer))
@@ -76,7 +71,6 @@ Window::Window(Window&& other) noexcept
     other.m_hInstance = nullptr;
     other.m_ShouldClose = false;
     other.m_IsFullscreen = false;
-    other.m_UserData = nullptr;
     other.m_WindowId = 0;
     other.m_DPIScale = 1.0f;
 
@@ -97,11 +91,6 @@ Window& Window::operator=(Window&& other) noexcept {
         m_WindowRectBeforeFullscreen = other.m_WindowRectBeforeFullscreen;
         m_WindowStyleBeforeFullscreen = other.m_WindowStyleBeforeFullscreen;
         m_WindowExStyleBeforeFullscreen = other.m_WindowExStyleBeforeFullscreen;
-        m_OnClose = std::move(other.m_OnClose);
-        m_OnResize = std::move(other.m_OnResize);
-        m_OnKey = std::move(other.m_OnKey);
-        m_OnMouse = std::move(other.m_OnMouse);
-        m_UserData = other.m_UserData;
         m_WindowId = other.m_WindowId;
         m_DPIScale = other.m_DPIScale;
         m_Renderer = std::move(other.m_Renderer);
@@ -111,7 +100,6 @@ Window& Window::operator=(Window&& other) noexcept {
         other.m_hInstance = nullptr;
         other.m_ShouldClose = false;
         other.m_IsFullscreen = false;
-        other.m_UserData = nullptr;
         other.m_WindowId = 0;
         other.m_DPIScale = 1.0f;
 
@@ -234,7 +222,6 @@ LRESULT Window::HandleMessage(UINT uMsg, WPARAM wParam, LPARAM lParam) {
         }
 
         NotifyWidgetResize();
-        if (m_OnResize) m_OnResize(this);
 
         InvalidateRect(m_hWnd, nullptr, FALSE);
         return TRUE;
@@ -268,13 +255,11 @@ LRESULT Window::HandleMessage(UINT uMsg, WPARAM wParam, LPARAM lParam) {
 
     case WM_DESTROY:
         m_ShouldClose = true;
-        if (m_OnClose) m_OnClose(this);
         m_hWnd = nullptr;
         PostQuitMessage(0);
         return TRUE;
 
     case WM_CLOSE:
-        // 立即销毁窗口，避免延迟关闭
         DestroyWindow(m_hWnd);
         return TRUE;
 
@@ -291,11 +276,9 @@ LRESULT Window::HandleMessage(UINT uMsg, WPARAM wParam, LPARAM lParam) {
             if (now - m_LastResizeLayoutTick >= std::chrono::milliseconds(33)) {
                 m_LastResizeLayoutTick = now;
                 NotifyWidgetResize();
-                if (m_OnResize) m_OnResize(this);
             }
         } else {
             NotifyWidgetResize();
-            if (m_OnResize) m_OnResize(this);
         }
         InvalidateRect(m_hWnd, nullptr, FALSE);
         return TRUE;
@@ -306,11 +289,9 @@ LRESULT Window::HandleMessage(UINT uMsg, WPARAM wParam, LPARAM lParam) {
         return 0;
 
     case WM_EXITSIZEMOVE:
-        // 拖动结束：恢复全量重排并立即刷新一次
         m_Resizing = false;
         m_LastResizeLayoutTick = std::chrono::steady_clock::time_point{};
         NotifyWidgetResize();
-        if (m_OnResize) m_OnResize(this);
         InvalidateRect(m_hWnd, nullptr, FALSE);
         return 0;
 
@@ -321,7 +302,6 @@ LRESULT Window::HandleMessage(UINT uMsg, WPARAM wParam, LPARAM lParam) {
         if (wParam == VK_SPACE) {
             return DefWindowProcW(m_hWnd, uMsg, wParam, lParam);
         }
-        if (m_OnKey) m_OnKey(this);
         break;
 
     case WM_KEYDOWN:
@@ -361,7 +341,6 @@ LRESULT Window::HandleMessage(UINT uMsg, WPARAM wParam, LPARAM lParam) {
 
     case WM_KEYUP:
     case WM_SYSKEYUP:
-        if (m_OnKey) m_OnKey(this);
         break;
 
     case WM_MOUSEMOVE:
@@ -373,8 +352,6 @@ LRESULT Window::HandleMessage(UINT uMsg, WPARAM wParam, LPARAM lParam) {
     case WM_RBUTTONUP:
     case WM_MBUTTONDOWN:
     case WM_MBUTTONUP: {
-        if (m_OnMouse) m_OnMouse(this);
-
         POINT clientPos;
         if (uMsg == WM_MOUSEWHEEL) {
             
@@ -436,7 +413,7 @@ void Window::set_mouse_capture(bool capture) {
     }
 }
 
-bool Window::initialize(const window_params& params) {
+bool Window::initialize(const window_parameters& params) {
     m_hInstance = GetModuleHandle(nullptr);
     if (!m_hInstance) return false;
 
@@ -447,12 +424,6 @@ bool Window::initialize(const window_params& params) {
     UpdateDPIScale();
 
     if (!CreateRenderer()) return false;
-
-    m_OnClose = params.on_close;
-    m_OnResize = params.on_resize;
-    m_OnKey = params.on_key;
-    m_OnMouse = params.on_mouse;
-    m_UserData = params.user_data;
 
     return true;
 }
@@ -486,7 +457,7 @@ bool Window::CreateWindowClass() {
     return RegisterClassExW(&wc) != 0;
 }
 
-bool Window::CreateActualWindow(const window_params& params) {
+bool Window::CreateActualWindow(const window_parameters& params) {
     DWORD style = WS_OVERLAPPEDWINDOW;
     DWORD exStyle = 0;
     if (!params.resizable) {
@@ -758,20 +729,12 @@ void Window::request_layout() {
     m_NeedsLayout = true;
 }
 
-void Window::set_cursor(cursor_type c) {
+void Window::set_cursor(cursor_style c) {
     if (!m_hWnd) return;
     SetCursor(load_cursor(c));
 }
 
 bool Window::should_close() const { return m_ShouldClose; }
-
-void* Window::user_data() const   { return m_UserData; }
-void Window::set_user_data(void* data) { m_UserData = data; }
-
-void Window::set_on_close(void_function callback)   { m_OnClose = callback; }
-void Window::set_on_resize(void_function callback)  { m_OnResize = callback; }
-void Window::set_on_key(void_function callback)     { m_OnKey = callback; }
-void Window::set_on_mouse(void_function callback)   { m_OnMouse = callback; }
 
 void Window::set_widget(std::unique_ptr<widget> widget) {
     m_Widget = std::move(widget);
@@ -794,10 +757,10 @@ void Window::set_widget(std::unique_ptr<widget> widget) {
 
 
 std::shared_ptr<window> window::create() {
-    return create(window_params{});
+    return create(window_parameters{});
 }
 
-std::shared_ptr<window> window::create(const window_params& params) {
+std::shared_ptr<window> window::create(const window_parameters& params) {
     auto win = std::make_shared<Window>();
     if (!win->initialize(params)) return nullptr;
     return win;

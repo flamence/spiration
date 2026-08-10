@@ -22,7 +22,7 @@ namespace spiration {
 class text_area : public label {
 public:
     text_area() {
-        widget_style.cursor = cursor_type::text;
+        widget_style.cursor = cursor_style::text;
         focusable = true;
     }
 

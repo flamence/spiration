@@ -17,7 +17,7 @@ tab_head_item::tab_head_item(const std::string& title)
     , bg_(theme_manager::get(theme_manager::TAB_INACTIVE_BG))
     , text_(theme_manager::get(theme_manager::TAB_INACTIVE_TEXT))
     , close_fg_(theme_manager::get(theme_manager::TAB_CLOSE_FG)) {
-    widget_style.cursor = cursor_type::pointer;
+    widget_style.cursor = cursor_style::pointer;
     focusable = true;
 }
 

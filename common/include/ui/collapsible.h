@@ -22,7 +22,7 @@ namespace spiration {
 class collapsible : public widget {
 public:
     collapsible() {
-        widget_style.cursor = cursor_type::pointer;
+        widget_style.cursor = cursor_style::pointer;
         focusable = true;
     }
 

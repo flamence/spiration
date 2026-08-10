@@ -25,7 +25,7 @@ public:
     void paint(std::shared_ptr<renderer> renderer) override;
     void handle_event(const event_type& type, void* data) override;
     widget* hit_test_hover(float x, float y) const override;
-    cursor_type effective_cursor(float lx, float ly) const override;
+    cursor_style effective_cursor(float lx, float ly) const override;
 
     void set_split_ratio(float ratio);
     float split_ratio() const { return split_ratio_; }

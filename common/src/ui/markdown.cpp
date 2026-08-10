@@ -1084,13 +1084,13 @@ void markdown::draw_selection_highlight(std::shared_ptr<renderer> r) const {
     }
 }
 
-cursor_type markdown::effective_cursor(float lx, float ly) const {
+cursor_style markdown::effective_cursor(float lx, float ly) const {
     const float cx = lx + scroll_x_;
     for (const auto& wr : word_rects_) {
         if (cx >= wr.x && cx <= wr.x + wr.w && ly >= wr.y && ly <= wr.y + wr.h) {
             if (!wr.href.empty() || wr.style == run_style::link ||
                 wr.style == run_style::image)
-                return cursor_type::pointer;
+                return cursor_style::pointer;
         }
     }
     return label::effective_cursor(lx, ly);

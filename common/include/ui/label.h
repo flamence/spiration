@@ -51,9 +51,9 @@ public:
      */
     virtual bool hit_text_area(float x, float y) const;
 
-    cursor_type effective_cursor(float lx, float ly) const override {
+    cursor_style effective_cursor(float lx, float ly) const override {
         if (selectable)
-            return hit_text_area(lx, ly) ? cursor_type::text : cursor_type::default_cursor;
+            return hit_text_area(lx, ly) ? cursor_style::text : cursor_style::default_cursor;
         return widget_style.cursor;
     }
 

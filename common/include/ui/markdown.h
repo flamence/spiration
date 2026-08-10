@@ -51,7 +51,7 @@ public:
     void layout() override;
     size layout_preferred_size() const override;
     void handle_event(const event_type& type, void* data) override;
-    cursor_type effective_cursor(float lx, float ly) const override;
+    cursor_style effective_cursor(float lx, float ly) const override;
 
 protected:
     size_t hit_test_text(float x, float y) const override;

@@ -325,7 +325,7 @@ public:
     /**
      * @brief 控件悬停时应显示的光标。
      */
-    virtual cursor_type effective_cursor(float lx, float ly) const {
+    virtual cursor_style effective_cursor(float lx, float ly) const {
         (void)lx; (void)ly;
         return widget_style.cursor;
     }

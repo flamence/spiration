@@ -32,7 +32,7 @@ public:
     std::string position;
 
     ///< 鼠标悬停在此控件上时显示的光标形状。
-    spiration::cursor_type cursor = spiration::cursor_type::default_cursor;
+    spiration::cursor_style cursor = spiration::cursor_style::default_cursor;
 
     ///< 是否允许水平滚动。
     bool overflow_x = false;

@@ -16,7 +16,7 @@ namespace spiration {
 class window_controls : public container {
 public:
     window_controls() {
-        widget_style.cursor = cursor_type::pointer;
+        widget_style.cursor = cursor_style::pointer;
     }
 
     void init() override;

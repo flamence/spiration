@@ -19,7 +19,7 @@ namespace spiration {
 class slider : public widget {
 public:
     slider() {
-        widget_style.cursor = cursor_type::pointer;
+        widget_style.cursor = cursor_style::pointer;
         focusable = true;
     }
     float value = 0.0f;

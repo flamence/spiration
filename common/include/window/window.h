@@ -1,6 +1,6 @@
 /**
  * @file window.h
- * @brief 跨平台窗口抽象接口定义。
+ * @brief 窗口定义。
  * @author clk
  */
 
@@ -15,30 +15,22 @@
 
 namespace spiration {
 
-
 using void_function = std::function<void(void*)>;
 
 /**
- * @brief 窗口创建参数，用于配置窗口的初始状态。
+ * @brief 窗口创建参数。
  */
-struct window_params {
-    std::string title = "";
+struct window_parameters {
+    std::string title = ""; 
     int32_t width = 0;
     int32_t height = 0;
     bool resizable = true;
-    bool visible = true;
     bool fullscreen = false;
     bool decorated = true;
-    void* user_data = nullptr;
-    
-    void_function on_close = nullptr;
-    void_function on_resize = nullptr;
-    void_function on_key = nullptr;
-    void_function on_mouse = nullptr;
 };
 
 /**
- * @brief 跨平台窗口抽象基类。
+ * @brief 窗口类。
  */
 class window {
 public:
@@ -49,7 +41,7 @@ public:
     window& operator=(window&& other) noexcept;
     
     static std::shared_ptr<window> create();
-    static std::shared_ptr<window> create(const window_params& params);
+    static std::shared_ptr<window> create(const window_parameters& params);
     
     virtual ~window();
     
@@ -81,9 +73,6 @@ public:
     virtual void loop() = 0;
     virtual bool should_close() const = 0;
     
-    virtual void* user_data() const = 0;
-    virtual void set_user_data(void* data) = 0;
-    
     virtual void request_repaint() = 0;
 
     /**
@@ -92,15 +81,15 @@ public:
     virtual void request_layout() {}
 
     /**
-     * @brief 设置鼠标光标形状（平台实现；默认无操作）。
+     * @brief 设置鼠标样式。
+     * @param type 鼠标样式。
      */
-    virtual void set_cursor(cursor_type c) { (void)c; }
-    
-    virtual void set_on_close(void_function callback) = 0;
-    virtual void set_on_resize(void_function callback) = 0;
-    virtual void set_on_key(void_function callback) = 0;
-    virtual void set_on_mouse(void_function callback) = 0;
+    virtual void set_cursor(cursor_style type) { (void)type; }
 
+    /**
+     * @brief 设置鼠标捕获。
+     * @param type 鼠标样式。
+     */
     virtual void set_mouse_capture(bool capture) = 0;
 
     virtual void set_widget(std::unique_ptr<widget> widget) = 0;
@@ -114,13 +103,12 @@ protected:
     window();
     
 private:
-    virtual bool initialize(const window_params& params) = 0;
-    virtual void shutdown() = 0;
-    
-    static std::shared_ptr<window> create_window(const window_params& params) {
+    static std::shared_ptr<window> create_window(const window_parameters& params) {
         (void)params;
         return nullptr;
     };
+    virtual bool initialize(const window_parameters& params) = 0;
+    virtual void shutdown() = 0;
 };
 
 }

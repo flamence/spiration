@@ -14,7 +14,7 @@ class widget;
 /**
  * @brief 鼠标光标形状。
  */
-enum class cursor_type {
+enum class cursor_style {
     default_cursor, ///< 默认
     text,           ///< 文本
     pointer,        ///< 手型
@@ -50,15 +50,15 @@ public:
     /**
      * @brief 直接应用指定光标。
      */
-    void apply(cursor_type c);
+    void apply(cursor_style c);
 
-    cursor_type current() const { return current_; }
+    cursor_style current() const { return current_; }
 
 private:
     cursor_manager() = default;
 
     window* window_ = nullptr;
-    cursor_type current_ = cursor_type::default_cursor;
+    cursor_style current_ = cursor_style::default_cursor;
 };
 
 } // namespace spiration

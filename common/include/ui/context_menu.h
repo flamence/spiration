@@ -28,7 +28,7 @@ struct context_menu_item {
 class context_menu : public widget {
 public:
     context_menu() {
-        widget_style.cursor = cursor_type::pointer;
+        widget_style.cursor = cursor_style::pointer;
     }
 
     void add_item(const std::string& text, std::function<void()> callback);

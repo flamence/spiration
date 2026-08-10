@@ -27,7 +27,7 @@ struct popup_item {
 class popup_menu : public container {
 public:
     popup_menu() {
-        widget_style.cursor = cursor_type::pointer;
+        widget_style.cursor = cursor_style::pointer;
     }
 
     void init() override;

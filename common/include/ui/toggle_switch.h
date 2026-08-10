@@ -18,7 +18,7 @@ namespace spiration {
 class toggle_switch : public widget {
 public:
     toggle_switch() {
-        widget_style.cursor = cursor_type::pointer;
+        widget_style.cursor = cursor_style::pointer;
         focusable = true;
     }
 

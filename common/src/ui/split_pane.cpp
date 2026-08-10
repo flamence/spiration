@@ -88,12 +88,12 @@ widget* split_pane::hit_test_hover(float x, float y) const {
     return widget::hit_test_hover(x, y);
 }
 
-cursor_type split_pane::effective_cursor(float lx, float ly) const {
+cursor_style split_pane::effective_cursor(float lx, float ly) const {
     if (show_handle) {
         const float pos = (dir == direction::vertical) ? ly : lx;
         if (dragging_ || handle_hit(pos)) {
-            return (dir == direction::vertical) ? cursor_type::resize_v
-                                                : cursor_type::resize_h;
+            return (dir == direction::vertical) ? cursor_style::resize_v
+                                                : cursor_style::resize_h;
         }
     }
     return widget::effective_cursor(lx, ly);

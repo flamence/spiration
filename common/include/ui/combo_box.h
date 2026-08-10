@@ -21,7 +21,7 @@ namespace spiration {
 class combo_box : public widget {
 public:
     combo_box() {
-        widget_style.cursor = cursor_type::pointer;
+        widget_style.cursor = cursor_style::pointer;
         focusable = true;
     }
     std::vector<std::string> items;
