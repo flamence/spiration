@@ -84,7 +84,7 @@ jobs:
         run: |
           PKG_DIR="$GITHUB_WORKSPACE/build/pkg"
           case "${{ runner.os }}" in
-            Windows) SUFFIX="exe" ;;
+            Windows) SUFFIX="msi" ;;
             macOS)   SUFFIX="dmg" ;;
             Linux)   SUFFIX="deb" ;;
           esac
