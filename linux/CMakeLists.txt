@@ -8,11 +8,11 @@ find_package(Freetype REQUIRED)
 pkg_check_modules(XCB REQUIRED xcb)
 pkg_check_modules(XCB_RANDR REQUIRED xcb-randr)
 
-file(GLOB_RECURSE LINUX_SOURCES
+file(GLOB_RECURSE LINUX_SOURCES CONFIGURE_DEPENDS
     "src/*.cpp"
     "src/*.c"
 )
-file(GLOB_RECURSE LINUX_HEADERS
+file(GLOB_RECURSE LINUX_HEADERS CONFIGURE_DEPENDS
     "include/*.h"
     "include/*.hpp"
 )
@@ -62,10 +62,6 @@ add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
 
 set_target_properties(${PROJECT_NAME} PROPERTIES
     OUTPUT_NAME "spiration"
-    RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/../bin
 )
 
 target_link_options(${PROJECT_NAME} PRIVATE -rdynamic)
-
-spiration_setup_runtime(${PROJECT_NAME})
-

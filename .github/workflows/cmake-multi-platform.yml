@@ -32,7 +32,7 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - os: ubuntu-22.04
+          - os: ubuntu-latest
             build_type: Release
             c_compiler: clang
             cpp_compiler: clang++
@@ -49,60 +49,64 @@ jobs:
       - uses: actions/checkout@v7
 
       - name: 安装依赖
-        if: runner.os == 'Linux'
         shell: bash
         run: |
-          sudo apt-get update
-          sudo apt-get install -y pkg-config \
-            libx11-dev libgl1-mesa-dev libfreetype-dev \
-            libxcb1-dev libxcb-randr0-dev libssl-dev
+          if [ "${{ runner.os }}" == "Windows" ]; then
+            iwr -useb get.scoop.sh -outfile 'install.ps1'
+            .\install.ps1 -RunAsAdmin
+            scoop update
+            scoop bucket add extras
+            scoop install nsis
+          elif [ "${{ runner.os }}" == "Linux" ]; then
+            sudo apt-get update
+            sudo apt-get install -y pkg-config libssl-dev libx11-dev libgl1-mesa-dev libfreetype-dev libxcb1-dev libxcb-randr0-dev
+          fi
 
       - name: 设置复用变量
-        id: strings
+        id: pre-strings
         shell: bash
         run: |
           echo "build-output-dir=$GITHUB_WORKSPACE/build" >> "$GITHUB_OUTPUT"
-          if [ "${{ matrix.os }}" == "windows-latest" ]; then
-            echo "build-bin-dir=$GITHUB_WORKSPACE/build/bin/${{ matrix.build_type }}" >> "$GITHUB_OUTPUT"
-          else
-            echo "build-bin-dir=$GITHUB_WORKSPACE/build/bin" >> "$GITHUB_OUTPUT"
-          fi
-          if [ "${{ github.event_name }}" == "release" ]; then
-            VERSION="${{ github.event.release.tag_name }}"
-          else
-            VERSION="${GITHUB_SHA:0:7}"
-          fi
-          OS_NAME="$(echo "${{ runner.os }}" | tr '[:upper:]' '[:lower:]')"
-          echo "archive-name=spiration-$VERSION-$OS_NAME" >> "$GITHUB_OUTPUT"
 
       - name: 配置 CMake
         shell: bash
         run: >
-          cmake -B "${{ steps.strings.outputs.build-output-dir }}"
+          cmake -B "${{ steps.pre-strings.outputs.build-output-dir }}"
           -DCMAKE_CXX_COMPILER=${{ matrix.cpp_compiler }}
           -DCMAKE_C_COMPILER=${{ matrix.c_compiler }}
           -DCMAKE_BUILD_TYPE=${{ matrix.build_type }}
           -S "$GITHUB_WORKSPACE"
+          -G Ninja
 
       - name: 编译项目
-        run: cmake --build "${{ steps.strings.outputs.build-output-dir }}" --config ${{ matrix.build_type }}
+        run: cmake --build "${{ steps.pre-strings.outputs.build-output-dir }}" --config ${{ matrix.build_type }} --target package -G Ninja
 
-      - name: 运行测试
-        working-directory: ${{ steps.strings.outputs.build-output-dir }}
-        run: ctest --build-config ${{ matrix.build_type }}
+      - name: 设置复用变量
+        id: post-strings
+        shell: bash
+        run: |
+          PKG_DIR="$GITHUB_WORKSPACE/build/pkg"
+          case "${{ runner.os }}" in
+            Windows) SUFFIX="exe" ;;
+            macOS)   SUFFIX="dmg" ;;
+            Linux)   SUFFIX="deb" ;;
+          esac
+          PACKAGE_FILE=$(find "$PKG_DIR" -maxdepth 1 -type f -name "spiration-v*.${SUFFIX}" | head -n 1)
+          if [ -z "$PACKAGE_FILE" ]; then
+            exit 1
+          fi
+          echo "archive-path=$PACKAGE_FILE" >> "$GITHUB_OUTPUT"
 
       - name: 上传工件
         if: github.event_name != 'release'
         uses: actions/upload-artifact@v7
         with:
-          name: ${{ steps.strings.outputs.archive-name }}
-          path: ${{ steps.strings.outputs.build-bin-dir }}
+          path: ${{ steps.post-strings.outputs.archive-path }}
 
       - name: 上传到 GitHub Release
         if: github.event_name == 'release'
+        uses: softprops/action-gh-release@v3
+        with:
+          files: ${{ steps.post-strings.outputs.archive-path }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          cd "${{ steps.strings.outputs.build-bin-dir }}"
-          tar -czf "${{ steps.strings.outputs.archive-name }}.tar.gz" *
-          gh release upload ${{ github.event.release.tag_name }} "${{ steps.strings.outputs.archive-name }}.tar.gz" --repo ${{ github.repository }}

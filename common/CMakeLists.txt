@@ -1,9 +1,9 @@
-file(GLOB_RECURSE COMMON_SOURCES 
-    "src/*.cpp" 
+file(GLOB_RECURSE COMMON_SOURCES CONFIGURE_DEPENDS
+    "src/*.cpp"
     "src/*.c"
 )
-file(GLOB_RECURSE COMMON_HEADERS 
-    "include/*.h" 
+file(GLOB_RECURSE COMMON_HEADERS CONFIGURE_DEPENDS
+    "include/*.h"
     "include/*.hpp"
 )
 
@@ -35,9 +35,8 @@ if(UNIX AND NOT APPLE)
 endif()
 
 target_include_directories(spiration-common
-    PUBLIC 
+    PUBLIC
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-        $<INSTALL_INTERFACE:include>
     PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/src
 )
@@ -45,5 +44,4 @@ target_include_directories(spiration-common
 set_target_properties(spiration-common PROPERTIES
     VERSION ${PROJECT_VERSION}
     SOVERSION ${PROJECT_VERSION_MAJOR}
-    PUBLIC_HEADER "${COMMON_HEADERS}"
 )

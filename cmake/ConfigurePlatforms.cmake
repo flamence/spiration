@@ -1,0 +1,12 @@
+if(WIN32)
+    add_compile_definitions(UNICODE _UNICODE)
+endif()
+
+add_subdirectory("common")
+if(WIN32)
+    add_subdirectory("windows")
+elseif(APPLE)
+    add_subdirectory("macos")
+elseif(UNIX)
+    add_subdirectory("linux")
+endif()

@@ -1,21 +1,22 @@
-file(GLOB_RECURSE WINDOWS_SOURCES 
-    "src/*.cpp" 
+file(GLOB_RECURSE WINDOWS_SOURCES CONFIGURE_DEPENDS
+    "src/*.cpp"
     "src/*.c"
 )
-file(GLOB_RECURSE WINDOWS_HEADERS 
-    "include/*.h" 
+file(GLOB_RECURSE WINDOWS_HEADERS CONFIGURE_DEPENDS
+    "include/*.h"
     "include/*.hpp"
 )
 set(WINDOWS_RESOURCES
     res/resources.rc
 )
 
-add_executable(${PROJECT_NAME} ${WINDOWS_SOURCES} ${WINDOWS_HEADERS} ${WINDOWS_RESOURCES})
+add_executable(${PROJECT_NAME} WIN32 ${WINDOWS_SOURCES} ${WINDOWS_HEADERS} ${WINDOWS_RESOURCES})
 
 target_compile_definitions(${PROJECT_NAME} PRIVATE
     $<$<CONFIG:Debug>:_DEBUG>
     $<$<CONFIG:Release>:NDEBUG>
 )
+
 target_include_directories(${PROJECT_NAME} PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/include
     ${CMAKE_CURRENT_SOURCE_DIR}/src
@@ -38,9 +39,10 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
     dbghelp
 )
 
-if(WINDOWS_SOURCES MATCHES "\\.rc$")
-    set(CMAKE_RC_COMPILE_OBJECT "<CMAKE_RC_COMPILER> -O coff <DEFINES> <INCLUDES> <FLAGS> <SOURCE> <OBJECT>")
-endif()
+set_target_properties(${PROJECT_NAME} PROPERTIES
+    OUTPUT_NAME "Spiration"
+    WIN32_EXECUTABLE TRUE
+)
 
 add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_directory
@@ -48,14 +50,23 @@ add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
         $<TARGET_FILE_DIR:${PROJECT_NAME}>/lang
 )
 
-set_target_properties(spiration PROPERTIES
-    OUTPUT_NAME "Spiration"
-    RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/../bin
-    WIN32_EXECUTABLE $<IF:$<CONFIG:Debug>,FALSE,TRUE>
-)
-
-if(MINGW)
-    target_link_options(spiration PRIVATE -Wl,--export-all-symbols)
+if(MINGW_DIRECTORY)
+    set(_mingw_dlls)
+    foreach(_dll libstdc++-6.dll libwinpthread-1.dll
+                 libgcc_s_seh-1.dll libgcc_s_sjlj-1.dll libgcc_s_dw2-1.dll)
+        if(EXISTS "${MINGW_DIRECTORY}/${_dll}")
+            list(APPEND _mingw_dlls "${MINGW_DIRECTORY}/${_dll}")
+        endif()
+    endforeach()
+    if(_mingw_dlls)
+        add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                ${_mingw_dlls}
+                $<TARGET_FILE_DIR:${PROJECT_NAME}>
+        )
+    endif()
 endif()
 
-spiration_setup_runtime(spiration)
+if(MINGW)
+    target_link_options(${PROJECT_NAME} PRIVATE -Wl,--export-all-symbols)
+endif()
