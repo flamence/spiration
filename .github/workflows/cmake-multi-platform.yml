@@ -79,7 +79,7 @@ jobs:
           -G Ninja
 
       - name: 编译项目
-        run: cmake --build "${{ steps.pre-strings.outputs.build-output-dir }}" --config ${{ matrix.build_type }} --target package -G Ninja
+        run: cmake --build "${{ steps.pre-strings.outputs.build-output-dir }}" --config ${{ matrix.build_type }} --target package
 
       - name: 设置复用变量
         id: post-strings
