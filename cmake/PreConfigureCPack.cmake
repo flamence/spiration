@@ -3,27 +3,22 @@ if(APPLE)
     set(CPACK_DMG_VOLUME_NAME "${PROJECT_NAME} ${PROJECT_VERSION}")
     set(CPACK_DMG_FORMAT "UDBZ")
 elseif(WIN32)
-    set(CPACK_GENERATOR "NSIS")
-    set(CPACK_NSIS_DISPLAY_NAME "Spiration")
-    set(CPACK_NSIS_MODIFY_PATH "ON")
-    set(CPACK_NSIS_INSTALLED_ICON_NAME "Spiration.exe")
-    set(CPACK_NSIS_EXTRA_INSTALL_COMMANDS "
-        CreateShortCut '\$SMPROGRAMS\\\\\$STARTMENU_FOLDER\\\\Spiration.lnk' '\$INSTDIR\\\\Spiration.exe'
-        StrCmp \$INSTALL_DESKTOP '1' 0 +2
-        CreateShortCut '\$DESKTOP\\\\Spiration.lnk' '\$INSTDIR\\\\Spiration.exe'
-    ")
-    set(CPACK_NSIS_EXTRA_UNINSTALL_COMMANDS "
-        ReadRegStr \$R0 SHCTX 'Software\\\\Microsoft\\\\Windows\\\\CurrentVersion\\\\Uninstall\\\\Spiration' 'StartMenu'
-        StrCmp \$R0 '' 0 +2
-        StrCpy \$R0 'Spiration'
-        Delete '\$SMPROGRAMS\\\\\$R0\\\\Spiration.lnk'
-        Delete '\$DESKTOP\\\\Spiration.lnk'
-    ")
+    set(CPACK_GENERATOR "WIX")
+    set(CPACK_WIX_VERSION 4)
+    set(CPACK_WIX_PRODUCT_NAME "Spiration")
+    set(CPACK_WIX_INSTALL_SCOPE "perMachine")
+    set(CPACK_WIX_UPGRADE_GUID "F5C724F1-73FA-4285-B6B7-40F1F47F11AF")
+    string(UUID CPACK_WIX_PRODUCT_GUID NAMESPACE ${CPACK_WIX_UPGRADE_GUID} NAME "Spiration_Product_v${PROJECT_VERSION}" TYPE MD5)
+    string(UUID CPACK_WIX_DESKTOP_SHORTCUT_GUID NAMESPACE ${CPACK_WIX_UPGRADE_GUID} NAME "Spiration_Shortcut" TYPE MD5)
+    set(CPACK_WIX_PROGRAM_MENU_FOLDER "Spiration")
+    set(CPACK_WIX_CULTURES "zh-CN;en-US")
+    set(CPACK_WIX_LICENSE_RTF "${CMAKE_CURRENT_SOURCE_DIR}/cpack/license.rtf")
 elseif(UNIX)
     set(CPACK_GENERATOR "DEB")
     set(CPACK_DEBIAN_PACKAGE_MAINTAINER "${CPACK_PACKAGE_CONTACT}")
     set(CPACK_DEBIAN_PACKAGE_SHLIBDEPS ON)
 endif()
+set(CPACK_PACKAGE_NAME "Spiration")
 set(CPACK_PACKAGE_CONTACT "@")
 set(CPACK_PACKAGE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/pkg")
 set(CPACK_PACKAGE_FILE_NAME "${PROJECT_NAME}-v${PROJECT_VERSION}")
