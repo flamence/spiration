@@ -48,14 +48,14 @@ jobs:
 
           - os: windows-latest
             build_type: Release
-            c_compiler: cl
-            cpp_compiler: cl
+            c_compiler: clang
+            cpp_compiler: clang++
             generator: Ninja
 
           - os: windows-11-vs2026-arm
             build_type: Release
-            c_compiler: cl
-            cpp_compiler: cl
+            c_compiler: clang
+            cpp_compiler: clang++
             generator: Ninja
 
           - os: macos-latest
@@ -77,11 +77,6 @@ jobs:
         shell: bash
         run: |
           if [ "${{ runner.os }}" == "Windows" ]; then
-            if [ "${{ matrix.os }}" == "windows-latest" ]; then
-              call "C:\Program Files\Microsoft Visual Studio\2025\Enterprise\Common7\Tools\vsdevcmd.bat" -arch=x64
-            elif [ "${{ matrix.os }}" == "windows-11-vs2026-arm" ]; then
-              call "C:\Program Files\Microsoft Visual Studio\2026\Enterprise\Common7\Tools\vsdevcmd.bat" -arch=arm64
-            fi
             dotnet tool install --global wix --version 4.0.4
             wix extension add --global WixToolset.UI.wixext/4.0.4
           elif [ "${{ runner.os }}" == "Linux" ]; then
@@ -138,7 +133,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-  build-hap:
+  build-harmonyos:
     runs-on: ubuntu-latest
 
     steps:
