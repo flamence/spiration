@@ -7,7 +7,9 @@
 #pragma once
 
 #include <extension/extension_manager.h>
+#include <init_phase.h>
 #include <memory>
+#include <optional>
 #include <window/window.h>
 
 namespace spiration {
@@ -17,6 +19,14 @@ namespace spiration {
  */
 class application {
 public:
+#ifdef __OHOS__
+    /**
+     * @brief 绑定应用至窗口。
+     * @param window 目标窗口指针。
+     */
+    void bind_window(std::shared_ptr<spiration::window> window);
+#endif
+
     /**
      * @return 该应用附加的拓展管理器实例。
      */
@@ -25,7 +35,7 @@ public:
     /**
      * @brief 初始化应用。
      */
-    void initialize();
+    void initialize(std::optional<init_phase> phase = std::nullopt);
     
     /**
      * @return 应用实例。

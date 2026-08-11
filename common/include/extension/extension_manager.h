@@ -7,7 +7,7 @@
 #pragma once
 
 #include <extension/extension_loader.h>
-#include <extension/init_phase.h>
+#include <init_phase.h>
 
 #include <string>
 #include <vector>

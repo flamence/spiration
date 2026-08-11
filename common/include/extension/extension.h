@@ -7,7 +7,7 @@
 #pragma once
 
 #include <extension/extension_api.h>
-#include <extension/init_phase.h>
+#include <init_phase.h>
 
 #include <memory>
 #include <string>

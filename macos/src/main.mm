@@ -13,12 +13,6 @@
 int main(int argc, const char* argv[]) {
     (void)argc;
     (void)argv;
-    std::string log_dir = spiration::platform::join_path(
-        spiration::platform::executable_directory(), "logs");
-    spiration::platform::create_directory(log_dir);
-    std::string log_path = spiration::console::make_log_path(log_dir, "spiration");
-    spiration::console::set_log_file(log_path);
-    spiration::crash_log::install(log_path);
 
     @autoreleasepool {
         NSApplication* app = [NSApplication sharedApplication];

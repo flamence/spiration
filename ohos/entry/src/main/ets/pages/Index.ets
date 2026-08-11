@@ -52,7 +52,6 @@ struct Index {
     this.registerWindowActions();
     this.setupClipboardGlobal();
     this.registerFilePicker();
-    this.loadSystemInfo();
     this.initLangResources();
     this.initInputMethod();
   }
@@ -234,12 +233,6 @@ struct Index {
         nativeEntry.onWindowResize(this.winWidth, this.winHeight, density);
       } catch (err) {
       }
-    }
-  }
-
-  private loadSystemInfo(): void {
-    try {
-    } catch (err) {
     }
   }
 

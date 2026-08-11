@@ -1,3 +1,4 @@
+#include "init_phase.h"
 #include "napi/native_api.h"
 #include "napi_bridge.h"
 
@@ -248,7 +249,7 @@ static napi_value NapiInitResourceManager(napi_env env, napi_callback_info info)
     copy_all_lang_from_rawfile();
 
     // 与其它平台一致：扩展注册 + early 阶段（i18n 扩展读取沙箱 lang 目录）
-    spiration::application::instance()->initialize_early();
+    spiration::application::instance()->initialize(spiration::init_phase::early);
 
     std::string sysLocale = spiration::platform::system_locale();
     spiration::console::info("napi", "ResourceManager initialized, locale=%s", sysLocale.c_str());
@@ -335,8 +336,7 @@ static napi_value NapiInitNativeWindow(napi_env env, napi_callback_info info) {
     spiration::theme_manager::set_str(spiration::theme_manager::EDITOR_FONT, "monospace");
 
     // 与其它平台一致：使用 application 单例附加窗口并创建根控件
-    spiration::application::instance()->set_window(g_window,
-        static_cast<int32_t>(logical_w), static_cast<int32_t>(logical_h));
+    spiration::application::instance()->bind_window(g_window);
 
     // 设置回调函数
     g_window->set_on_close([](void*) { invoke_CloseCallback_callback(); });
@@ -345,7 +345,7 @@ static napi_value NapiInitNativeWindow(napi_env env, napi_callback_info info) {
     g_window->set_on_start_move([](void*) { invoke_StartMoveCallback_callback(); });
 
     // 初始化 normal 阶段扩展并显示窗口
-    spiration::application::instance()->initialize_normal();
+    spiration::application::instance()->initialize(spiration::init_phase::normal);
     g_window->show();
 
     // 渲染第一帧
@@ -354,6 +354,7 @@ static napi_value NapiInitNativeWindow(napi_env env, napi_callback_info info) {
     }
 
     spiration::console::info("napi", "Spiration native window initialized");
+    spiration::application::instance()->initialize(spiration::init_phase::after);
 
     napi_value ret;
     napi_get_boolean(env, true, &ret);
