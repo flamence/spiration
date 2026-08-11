@@ -1,6 +1,6 @@
 /**
  * @file x11_window.h
- * @brief X11 窗口实现。
+ * @brief 窗口定义。
  * @author clk
  */
 
@@ -17,14 +17,12 @@
 #include <X11/keysym.h>
 #include <GL/glx.h>
 #include <memory>
-#include <functional>
 #include <string>
-#include <unordered_map>
 
 namespace spiration {
 
 /**
- * @brief X11 窗口实现。
+ * @brief X11 窗口。
  */
 class x11_window : public window {
 public:
@@ -64,31 +62,24 @@ public:
     void loop() override;
     bool should_close() const override;
 
-    void* user_data() const override;
-    void set_user_data(void* data) override;
-
     void request_repaint() override;
     void request_layout() override;
 
-    void set_cursor(cursor_type c) override;
+    void set_cursor(cursor_stype c) override;
 
-    void set_on_close(void_function callback) override;
-    void set_on_resize(void_function callback) override;
-    void set_on_key(void_function callback) override;
-    void set_on_mouse(void_function callback) override;
     void set_mouse_capture(bool capture) override;
 
     void set_widget(std::unique_ptr<widget> widget) override;
 
     std::shared_ptr<class renderer> get_renderer() const override { return renderer_; }
 
-    bool initialize(const window_params& params) override;
+    bool initialize(const window_paramaters& params) override;
     void shutdown() override;
 
 private:
     bool connect_to_x11();
     bool select_fb_config();
-    bool create_x11_window(const window_params& params);
+    bool create_x11_window(const window_paramaters& params);
     bool create_gl_context();
     bool create_renderer();
     bool process_events();
@@ -153,15 +144,9 @@ private:
     int32_t prev_height_ = 0;
     int32_t prev_x_ = 0;
     int32_t prev_y_ = 0;
-
-    void_function on_close_ = nullptr;
-    void_function on_resize_ = nullptr;
-    void_function on_key_ = nullptr;
-    void_function on_mouse_ = nullptr;
-
+    
     std::shared_ptr<renderer> renderer_;
     std::unique_ptr<widget> widget_;
-    void* user_data_ = nullptr;
     uint32_t window_id_ = 0;
 
     std::unordered_map<KeySym, bool> key_state_;
@@ -190,7 +175,7 @@ private:
     static constexpr float DRAG_AREA_HEIGHT = kTitleBarDragHeight;
 
     static uint32_t next_window_id_;
-    static x11_window* s_active_window_;  // 当前活动窗口（剪贴板后端无捕获 lambda 访问用）
+    static x11_window* s_active_window_;
 };
 
 } // namespace spiration

@@ -1,6 +1,6 @@
 /**
  * @file x11_window.cpp
- * @brief X11 窗口实现。
+ * @brief 窗口实现。
  * @author clk
  */
 
@@ -12,10 +12,6 @@
 #include <utils/platform.h>
 #include <stb_image.h>
 #include <clocale>
-#include <cmath>
-#include <chrono>
-#include <thread>
-#include <vector>
 #include <X11/Xutil.h>
 #include <X11/cursorfont.h>
 
@@ -67,13 +63,8 @@ x11_window::x11_window(x11_window&& other) noexcept
     , is_fullscreen_(other.is_fullscreen_)
     , is_visible_(other.is_visible_)
     , initialized_(other.initialized_)
-    , on_close_(std::move(other.on_close_))
-    , on_resize_(std::move(other.on_resize_))
-    , on_key_(std::move(other.on_key_))
-    , on_mouse_(std::move(other.on_mouse_))
     , renderer_(std::move(other.renderer_))
     , widget_(std::move(other.widget_))
-    , user_data_(other.user_data_)
     , window_id_(other.window_id_)
     , clipboard_text_(std::move(other.clipboard_text_))
 {
@@ -91,7 +82,6 @@ x11_window::x11_window(x11_window&& other) noexcept
     other.should_close_ = false;
     other.is_visible_ = false;
     other.initialized_ = false;
-    other.user_data_ = nullptr;
     other.window_id_ = 0;
     other.dpi_scale_ = 1.0f;
     if (s_active_window_ == &other) s_active_window_ = this;
@@ -130,13 +120,8 @@ x11_window& x11_window::operator=(x11_window&& other) noexcept {
         is_fullscreen_ = other.is_fullscreen_;
         is_visible_ = other.is_visible_;
         initialized_ = other.initialized_;
-        on_close_ = std::move(other.on_close_);
-        on_resize_ = std::move(other.on_resize_);
-        on_key_ = std::move(other.on_key_);
-        on_mouse_ = std::move(other.on_mouse_);
         renderer_ = std::move(other.renderer_);
         widget_ = std::move(other.widget_);
-        user_data_ = other.user_data_;
         window_id_ = other.window_id_;
 
         other.display_ = nullptr;
@@ -153,7 +138,6 @@ x11_window& x11_window::operator=(x11_window&& other) noexcept {
         other.should_close_ = false;
         other.is_visible_ = false;
         other.initialized_ = false;
-        other.user_data_ = nullptr;
         other.window_id_ = 0;
         other.dpi_scale_ = 1.0f;
         if (s_active_window_ == &other) s_active_window_ = this;
@@ -249,7 +233,6 @@ void x11_window::restore() {
 
 void x11_window::close() {
     should_close_ = true;
-    if (on_close_) on_close_(this);
 }
 
 std::string x11_window::title() const {
@@ -403,9 +386,6 @@ bool x11_window::should_close() const {
     return should_close_;
 }
 
-void* x11_window::user_data() const { return user_data_; }
-void x11_window::set_user_data(void* data) { user_data_ = data; }
-
 void x11_window::request_repaint() {
 }
 
@@ -413,20 +393,20 @@ void x11_window::request_layout() {
     needs_layout_ = true;
 }
 
-void x11_window::set_cursor(cursor_type c) {
+void x11_window::set_cursor(cursor_style c) {
     if (!display_ || !window_) return;
     unsigned int shape = XC_left_ptr;
     switch (c) {
-    case cursor_type::text:        shape = XC_xterm; break;
-    case cursor_type::pointer:     shape = XC_hand1; break;
-    case cursor_type::crosshair:   shape = XC_crosshair; break;
-    case cursor_type::move:        shape = XC_fleur; break;
-    case cursor_type::resize_h:    shape = XC_sb_h_double_arrow; break;
-    case cursor_type::resize_v:    shape = XC_sb_v_double_arrow; break;
-    case cursor_type::resize_nwse: shape = XC_bottom_right_corner; break;
-    case cursor_type::resize_nesw: shape = XC_bottom_left_corner; break;
-    case cursor_type::forbidden:   shape = XC_X_cursor; break;
-    case cursor_type::default_cursor:
+    case cursor_style::text:        shape = XC_xterm; break;
+    case cursor_style::pointer:     shape = XC_hand1; break;
+    case cursor_style::crosshair:   shape = XC_crosshair; break;
+    case cursor_style::move:        shape = XC_fleur; break;
+    case cursor_style::resize_h:    shape = XC_sb_h_double_arrow; break;
+    case cursor_style::resize_v:    shape = XC_sb_v_double_arrow; break;
+    case cursor_style::resize_nwse: shape = XC_bottom_right_corner; break;
+    case cursor_style::resize_nesw: shape = XC_bottom_left_corner; break;
+    case cursor_style::forbidden:   shape = XC_X_cursor; break;
+    case cursor_style::default_cursor:
     default:                       shape = XC_left_ptr; break;
     }
     Cursor cur = XCreateFontCursor(display_, shape);
@@ -434,11 +414,6 @@ void x11_window::set_cursor(cursor_type c) {
     XFreeCursor(display_, cur);
     XFlush(display_);
 }
-
-void x11_window::set_on_close(void_function callback) { on_close_ = callback; }
-void x11_window::set_on_resize(void_function callback) { on_resize_ = callback; }
-void x11_window::set_on_key(void_function callback) { on_key_ = callback; }
-void x11_window::set_on_mouse(void_function callback) { on_mouse_ = callback; }
 
 void x11_window::set_mouse_capture(bool capture) {
     if (capture) {
@@ -464,7 +439,7 @@ void x11_window::set_widget(std::unique_ptr<widget> widget) {
     notify_widget_resize();
 }
 
-bool x11_window::initialize(const window_params& params) {
+bool x11_window::initialize(const window_paramaters& params) {
     window_id_ = next_window_id_++;
     dpi_scale_ = 1.0f;
     title_ = params.title;
@@ -530,12 +505,6 @@ bool x11_window::initialize(const window_params& params) {
         console::warning("x11",
                          "XOpenIM failed (check XMODIFIERS, e.g. @im=fcitx/@im=ibus)");
     }
-
-    on_close_ = params.on_close;
-    on_resize_ = params.on_resize;
-    on_key_ = params.on_key;
-    on_mouse_ = params.on_mouse;
-    user_data_ = params.user_data;
 
     update_dpi();
 
@@ -642,7 +611,7 @@ bool x11_window::connect_to_x11() {
 }
 
 
-bool x11_window::create_x11_window(const window_params& params) {
+bool x11_window::create_x11_window(const window_paramaters& params) {
     if (!glx_visual_) {
         console::error("x11", "GLX visual not selected");
         return false;
@@ -903,7 +872,6 @@ bool x11_window::process_events() {
             case ClientMessage: {
                 if (static_cast<Atom>(event.xclient.data.l[0]) == delete_atom_) {
                     should_close_ = true;
-                    if (on_close_) on_close_(this);
                 } else if (event.xclient.message_type == wm_state_atom_) {
                     long action = event.xclient.data.l[0];
                     Atom prop1 = static_cast<Atom>(event.xclient.data.l[1]);
@@ -936,7 +904,6 @@ bool x11_window::process_events() {
             }
             case DestroyNotify: {
                 should_close_ = true;
-                if (on_close_) on_close_(this);
                 break;
             }
             case VisibilityNotify: {
@@ -977,7 +944,6 @@ void x11_window::handle_resize(uint32_t width, uint32_t height) {
 
     notify_widget_resize();
     if (widget_) widget_->layout();
-    if (on_resize_) on_resize_(this);
 }
 
 static int keysym_to_vk(KeySym keysym) {
@@ -1079,15 +1045,12 @@ void x11_window::handle_key_press(XKeyEvent* event) {
 
         widget_->handle_event(event_type::keyboard, &ked);
     }
-
-    if (on_key_) on_key_(this);
 }
 
 void x11_window::handle_key_release(XKeyEvent* event) {
     if (!event) return;
     KeySym keysym = XLookupKeysym(event, 0);
     key_state_[keysym] = false;
-    if (on_key_) on_key_(this);
 }
 
 namespace {
@@ -1319,8 +1282,6 @@ void x11_window::handle_button_press(XButtonEvent* event) {
         last_click_x_ = xDIP;
         last_click_y_ = yDIP;
     }
-
-    if (on_mouse_) on_mouse_(this);
 }
 
 void x11_window::handle_button_release(XButtonEvent* event) {
@@ -1347,7 +1308,6 @@ void x11_window::handle_button_release(XButtonEvent* event) {
     if (widget_) {
         widget_->handle_event(event_type::mouse, &data);
     }
-    if (on_mouse_) on_mouse_(this);
 }
 
 void x11_window::handle_mouse_motion(XMotionEvent* event) {
@@ -1435,7 +1395,6 @@ void x11_window::handle_mouse_motion(XMotionEvent* event) {
     if (widget_) {
         widget_->handle_event(event_type::mouse, &data);
     }
-    if (on_mouse_) on_mouse_(this);
 }
 
 void x11_window::handle_mouse_wheel(XButtonEvent* event, bool up) {
@@ -1455,7 +1414,6 @@ void x11_window::handle_mouse_wheel(XButtonEvent* event, bool up) {
     if (widget_) {
         widget_->handle_event(event_type::mouse, &data);
     }
-    if (on_mouse_) on_mouse_(this);
 }
 
 
@@ -1489,10 +1447,10 @@ void x11_window::notify_widget_resize() {
 
 
 std::shared_ptr<window> window::create() {
-    return create(window_params{});
+    return create(window_paramaters{});
 }
 
-std::shared_ptr<window> window::create(const window_params& params) {
+std::shared_ptr<window> window::create(const window_paramaters& params) {
     auto win = std::make_shared<x11_window>();
     if (!win->initialize(params)) return nullptr;
     return win;
