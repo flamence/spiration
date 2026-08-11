@@ -65,7 +65,13 @@ void write_crash_log(const EXCEPTION_RECORD* rec, DWORD code, PVOID* frames,
     }
     if (ctx) {
         len += std::snprintf(buf + len, sizeof(buf) - static_cast<size_t>(len),
-                             "fault rip      : 0x%p\r\n", reinterpret_cast<void*>(ctx->Rip));
+                             "fault rip      : 0x%p\r\n", reinterpret_cast<void*>(
+#if defined(_M_X64) || defined(__x86_64__)
+                                ctx->Rip
+#elif defined(_M_ARM64) || defined(__aarch64__)
+                                ctx->Pc
+#endif
+                             ));
     }
     len += std::snprintf(buf + len, sizeof(buf) - static_cast<size_t>(len),
                          "stack trace    :\r\n");
@@ -100,8 +106,12 @@ LONG WINAPI crash_handler(EXCEPTION_POINTERS* ep) {
 
 void install(const std::string& path) {
     if (path.empty()) return;
+#if defined(_WIN32)
+    strncpy_s(g_path, sizeof(g_path), path.c_str(), _TRUNCATE);
+#else
     std::strncpy(g_path, path.c_str(), sizeof(g_path) - 1);
     g_path[sizeof(g_path) - 1] = '\0';
+#endif
     SetUnhandledExceptionFilter(crash_handler);
 }
 
