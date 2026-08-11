@@ -4,6 +4,7 @@
  * @author clk
  */
 
+#include <chrono>
 #include <window/x11_window.h>
 #include <ui/point.h>
 #include <ui/size.h>
@@ -14,6 +15,7 @@
 #include <clocale>
 #include <X11/Xutil.h>
 #include <X11/cursorfont.h>
+#include <thread>
 
 namespace spiration {
 
