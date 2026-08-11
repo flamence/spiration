@@ -36,14 +36,37 @@ jobs:
             build_type: Release
             c_compiler: clang
             cpp_compiler: clang++
+            generator: Ninja
+
+          - os: ubuntu-24.04-arm
+            build_type: Release
+            c_compiler: clang
+            cpp_compiler: clang++
+            generator: Ninja
+
           - os: windows-latest
             build_type: Release
             c_compiler: cl
             cpp_compiler: cl
+            generator: Ninja
+
+          - os: windows-11-arm
+            build_type: Release
+            c_compiler: cl
+            cpp_compiler: cl
+            generator: Ninja
+
           - os: macos-latest
             build_type: Release
             c_compiler: clang
             cpp_compiler: clang++
+            generator: Ninja
+
+          - os: macos-latest-large
+            build_type: Release
+            c_compiler: clang
+            cpp_compiler: clang++
+            generator: Ninja
 
     steps:
       - uses: actions/checkout@v7
