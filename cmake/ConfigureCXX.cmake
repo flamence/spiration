@@ -1,9 +1,16 @@
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
+
 if(NOT MSVC)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -frtti")
 endif()
 if(MINGW)
     get_filename_component(MINGW_DIRECTORY ${CMAKE_CXX_COMPILER} DIRECTORY)
+endif()
+
+if(MSVC)
+    add_compile_options(/EHsc)
+else()
+    add_compile_options(-fexceptions)
 endif()
