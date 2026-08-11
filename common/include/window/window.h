@@ -25,6 +25,7 @@ struct window_parameters {
     int32_t width = 0;
     int32_t height = 0;
     bool resizable = true;
+    bool visible = true;
     bool fullscreen = false;
     bool decorated = true;
 };

@@ -24,20 +24,19 @@ void application::bind_window(std::shared_ptr<spiration::window> window) {
 namespace {
 
 #ifndef __OHOS__
-
 std::shared_ptr<spiration::window> create_window() {
     spiration::window_parameters params;
     params.title = i18n_manager::get().tr("window.title");
     params.width = 800;
     params.height = 600;
     params.decorated = false;
+    params.visible = false;
     auto window = spiration::window::create(params);
     if (!window) {
         spiration::console::error("window", "expect a window instance.");
     }
     return window;
 }
-
 #endif
 
 }

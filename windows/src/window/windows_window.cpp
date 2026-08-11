@@ -1,6 +1,6 @@
 /**
  * @file windows_window.cpp
- * @brief Windows 平台窗口实现（Win32 API）。
+ * @brief 窗口实现。
  * @author clk
  */
 
@@ -14,11 +14,9 @@
 #include <windowsx.h>
 #include <dwmapi.h>
 #include <imm.h>
-#include <iostream>
 #include <cmath>
 #include <functional>
 
-// MinGW 兼容性：DWMWA_USE_IMMERSIVE_DARK_MODE 可能未定义
 #ifndef DWMWA_USE_IMMERSIVE_DARK_MODE
 #define DWMWA_USE_IMMERSIVE_DARK_MODE 20
 #endif
@@ -464,8 +462,6 @@ bool Window::CreateActualWindow(const window_parameters& params) {
         style &= ~(WS_THICKFRAME | WS_MAXIMIZEBOX);
     }
     if (!params.decorated) {
-        // 使用 WS_OVERLAPPEDWINDOW 保留原生窗口管理（贴靠、阴影、动画）
-        // 标题栏通过 WM_NCCALCSIZE + DWM 移除
         style = WS_OVERLAPPEDWINDOW;
         exStyle = WS_EX_APPWINDOW;
     }
@@ -503,7 +499,10 @@ bool Window::CreateActualWindow(const window_parameters& params) {
     DWM_WINDOW_CORNER_PREFERENCE corner = DWMWCP_ROUND;
     DwmSetWindowAttribute(m_hWnd, DWMWA_WINDOW_CORNER_PREFERENCE,
                           &corner, sizeof(corner));
-
+    
+    if (params.visible) show();
+    else hide();
+    
     if (params.fullscreen) set_fullscreen(true);
     return true;
 }
