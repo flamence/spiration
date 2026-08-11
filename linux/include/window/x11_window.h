@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include "ui/cursor.h"
 #include <renderer/renderer.h>
 #include <ui/widget.h>
 #include <window/window.h>
@@ -65,7 +66,7 @@ public:
     void request_repaint() override;
     void request_layout() override;
 
-    void set_cursor(cursor_stype c) override;
+    void set_cursor(cursor_style c) override;
 
     void set_mouse_capture(bool capture) override;
 
@@ -73,13 +74,13 @@ public:
 
     std::shared_ptr<class renderer> get_renderer() const override { return renderer_; }
 
-    bool initialize(const window_paramaters& params) override;
+    bool initialize(const window_parameters& params) override;
     void shutdown() override;
 
 private:
     bool connect_to_x11();
     bool select_fb_config();
-    bool create_x11_window(const window_paramaters& params);
+    bool create_x11_window(const window_parameters& params);
     bool create_gl_context();
     bool create_renderer();
     bool process_events();

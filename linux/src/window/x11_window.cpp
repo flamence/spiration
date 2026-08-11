@@ -439,7 +439,7 @@ void x11_window::set_widget(std::unique_ptr<widget> widget) {
     notify_widget_resize();
 }
 
-bool x11_window::initialize(const window_paramaters& params) {
+bool x11_window::initialize(const window_parameters& params) {
     window_id_ = next_window_id_++;
     dpi_scale_ = 1.0f;
     title_ = params.title;
@@ -611,7 +611,7 @@ bool x11_window::connect_to_x11() {
 }
 
 
-bool x11_window::create_x11_window(const window_paramaters& params) {
+bool x11_window::create_x11_window(const window_parameters& params) {
     if (!glx_visual_) {
         console::error("x11", "GLX visual not selected");
         return false;
@@ -1447,10 +1447,10 @@ void x11_window::notify_widget_resize() {
 
 
 std::shared_ptr<window> window::create() {
-    return create(window_paramaters{});
+    return create(window_parameters{});
 }
 
-std::shared_ptr<window> window::create(const window_paramaters& params) {
+std::shared_ptr<window> window::create(const window_parameters& params) {
     auto win = std::make_shared<x11_window>();
     if (!win->initialize(params)) return nullptr;
     return win;
