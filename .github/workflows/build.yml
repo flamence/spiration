@@ -99,6 +99,7 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           path: ${{ steps.post-strings.outputs.archive-path }}
+          archive: false
 
       - name: 上传到 GitHub Release
         if: github.event_name == 'release'
