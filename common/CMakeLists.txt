@@ -37,6 +37,7 @@ if(UNIX AND NOT APPLE)
 endif()
 
 target_include_directories(spiration.common PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/include
     ${CMAKE_CURRENT_SOURCE_DIR}/src
 )
 
