@@ -55,12 +55,10 @@ target_compile_definitions(${PROJECT_NAME} PRIVATE
 target_include_directories(spiration PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/include
     ${CMAKE_CURRENT_SOURCE_DIR}/src
-    ${CMAKE_CURRENT_SOURCE_DIR}/../common/include
-    ${CMAKE_CURRENT_SOURCE_DIR}/../common/src
 )
 
 target_link_libraries(${PROJECT_NAME} PRIVATE
-    spiration-common
+    spiration.common
     ${COCOA_LIBRARY}
     ${METAL_LIBRARY}
     ${METALKIT_LIBRARY}

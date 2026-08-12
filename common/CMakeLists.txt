@@ -11,37 +11,37 @@ if(NOT (UNIX AND NOT APPLE))
     list(FILTER COMMON_SOURCES EXCLUDE REGEX ".*opengl_renderer\\.cpp$")
 endif()
 
-add_library(spiration-common STATIC ${COMMON_SOURCES} ${COMMON_HEADERS})
+add_library(spiration.common STATIC ${COMMON_SOURCES} ${COMMON_HEADERS})
 
-set_target_properties(spiration-common PROPERTIES
+set_target_properties(spiration.common PROPERTIES
     POSITION_INDEPENDENT_CODE ON
 )
 
-target_link_libraries(spiration-common PUBLIC CppProperties::cppproperties)
-target_link_libraries(spiration-common PUBLIC nlohmann_json::nlohmann_json)
-target_link_libraries(spiration-common PUBLIC CURL::libcurl)
+target_link_libraries(spiration.common PUBLIC CppProperties::cppproperties)
+target_link_libraries(spiration.common PUBLIC nlohmann_json::nlohmann_json)
+target_link_libraries(spiration.common PUBLIC CURL::libcurl)
 
 if(WIN32)
-    target_link_libraries(spiration-common PUBLIC dbghelp)
+    target_link_libraries(spiration.common PUBLIC dbghelp)
 endif()
 
 if(UNIX AND NOT APPLE)
     find_package(OpenGL REQUIRED)
     find_package(Freetype REQUIRED)
-    target_include_directories(spiration-common PRIVATE
+    target_include_directories(spiration.common PRIVATE
         ${OPENGL_INCLUDE_DIR} ${FREETYPE_INCLUDE_DIRS} ${stb_SOURCE_DIR})
-    target_link_libraries(spiration-common PRIVATE
+    target_link_libraries(spiration.common PRIVATE
         ${OPENGL_LIBRARIES} GLX ${FREETYPE_LIBRARIES})
 endif()
 
-target_include_directories(spiration-common
+target_include_directories(spiration.common
     PUBLIC
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
     PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/src
 )
 
-set_target_properties(spiration-common PROPERTIES
+set_target_properties(spiration.common PROPERTIES
     VERSION ${PROJECT_VERSION}
     SOVERSION ${PROJECT_VERSION_MAJOR}
 )

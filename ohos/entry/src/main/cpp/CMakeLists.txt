@@ -8,27 +8,20 @@ if(DEFINED PACKAGE_FIND_FILE)
     include(${PACKAGE_FIND_FILE})
 endif()
 
-file(GLOB_RECURSE COMMON_SOURCES
-    "${SPIRATION_ROOT_PATH}/common/src/*.c"
-    "${SPIRATION_ROOT_PATH}/common/src/*.cpp"
+file(GLOB_RECURSE OHOS_HEADERS
+    "${NATIVERENDER_ROOT_PATH}/include/*.h"
+    "${NATIVERENDER_ROOT_PATH}/include/*.hpp"
 )
 
-list(FILTER COMMON_SOURCES EXCLUDE REGEX ".*chat\\.cpp$")
-list(FILTER COMMON_SOURCES EXCLUDE REGEX ".*web_tool\\.cpp$")
 file(GLOB_RECURSE OHOS_SOURCES
     "${NATIVERENDER_ROOT_PATH}/src/*.c"
     "${NATIVERENDER_ROOT_PATH}/src/*.cpp"
 )
 
-add_library(entry SHARED ${COMMON_SOURCES} ${OHOS_SOURCES})
-
-target_compile_definitions(entry PRIVATE OHOS_PLATFORM)
-
-target_include_directories(entry PRIVATE
-    ${NATIVERENDER_ROOT_PATH}/include
-)
+add_library(entry SHARED ${OHOS_HEADERS} ${OHOS_SOURCES})
 
 target_include_directories(entry PUBLIC
+    ${NATIVERENDER_ROOT_PATH}/include
     ${SPIRATION_ROOT_PATH}/common/include
     ${NATIVERENDER_ROOT_PATH}/deps/stb
     ${NATIVERENDER_ROOT_PATH}/deps/json/include
@@ -40,7 +33,8 @@ add_custom_command(TARGET entry PRE_BUILD COMMAND
     ${NATIVERENDER_ROOT_PATH}/../resources/rawfile/lang/
 )
 
-target_link_libraries(entry PUBLIC libace_napi.z.so
+target_link_libraries(entry PUBLIC spiration.common
+                                   libace_napi.z.so
                                    libEGL.so
                                    libGLESv3.so
                                    libnative_window.so

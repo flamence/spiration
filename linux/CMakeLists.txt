@@ -27,8 +27,6 @@ target_compile_definitions(${PROJECT_NAME} PRIVATE
 target_include_directories(${PROJECT_NAME} PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/include
     ${CMAKE_CURRENT_SOURCE_DIR}/src
-    ${CMAKE_CURRENT_SOURCE_DIR}/../common/include
-    ${CMAKE_CURRENT_SOURCE_DIR}/../common/src
     ${X11_INCLUDE_DIR}
     ${FREETYPE_INCLUDE_DIRS}
     ${XCB_INCLUDE_DIRS}
@@ -37,7 +35,7 @@ target_include_directories(${PROJECT_NAME} PRIVATE
 )
 
 target_link_libraries(${PROJECT_NAME} PRIVATE
-    spiration-common
+    spiration.common
     ${X11_LIBRARIES}
     ${XCB_LIBRARIES}
     ${XCB_RANDR_LIBRARIES}
@@ -50,15 +48,10 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
 
 add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_directory
-        ${CMAKE_CURRENT_SOURCE_DIR}/../common/lang
-        $<TARGET_FILE_DIR:${PROJECT_NAME}>/lang
-)
-
-add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy_directory
         ${CMAKE_CURRENT_SOURCE_DIR}/res
         $<TARGET_FILE_DIR:${PROJECT_NAME}>
 )
+install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/common/lang/ DESTINATION share)
 
 set_target_properties(${PROJECT_NAME} PROPERTIES
     OUTPUT_NAME "spiration"
