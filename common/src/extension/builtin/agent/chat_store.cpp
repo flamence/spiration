@@ -115,8 +115,8 @@ bool write_text_file(const std::string& path, const std::string& content) {
 } // namespace
 
 chat_store::chat_store(std::string base_dir) : base_dir_(std::move(base_dir)) {
-    platform::create_directory(base_dir_);
-    platform::create_directory(chat_dir());
+    std::filesystem::create_directories(base_dir_);
+    std::filesystem::create_directories(chat_dir());
 }
 
 std::string chat_store::make_uuid() {
@@ -159,7 +159,7 @@ void chat_store::set_current_uuid(const std::string& uuid) {
 std::string chat_store::create(const std::string& name) {
     std::string uuid = make_uuid();
     std::string dir = conversation_dir(uuid);
-    if (!platform::create_directory(dir)) {
+    if (!std::filesystem::create_directories(dir)) {
         console::error("extension/agent/chat_store", "create conversation dir failed: %s", dir.c_str());
         return {};
     }
@@ -191,7 +191,7 @@ std::string chat_store::create(const std::string& name) {
 bool chat_store::save(const chat_archive& archive) {
     if (archive.uuid.empty()) return false;
     std::string dir = conversation_dir(archive.uuid);
-    if (!platform::create_directory(dir)) return false;
+    if (!std::filesystem::create_directories(dir)) return false;
 
     nlohmann::json meta;
     meta["uuid"]       = archive.uuid;
@@ -327,9 +327,9 @@ bool chat_store::remove(const std::string& uuid) {
 
 std::vector<conversation_meta> chat_store::list() const {
     std::vector<conversation_meta> out;
-    for (const auto& entry : platform::list_directory(chat_dir())) {
+    for (const auto& entry : std::filesystem::directory_iterator(chat_dir())) {
         std::string dir = platform::join_path(chat_dir(), entry);
-        if (!platform::file_exists(platform::join_path(dir, "meta.json"))) continue;
+        if (!std::filesystem::exists(platform::join_path(dir, "meta.json"))) continue;
 
         conversation_meta meta;
         meta.uuid = entry;

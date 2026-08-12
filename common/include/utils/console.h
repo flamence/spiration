@@ -1,13 +1,13 @@
 /**
  * @file console.h
- * @brief 统一控制台输出与日志管理工具。
+ * @brief 控制台定义。
  * @author clk
  */
 
 #pragma once
 
-#include <cstdio>
 #include <cstdarg>
+#include <filesystem>
 #include <string>
 
 namespace spiration {
@@ -16,19 +16,20 @@ namespace spiration {
  * @brief 日志等级枚举。
  */
 enum class log_level {
-    debug,   
-    info,    
-    warning, 
-    error    
+    debug, ///< 调试
+    info, ///< 信息
+    warning, ///< 警告
+    error ///< 错误
 };
 
 /**
- * @brief 控制台输出管理类。
+ * @brief 控制台类。
  */
 class console {
 public:
     /**
-     * @brief 设置当前日志等级，低于此等级的日志将被忽略。
+     * @brief 设置当前日志等级。
+     * @param level 最低日志等级。
      */
     static void set_level(log_level level);
 
@@ -39,23 +40,21 @@ public:
 
     /**
      * @brief 设置日志文件路径。
-     * @param path 日志文件完整路径；传空串则关闭文件输出。
-     * @note 设置后所有 console::* 输出同时写入 stdout 与该文件。
+     * @param path 日志文件路径。
      */
-    static void set_log_file(const std::string& path);
+    static void set_log_file(const std::filesystem::path& path);
 
     /**
      * @brief 获取当前日志文件路径。
      */
-    static std::string log_file_path();
+    static std::filesystem::path log_file_path();
 
     /**
      * @brief 生成带时间戳的日志文件路径。
      * @param dir 日志目录。
      * @param prefix 文件名前缀。
-     * @return "<dir>/<prefix>-YYYYMMDD-HHMMSS.log"。
      */
-    static std::string make_log_path(const std::string& dir, const std::string& prefix);
+    static std::filesystem::path make_log_path(const std::filesystem::path& dir, const std::string& prefix);
 
     /**
      * @brief 输出调试日志。
@@ -82,7 +81,7 @@ public:
     static void error(const char* tag, const char* format, ...);
 
 private:
-    static log_level s_level;
+    static log_level level;
     static void vprint(log_level level, const char* tag, const char* format, va_list args);
 };
 

@@ -10,6 +10,7 @@
 #include <extension/extension_loader.h>
 #include <extension/extension_manifest.h>
 #include <extension/builtin.h>
+#include <filesystem>
 #include <utils/console.h>
 #include <utils/platform.h>
 
@@ -85,35 +86,31 @@ bool extension_manager::load_extension(const std::string& path) {
     return true;
 }
 
-size_t extension_manager::load_extensions_from(const std::string& directory) {
-    if (!platform::file_exists(directory)) {
+size_t extension_manager::load_extensions_from(const std::filesystem::path& directory) {
+    if (!std::filesystem::exists(directory)) {
         console::info("extension/manager", "directory \"%s\" does not exist",
                       directory.c_str());
         return 0;
     }
 
-    auto entries = platform::list_directory(directory);
-
     struct ext_info {
-        std::string dir_path;
+        std::filesystem::path dir_path;
         manifest_data manifest;
         bool has_manifest = false;
     };
     std::vector<ext_info> infos;
 
-    for (const auto& entry : entries) {
-        std::string subdir = platform::join_path(directory, entry);
-        if (!platform::file_exists(platform::join_path(subdir, "."))) continue;
+    for (const auto& entry : std::filesystem::directory_iterator(directory)) {
+        if (!std::filesystem::exists(entry)) continue;
 
         ext_info info;
-        info.dir_path = subdir;
+        info.dir_path = entry.path();
 
-        std::string manifest_path = platform::join_path(subdir, "extension.json");
+        std::filesystem::path manifest_path = entry.path() / "extension.json";
         std::string json = extension_loader::read_file_text(manifest_path);
         if (!json.empty()) {
             auto m = parse_extension_manifest(json);
             if (m) {
-                // api_version 校验：未声明（0）视为兼容，声明了非支持版本则拒绝。
                 if (m->api_version != 0 &&
                     m->api_version != kSupportedExtensionApiVersion) {
                     console::warning(
@@ -257,13 +254,6 @@ bool extension_manager::unload_extension(const std::string& id) {
     return false;
 }
 
-size_t extension_manager::initialize_all() {
-    size_t count = 0;
-    count += initialize_phase(init_phase::early);
-    count += initialize_phase(init_phase::normal);
-    return count;
-}
-
 size_t extension_manager::initialize_phase(init_phase phase) {
     size_t count = 0;
     for (auto& le : extensions_) {
@@ -321,7 +311,7 @@ size_t extension_manager::count() {
 std::string extension_manager::extension_directory(const std::string& id) {
     for (const auto& le : extensions_) {
         if (le.instance && le.instance->id() == id) {
-            if (!le.dir_path.empty() && platform::file_exists(le.dir_path))
+            if (!le.dir_path.empty() && std::filesystem::exists(le.dir_path))
                 return le.dir_path;
             return id;
         }
@@ -345,7 +335,7 @@ void extension_manager::register_builtin(std::unique_ptr<extension> ext) {
     std::string ext_id = ext->id();
     le.instance = std::move(ext);
     le.initialized = false;
-    le.dir_path = platform::join_path(platform::extension_directory(), ext_id);
+    le.dir_path = platform::data_directory() / ext_id;
     extensions_.push_back(std::move(le));
 
     console::info("extension", "registered builtin \"%s\"", 

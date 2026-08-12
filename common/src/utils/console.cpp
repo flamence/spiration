@@ -1,9 +1,10 @@
 /**
  * @file console.cpp
- * @brief 统一控制台输出与日志管理工具实现。
+ * @brief 控制台实现。
  * @author clk
  */
 
+#include <filesystem>
 #include <utils/console.h>
 #include <cstdio>
 #include <cstdarg>
@@ -31,7 +32,11 @@ namespace {
 
 namespace spiration {
 
-log_level console::s_level = log_level::info;
+#ifndef NDEBUG
+log_level console::level = log_level::info;
+#else
+log_level console::level = log_level::debug;
+#endif
 
 namespace {
 const char* level_prefix(log_level level) {
@@ -46,10 +51,10 @@ const char* level_prefix(log_level level) {
 
 std::mutex g_log_mtx;
 std::ofstream g_log_file;
-std::string g_log_path;
+std::filesystem::path g_log_path;
 } // namespace
 
-void console::set_log_file(const std::string& path) {
+void console::set_log_file(const std::filesystem::path& path) {
     std::lock_guard<std::mutex> lk(g_log_mtx);
     if (g_log_file.is_open()) g_log_file.close();
     g_log_path = path;
@@ -58,12 +63,12 @@ void console::set_log_file(const std::string& path) {
     }
 }
 
-std::string console::log_file_path() {
+std::filesystem::path console::log_file_path() {
     std::lock_guard<std::mutex> lk(g_log_mtx);
     return g_log_path;
 }
 
-std::string console::make_log_path(const std::string& dir, const std::string& prefix) {
+std::filesystem::path console::make_log_path(const std::filesystem::path& dir, const std::string& prefix) {
     std::time_t now = std::time(nullptr);
     struct tm tmv;
 #ifdef _WIN32
@@ -73,31 +78,27 @@ std::string console::make_log_path(const std::string& dir, const std::string& pr
 #endif
     char ts[32];
     std::strftime(ts, sizeof(ts), "%Y%m%d-%H%M%S", &tmv);
-    std::string path = dir;
-    if (!path.empty() && path.back() != '/' && path.back() != '\\') path += "/";
-    return path + prefix + "-" + ts + ".log";
+    return dir / std::format("{}-{}.log", prefix, ts);
 }
 
 void console::set_level(log_level level) {
-    s_level = level;
+    console::level = level;
 }
 
 log_level console::get_level() {
-    return s_level;
+    return level;
 }
 
 void console::debug(const char* tag, const char* format, ...) {
-#ifndef NDEBUG
-    if (s_level > log_level::debug) return;
+    if (level > log_level::debug) return;
     va_list args;
     va_start(args, format);
     vprint(log_level::debug, tag, format, args);
     va_end(args);
-#endif
 }
 
 void console::info(const char* tag, const char* format, ...) {
-    if (s_level > log_level::info) return;
+    if (level > log_level::info) return;
     va_list args;
     va_start(args, format);
     vprint(log_level::info, tag, format, args);
@@ -105,7 +106,7 @@ void console::info(const char* tag, const char* format, ...) {
 }
 
 void console::warning(const char* tag, const char* format, ...) {
-    if (s_level > log_level::warning) return;
+    if (level > log_level::warning) return;
     va_list args;
     va_start(args, format);
     vprint(log_level::warning, tag, format, args);
@@ -113,7 +114,7 @@ void console::warning(const char* tag, const char* format, ...) {
 }
 
 void console::error(const char* tag, const char* format, ...) {
-    if (s_level > log_level::error) return;
+    if (level > log_level::error) return;
     va_list args;
     va_start(args, format);
     vprint(log_level::error, tag, format, args);

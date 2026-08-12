@@ -29,20 +29,19 @@ public:
     explicit extension_api(std::string id);
 
     /**
-     * @brief 获取当前窗口的渲染器实例。
+     * @return 当前窗口的渲染器实例。
      */
     std::shared_ptr<renderer> get_renderer() const;
 
     /**
-     * @brief 获取当前窗口实例。
-     * @note 返回的 shared_ptr 不参与所有权管理，窗口生命周期由 application 管理。
+     * @return 当前窗口实例。
      */
     std::shared_ptr<window> get_window() const;
 
     /**
      * @brief 获取翻译文本。
      * @param key 翻译键
-     * @return 翻译后的字符串
+     * @return 翻译后的字符串。
      */
     std::string tr(const std::string& key) const;
 

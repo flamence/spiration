@@ -7,6 +7,7 @@
 #pragma once
 
 #include <extension/extension_loader.h>
+#include <filesystem>
 #include <init_phase.h>
 
 #include <string>
@@ -47,7 +48,7 @@ public:
      * @param directory 拓展搜索目录。
      * @return 成功加载的拓展数量。
      */
-    static size_t load_extensions_from(const std::string& directory);
+    static size_t load_extensions_from(const std::filesystem::path& directory);
 
     /**
      * @brief 卸载指定拓展。
@@ -55,12 +56,6 @@ public:
      * @return 成功则返回 `true`，否则 `false`。
      */
     static bool unload_extension(const std::string& id);
-
-    /**
-     * @brief 初始化所有已加载但未初始化的拓展。
-     * @return 成功初始化的数量
-     */
-    static size_t initialize_all();
 
     /**
      * @brief 按阶段初始化拓展。

@@ -9,6 +9,7 @@
 #include <extension/extension_api.h>
 #include <extension/extension_loader.h>
 #include <extension/extension_manager.h>
+#include <filesystem>
 #include <utils/console.h>
 #include <utils/platform.h>
 
@@ -48,7 +49,7 @@ bool extension::initialize() {
     chat_client::config cfg;
     bool has_config = false;
 
-    if (platform::file_exists(models_path)) {
+    if (std::filesystem::exists(models_path)) {
         std::string json = extension_loader::read_file_text(models_path);
         if (!json.empty()) {
             try {
@@ -68,7 +69,7 @@ bool extension::initialize() {
         }
         has_config = !models_.empty();
         if (has_config) cfg = models_.front().cfg;
-    } else if (platform::file_exists(legacy_path)) {
+    } else if (std::filesystem::exists(legacy_path)) {
         std::string json = extension_loader::read_file_text(legacy_path);
         if (!json.empty()) {
             try {

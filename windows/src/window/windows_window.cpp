@@ -412,6 +412,8 @@ void Window::set_mouse_capture(bool capture) {
 }
 
 bool Window::initialize(const window_parameters& params) {
+    SetProcessDPIAware();
+
     m_hInstance = GetModuleHandle(nullptr);
     if (!m_hInstance) return false;
 

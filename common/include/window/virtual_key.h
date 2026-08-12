@@ -1,6 +1,6 @@
 /**
  * @file virtual_key.h
- * @brief 跨平台统一虚拟键码定义。
+ * @brief 虚拟键码定义。
  * @author clk
  */
 

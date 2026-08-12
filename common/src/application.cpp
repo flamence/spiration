@@ -4,10 +4,13 @@
  * @author clk
  */
 
-#include "init_phase.h"
+#include <init_phase.h>
+#include <utils/console.h>
 #include <application.h>
 #include <extension/builtin/i18n/i18n.h>
+#include <filesystem>
 #include <optional>
+#include <string>
 #include <ui/root.h>
 #include <utility>
 #include <utils/crash_log.h>
@@ -26,7 +29,7 @@ namespace {
 #ifndef __OHOS__
 std::shared_ptr<spiration::window> create_window() {
     spiration::window_parameters params;
-    params.title = i18n_manager::get().tr("window.title");
+    params.title = application::APPLICATION_NAME;
     params.width = 800;
     params.height = 600;
     params.decorated = false;
@@ -41,6 +44,15 @@ std::shared_ptr<spiration::window> create_window() {
 
 }
 
+std::filesystem::path application::data_directory(std::optional<std::string> sub) {
+    std::filesystem::path base = spiration::platform::data_directory() / APPLICATION_PACKAGE;
+    if (sub != std::nullopt) {
+        base = base / *sub;
+    }
+    std::filesystem::create_directories(base);
+    return base;
+}
+
 spiration::extension_manager* application::extension() const {
     return &spiration::extension_manager::instance();
 }
@@ -49,18 +61,13 @@ void application::initialize(std::optional<init_phase> phase) {
     if (phase == std::nullopt) {
         initialize(init_phase::early);
         initialize(init_phase::normal);
-        initialize(init_phase::after);
+        initialize(init_phase::late);
     } else if (phase == init_phase::early) {
-        std::string log_dir = spiration::platform::join_path(spiration::platform::executable_directory(), "logs");
-        spiration::platform::create_directory(log_dir);
-        std::string log_path = spiration::console::make_log_path(log_dir, "spiration");
+        auto log_path = console::make_log_path(data_directory("logs"), APPLICATION_LOWER_NAME);
         spiration::console::set_log_file(log_path);
         spiration::crash_log::install(log_path);
-        spiration::platform::create_directory(spiration::platform::app_data_dir());
         spiration::extension_manager::instance();
-        spiration::platform::create_directory(spiration::platform::extension_directory());
-        spiration::extension_manager::instance();
-        spiration::console::info("extension/manager", "loaded %zu extension(s)", spiration::extension_manager::load_extensions_from(spiration::platform::extension_directory()));
+        spiration::console::info("extension/manager", "loaded %zu extension(s)", extension_manager::load_extensions_from(platform::data_directory()));
         spiration::extension_manager::initialize_phase(init_phase::early);
     } else if (phase == init_phase::normal) {
 #ifndef __OHOS__
@@ -73,8 +80,8 @@ void application::initialize(std::optional<init_phase> phase) {
 #ifndef __OHOS__
         window_->show();
 #endif
-    } else if (phase == init_phase::after) {
-        spiration::extension_manager::initialize_phase(init_phase::after);
+    } else if (phase == init_phase::late) {
+        spiration::extension_manager::initialize_phase(init_phase::late);
     }
 }
 

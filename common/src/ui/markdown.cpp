@@ -952,7 +952,7 @@ float markdown::draw_image_run(std::shared_ptr<renderer> r, const run& img, floa
     std::string path = img.href;
     if (path.rfind("file://", 0) == 0) path = path.substr(7);
     uint32_t iw = 0, ih = 0;
-    bool has_img = !path.empty() && platform::file_exists(path) &&
+    bool has_img = !path.empty() && std::filesystem::exists(path) &&
                    r && r->query_image_size(path, iw, ih) && iw > 0 && ih > 0;
     if (has_img) {
         float dh = line_height;

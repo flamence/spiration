@@ -4,6 +4,7 @@
  * @author clk
  */
 
+#include <filesystem>
 #include <utils/platform.h>
 #include <utils/console.h>
 
@@ -42,31 +43,10 @@ std::string platform::architecture() {
     return uts.machine;
 }
 
-std::string platform::app_data_dir() {
+std::filesystem::path platform::data_directory() {
     const char* home = getenv("HOME");
     if (home) return std::string(home) + "/.config/spiration";
-    return join_path(executable_directory(), "spiration");
-}
-
-std::string platform::executable_directory() {
-    char buf[1024];
-    ssize_t len = readlink("/proc/self/exe", buf, sizeof(buf) - 1);
-    if (len != -1) {
-        buf[len] = '\0';
-        std::string path(buf);
-        auto pos = path.find_last_of('/');
-        if (pos != std::string::npos) path.resize(pos);
-        return path;
-    }
-    return ".";
-}
-
-std::string platform::join_path(const std::string& a, const std::string& b) {
-    if (a.empty()) return b;
-    if (b.empty()) return a;
-    char last = a.back();
-    if (last == '/') return a + b;
-    return a + "/" + b;
+    return temp_directory() / "data";
 }
 
 bool platform::file_exists(const std::string& path) {
@@ -100,10 +80,6 @@ std::vector<std::string> platform::list_directory(const std::string& path) {
     closedir(dir);
     std::sort(entries.begin(), entries.end());
     return entries;
-}
-
-std::string platform::extension_directory() {
-    return app_data_dir();
 }
 
 std::string platform::system_locale() {

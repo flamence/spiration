@@ -4,6 +4,7 @@
  * @author clk
  */
 
+#include <filesystem>
 #include <utils/crash_log.h>
 
 #if defined(_WIN32)
@@ -104,12 +105,12 @@ LONG WINAPI crash_handler(EXCEPTION_POINTERS* ep) {
 
 } // namespace
 
-void install(const std::string& path) {
+void install(const std::filesystem::path& path) {
     if (path.empty()) return;
 #if defined(_WIN32)
-    strncpy_s(g_path, sizeof(g_path), path.c_str(), _TRUNCATE);
+    strncpy_s(g_path, sizeof(g_path), path.string().c_str(), _TRUNCATE);
 #else
-    std::strncpy(g_path, path.c_str(), sizeof(g_path) - 1);
+    std::strncpy(g_path, path.string().c_str(), sizeof(g_path) - 1);
     g_path[sizeof(g_path) - 1] = '\0';
 #endif
     SetUnhandledExceptionFilter(crash_handler);
@@ -123,6 +124,7 @@ void install(const std::string& path) {
 #include <csignal>
 #include <cstring>
 #include <ctime>
+#include <filesystem>
 #include <string>
 
 #include <fcntl.h>
@@ -177,7 +179,7 @@ void crash_handler(int sig) {
 
 } // namespace
 
-void install(const std::string& path) {
+void install(const std::filesystem::path& path) {
     if (path.empty()) return;
     std::strncpy(g_path, path.c_str(), sizeof(g_path) - 1);
     g_path[sizeof(g_path) - 1] = '\0';

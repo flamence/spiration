@@ -1,6 +1,6 @@
 /**
  * @file event.h
- * @brief 事件系统类型定义（事件类型、鼠标事件数据等）。
+ * @brief 事件定义。
  * @author clk
  */
 

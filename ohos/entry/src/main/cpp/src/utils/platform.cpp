@@ -4,6 +4,7 @@
  * @author clk
  */
 
+#include <filesystem>
 #include <utils/platform.h>
 #include <utils/console.h>
 
@@ -52,11 +53,11 @@ std::string platform::architecture() {
     return uts.machine;
 }
 
-std::string platform::app_data_dir() {
+std::filesystem::path platform::data_directory() {
     if (!g_app_dir.empty()) {
         return g_app_dir;
     }
-    return "/data/storage/el2/base/files";
+    return temp_directory() / "data";
 }
 
 std::string platform::executable_directory() {
@@ -105,10 +106,6 @@ std::vector<std::string> platform::list_directory(const std::string& path) {
     closedir(dir);
     std::sort(entries.begin(), entries.end());
     return entries;
-}
-
-std::string platform::extension_directory() {
-    return app_data_dir();
 }
 
 std::string platform::system_locale() {

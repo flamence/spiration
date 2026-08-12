@@ -17,11 +17,9 @@
 #include <cstdio>
 #include <exception>
 #include <future>
-#include <map>
 #include <memory>
 #include <mutex>
 #include <set>
-#include <sstream>
 #include <thread>
 #include <utility>
 

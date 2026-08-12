@@ -4,6 +4,7 @@
  * @author clk
  */
 
+#include <filesystem>
 #include <utils/platform.h>
 #include <utils/console.h>
 
@@ -85,76 +86,16 @@ std::string platform::architecture() {
     }
 }
 
-std::string platform::app_data_dir() {
+std::filesystem::path platform::data_directory() {
     wchar_t* appdata = nullptr;
     size_t len = 0;
     if (_wdupenv_s(&appdata, &len, L"APPDATA") == 0 && appdata) {
         std::string result = wide_to_utf8(appdata);
         free(appdata);
-        return result + "\\spiration";
+        return std::filesystem::path(result) / "spiration";
     }
     if (appdata) free(appdata);
-    return join_path(executable_directory(), "spiration");
-}
-
-std::string platform::executable_directory() {
-    std::vector<wchar_t> buf(MAX_PATH);
-    DWORD len = GetModuleFileNameW(nullptr, buf.data(),
-                                   static_cast<DWORD>(buf.size()));
-    if (len == 0) return ".";
-    std::wstring path(buf.data(), len);
-    auto pos = path.find_last_of(L"\\/");
-    if (pos != std::wstring::npos) path.resize(pos);
-    return wide_to_utf8(path);
-}
-
-std::string platform::join_path(const std::string& a, const std::string& b) {
-    if (a.empty()) return b;
-    if (b.empty()) return a;
-    char last = a.back();
-    if (last == '\\' || last == '/') return a + b;
-    return a + "\\" + b;
-}
-
-bool platform::file_exists(const std::string& path) {
-    DWORD attr = GetFileAttributesW(utf8_to_wide(path).c_str());
-    return attr != INVALID_FILE_ATTRIBUTES;
-}
-
-bool platform::create_directory(const std::string& path) {
-    if (path.empty()) return false;
-    if (file_exists(path)) return true;
-    std::string parent = path;
-    while (!parent.empty() && (parent.back() == '\\' || parent.back() == '/'))
-        parent.pop_back();
-    auto slash = parent.find_last_of("\\/");
-    if (slash != std::string::npos && slash > 0) {
-        std::string p = parent.substr(0, slash);
-        if (!p.empty() && !file_exists(p)) create_directory(p);
-    }
-    std::wstring wpath = utf8_to_wide(path);
-    return CreateDirectoryW(wpath.c_str(), nullptr) != 0 ||
-           GetLastError() == ERROR_ALREADY_EXISTS;
-}
-
-std::vector<std::string> platform::list_directory(const std::string& path) {
-    std::vector<std::string> entries;
-    std::wstring search = utf8_to_wide(path) + L"\\*";
-    WIN32_FIND_DATAW ffd;
-    HANDLE hFind = FindFirstFileW(search.c_str(), &ffd);
-    if (hFind == INVALID_HANDLE_VALUE) return entries;
-    do {
-        if (wcscmp(ffd.cFileName, L".") == 0 ||
-            wcscmp(ffd.cFileName, L"..") == 0) continue;
-        entries.push_back(wide_to_utf8(ffd.cFileName));
-    } while (FindNextFileW(hFind, &ffd) != 0);
-    FindClose(hFind);
-    std::sort(entries.begin(), entries.end());
-    return entries;
-}
-
-std::string platform::extension_directory() {
-    return app_data_dir();
+    return temp_directory() / "data";
 }
 
 std::string platform::system_locale() {

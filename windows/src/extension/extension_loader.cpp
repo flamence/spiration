@@ -6,6 +6,7 @@
 
 #include <extension/extension_loader.h>
 #include <extension/extension.h>
+#include <filesystem>
 #include <utils/console.h>
 
 #define WIN32_LEAN_AND_MEAN
@@ -88,7 +89,7 @@ extension_loader::load_result extension_loader::load_extension_from(const std::s
     return result;
 }
 
-std::string extension_loader::read_file_text(const std::string& path) {
+std::string extension_loader::read_file_text(const std::filesystem::path& path) {
     std::ifstream file(path);
     if (!file.is_open()) return {};
     std::stringstream buf;
@@ -104,8 +105,7 @@ extension_loader::load_result extension_loader::load_extension_from_dir(
     std::string manifest_json = read_file_text(manifest_path);
 
     if (manifest_json.empty()) {
-        auto entries = platform::list_directory(dir_path);
-        for (const auto& entry : entries) {
+        for (const auto& entry : std::filesystem::directory_iterator(dir_path)) {
             if (entry.size() >= 4 && entry.substr(entry.size() - 4) == ".dll") {
                 std::string dll_path = platform::join_path(dir_path, entry);
                 result = load_extension_from(dll_path);

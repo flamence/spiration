@@ -4,6 +4,7 @@
  * @author clk
  */
 
+#include <filesystem>
 #include <utils/platform.h>
 #include <utils/console.h>
 
@@ -18,6 +19,10 @@
 #include <algorithm>
 #include <string>
 #include <vector>
+#ifdef __APPLE__
+#include <crt_externs.h>
+#define environ (*_NSGetEnviron())
+#endif
 
 namespace spiration {
 
@@ -43,29 +48,10 @@ std::string platform::architecture() {
     return uts.machine;
 }
 
-std::string platform::app_data_dir() {
+std::filesystem::path platform::data_directory() {
     const char* home = getenv("HOME");
     if (home) return std::string(home) + "/Library/Application Support/Spiration";
-    return join_path(executable_directory(), "spiration");
-}
-
-std::string platform::executable_directory() {
-    char buf[4096];
-    uint32_t size = sizeof(buf);
-    if (_NSGetExecutablePath(buf, &size) == 0) {
-        char* slash = std::strrchr(buf, '/');
-        if (slash) *slash = '\0';
-        return std::string(buf);
-    }
-    return ".";
-}
-
-std::string platform::join_path(const std::string& a, const std::string& b) {
-    if (a.empty()) return b;
-    if (b.empty()) return a;
-    char last = a.back();
-    if (last == '/') return a + b;
-    return a + "/" + b;
+    return temp_directory() / "data";
 }
 
 bool platform::file_exists(const std::string& path) {
@@ -99,10 +85,6 @@ std::vector<std::string> platform::list_directory(const std::string& path) {
     closedir(dir);
     std::sort(entries.begin(), entries.end());
     return entries;
-}
-
-std::string platform::extension_directory() {
-    return app_data_dir();
 }
 
 std::string platform::system_locale() {

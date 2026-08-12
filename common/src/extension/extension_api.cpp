@@ -94,7 +94,7 @@ std::string extension_api::app_data_dir() const {
 }
 
 std::string extension_api::extension_data_dir(const std::string& extension_id) const {
-    return platform::join_path(platform::extension_directory(), extension_id);
+    return platform::data_directory() / extension_id;
 }
 
 std::string extension_api::extension_dir() const {

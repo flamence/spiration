@@ -7,9 +7,11 @@
 #pragma once
 
 #include <extension/extension_manager.h>
+#include <filesystem>
 #include <init_phase.h>
 #include <memory>
 #include <optional>
+#include <string>
 #include <window/window.h>
 
 namespace spiration {
@@ -19,6 +21,10 @@ namespace spiration {
  */
 class application {
 public:
+    static inline std::string APPLICATION_NAME = "Spiration"; ///< 应用名称。
+    static inline std::string APPLICATION_LOWER_NAME = "spiration"; ///< 应用小写名。
+    static inline std::string APPLICATION_PACKAGE = "com.flamence.spiration"; ///< 应用包名。
+
 #ifdef __OHOS__
     /**
      * @brief 绑定应用至窗口。
@@ -34,6 +40,8 @@ public:
     
     /**
      * @brief 初始化应用。
+     * @param phase 指定所执行应用初始化阶段。
+     * @note 对于鸿蒙平台，默认禁止了对窗口的创建，原因是其窗口伴随鸿蒙应用的生命周期。
      */
     void initialize(std::optional<init_phase> phase = std::nullopt);
     
@@ -72,6 +80,8 @@ private:
     static std::unique_ptr<application> instance_;
     spiration::widget* widget_;
     std::shared_ptr<spiration::window> window_;
+
+    std::filesystem::path data_directory(std::optional<std::string> sub = std::nullopt);
 };
 
 }

@@ -109,9 +109,9 @@ private:
 
     float m_DPIScale = 1.0f;
 
-    static constexpr float DRAG_AREA_HEIGHT = spiration::kTitleBarDragHeight;
+    static constexpr float DRAG_AREA_HEIGHT = 34.0f;
 
-    static constexpr float RESIZE_BORDER_WIDTH = spiration::kResizeBorderWidth;
+    static constexpr float RESIZE_BORDER_WIDTH = 6.0f;
 
     std::shared_ptr<renderer> m_Renderer = nullptr;
     std::unique_ptr<widget> m_Widget = nullptr;
