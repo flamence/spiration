@@ -321,7 +321,7 @@ static napi_value NapiInitNativeWindow(napi_env env, napi_callback_info info) {
 
     g_renderer->set_logical_size(logical_w, logical_h);
 
-    spiration::window_params params;
+    spiration::window_parameters params;
     params.title = "Spiration";
     params.width = static_cast<int32_t>(logical_w);
     params.height = static_cast<int32_t>(logical_h);

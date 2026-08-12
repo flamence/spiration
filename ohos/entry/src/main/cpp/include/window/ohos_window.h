@@ -48,23 +48,18 @@ public:
     void loop() override {}
     bool should_close() const override { return false; }
 
-    void* user_data() const override { return user_data_; }
-    void set_user_data(void* data) override { user_data_ = data; }
-
     void request_repaint() override;
     void request_layout() override;
 
-    void set_on_close(void_function callback) override { on_close_ = callback; }
-    void set_on_resize(void_function callback) override { on_resize_ = callback; }
-    void set_on_key(void_function callback) override { on_key_ = callback; }
-    void set_on_mouse(void_function callback) override { on_mouse_ = callback; }
     void set_mouse_capture(bool capture) override {}
     void set_on_maximize(void_function callback) { on_maximize_ = callback; }
     void set_on_minimize(void_function callback) { on_minimize_ = callback; }
     void set_on_start_move(void_function callback) { on_start_move_ = callback; }
+    void set_on_close(void_function callback) { on_close_ = callback; }
 
     void set_widget(std::unique_ptr<widget> w) override;
-
+    
+    
     void set_renderer(const std::shared_ptr<renderer>& r) { renderer_ = r; }
 
     std::shared_ptr<class renderer> get_renderer() const override { return renderer_.lock(); }
@@ -79,7 +74,7 @@ public:
 
     void render(const std::shared_ptr<renderer>& r);
 
-    bool initialize(const window_params& params) override;
+    bool initialize(const window_parameters& params) override;
 
 protected:
     void shutdown() override {}
@@ -91,14 +86,10 @@ private:
     std::unique_ptr<widget> root_widget_;
     std::weak_ptr<renderer> renderer_;
     void* native_window_ = nullptr;
-    void* user_data_ = nullptr;
     bool visible_ = false;
     bool needs_layout_ = true;
 
     void_function on_close_ = nullptr;
-    void_function on_resize_ = nullptr;
-    void_function on_key_ = nullptr;
-    void_function on_mouse_ = nullptr;
     void_function on_maximize_ = nullptr;
     void_function on_minimize_ = nullptr;
     void_function on_start_move_ = nullptr;

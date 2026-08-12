@@ -13,7 +13,7 @@ std::shared_ptr<window> window::create() {
     return nullptr;
 }
 
-std::shared_ptr<window> window::create(const window_params& params) {
+std::shared_ptr<window> window::create(const window_parameters& params) {
     console::warning("window", "Window creation not fully implemented on OHOS platform");
     (void)params;
     return nullptr;
@@ -26,16 +26,11 @@ ohos_window::ohos_window() = default;
 
 ohos_window::~ohos_window() = default;
 
-bool ohos_window::initialize(const window_params& params) {
+bool ohos_window::initialize(const window_parameters& params) {
     title_ = params.title;
     width_ = params.width > 0 ? params.width : 1200;
     height_ = params.height > 0 ? params.height : 800;
     visible_ = params.visible;
-    user_data_ = params.user_data;
-    on_close_ = params.on_close;
-    on_resize_ = params.on_resize;
-    on_key_ = params.on_key;
-    on_mouse_ = params.on_mouse;
     return true;
 }
 
