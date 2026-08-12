@@ -17,12 +17,14 @@ set_target_properties(spiration.common PROPERTIES
     POSITION_INDEPENDENT_CODE ON
 )
 
-target_link_libraries(spiration.common PUBLIC CppProperties::cppproperties)
-target_link_libraries(spiration.common PUBLIC nlohmann_json::nlohmann_json)
-target_link_libraries(spiration.common PUBLIC CURL::libcurl)
+target_link_libraries(spiration.common PRIVATE
+    CppProperties::cppproperties
+    nlohmann_json::nlohmann_json
+    CURL::libcurl
+)
 
 if(WIN32)
-    target_link_libraries(spiration.common PUBLIC dbghelp)
+    target_link_libraries(spiration.common PRIVATE dbghelp)
 endif()
 
 if(UNIX AND NOT APPLE)
@@ -34,14 +36,21 @@ if(UNIX AND NOT APPLE)
         ${OPENGL_LIBRARIES} GLX ${FREETYPE_LIBRARIES})
 endif()
 
-target_include_directories(spiration.common
-    PUBLIC
-        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-    PRIVATE
-        ${CMAKE_CURRENT_SOURCE_DIR}/src
+target_include_directories(spiration.common PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/src
 )
 
-set_target_properties(spiration.common PROPERTIES
-    VERSION ${PROJECT_VERSION}
-    SOVERSION ${PROJECT_VERSION_MAJOR}
+add_library(spiration.common.headers INTERFACE)
+
+target_include_directories(spiration.common.headers INTERFACE
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/common/include>
+    $<BUILD_INTERFACE:${nlohmann_json_SOURCE_DIR}/include>
+    $<BUILD_INTERFACE:${curl_SOURCE_DIR}/include>
+    $<INSTALL_INTERFACE:include>
 )
+
+target_link_libraries(spiration.common.headers INTERFACE
+    nlohmann_json::nlohmann_json
+)
+
+add_library(spiration::api ALIAS spiration.common.headers)
