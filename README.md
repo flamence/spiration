@@ -60,7 +60,7 @@ cmake --build ./build
 
 ## 贡献支持
 
-详见 [CONTRIBUTING.md](CONTRIBUTING.md)。
+详见 [为 Spiration 贡献](https://flamence.github.io/spiration.docs/contributing)。
 
 ## 协议许可
 
