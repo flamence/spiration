@@ -13,23 +13,6 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(json)
 
-FetchContent_Declare(
-    CppProperties
-    GIT_REPOSITORY https://github.com/KonanM/CppProperties.git
-    GIT_TAG e18f5c648b7a085b1a8454c8f07ece31737d620a
-)
-set(BUILD_TESTING OFF)
-FetchContent_GetProperties(CppProperties)
-if(NOT CppProperties_POPULATED)
-    FetchContent_Populate(CppProperties)
-endif()
-add_library(cppproperties INTERFACE)
-add_library(CppProperties::cppproperties ALIAS cppproperties)
-target_include_directories(cppproperties INTERFACE
-    $<BUILD_INTERFACE:${CppProperties_SOURCE_DIR}/include>
-)
-target_compile_features(cppproperties INTERFACE cxx_std_17)
-
 find_package(CURL QUIET)
 if(NOT CURL_FOUND)
     FetchContent_Declare(

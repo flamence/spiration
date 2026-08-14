@@ -18,7 +18,6 @@ set_target_properties(spiration.common PROPERTIES
 )
 
 target_link_libraries(spiration.common PRIVATE
-    CppProperties::cppproperties
     nlohmann_json::nlohmann_json
     CURL::libcurl
 )
