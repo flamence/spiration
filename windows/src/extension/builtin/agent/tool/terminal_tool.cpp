@@ -80,7 +80,7 @@ std::string to_oem(const std::string& input) {
 
 class win_terminal_session : public terminal_session {
 public:
-    win_terminal_session(const std::string& shell_path, const std::string& cwd);
+    win_terminal_session(const std::string& shell_path, const std::filesystem::path& cwd);
     ~win_terminal_session() override;
 
     bool is_alive() const override { return alive_.load(); }
@@ -105,7 +105,7 @@ private:
     void reader_loop();
 };
 
-win_terminal_session::win_terminal_session(const std::string& shell_path, const std::string& cwd) {
+win_terminal_session::win_terminal_session(const std::string& shell_path, const std::filesystem::path& cwd) {
     SECURITY_ATTRIBUTES sa = {sizeof(SECURITY_ATTRIBUTES), nullptr, TRUE};
 
     HANDLE inRead = INVALID_HANDLE_VALUE, inWrite = INVALID_HANDLE_VALUE;
@@ -134,7 +134,8 @@ win_terminal_session::win_terminal_session(const std::string& shell_path, const 
     std::string cmdline = "\"" + exe + "\"";
 
     PROCESS_INFORMATION pi = {};
-    LPCSTR dir = cwd.empty() ? nullptr : cwd.c_str();
+    std::string dir_str = cwd.empty() ? std::string() : cwd.string();
+    LPCSTR dir = dir_str.empty() ? nullptr : dir_str.c_str();
     BOOL ok = CreateProcessA(nullptr, cmdline.data(), nullptr, nullptr, TRUE,
                              CREATE_NO_WINDOW, nullptr, dir, &si, &pi);
     CloseHandle(inRead);
@@ -232,7 +233,7 @@ void win_terminal_session::reader_loop() {
 } // namespace
 
 std::unique_ptr<terminal_session> create_terminal_session(const std::string& shell_path,
-                                                          const std::string& cwd) {
+                                                          const std::filesystem::path& cwd) {
     return std::make_unique<win_terminal_session>(shell_path, cwd);
 }
 

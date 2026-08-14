@@ -97,7 +97,7 @@ public:
      * @param id 扩展 ID。
      * @return 目录路径，未找到返回空串。
      */
-    static std::string extension_directory(const std::string& id);
+    static std::filesystem::path extension_directory(const std::string& id);
 
     /**
      * @brief 订阅事件。
@@ -160,7 +160,7 @@ private:
         /** @brief 是否已调用 initialize()。 */
         bool initialized = false;
         /** @brief 扩展所在目录路径。 */
-        std::string dir_path;
+        std::filesystem::path dir_path;
     };
 
     /** @brief 所有已加载的扩展列表。 */

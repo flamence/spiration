@@ -4,6 +4,7 @@
  * @author clk
  */
 
+#include "extension/extension_manager.h"
 #include <init_phase.h>
 #include <utils/console.h>
 #include <application.h>
@@ -67,8 +68,8 @@ void application::initialize(std::optional<init_phase> phase) {
         spiration::console::set_log_file(log_path);
         spiration::crash_log::install(log_path);
         spiration::extension_manager::instance();
-        spiration::console::info("extension/manager", "loaded %zu extension(s)", extension_manager::load_extensions_from(platform::data_directory()));
-        spiration::extension_manager::initialize_phase(init_phase::early);
+        spiration::extension_manager::load_extensions_from(platform::data_directory());
+        spiration::extension_manager::initialize_phase(init_phase::early);  
     } else if (phase == init_phase::normal) {
 #ifndef __OHOS__
         window_ = std::move(create_window());

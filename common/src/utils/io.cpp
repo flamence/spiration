@@ -10,12 +10,12 @@
 namespace spiration {
 namespace io {
 
-std::string read_file_content(const std::filesystem::path& filepath) {
-    if (!std::filesystem::exists(filepath) || !std::filesystem::is_regular_file(filepath)) {
+std::string read_file_content(const std::filesystem::path& path) {
+    if (!std::filesystem::exists(path) || !std::filesystem::is_regular_file(path)) {
         throw std::runtime_error("file does not exist or is not a regular file");
     }
 
-    std::ifstream file(filepath, std::ios::binary);
+    std::ifstream file(path, std::ios::binary);
     if (!file.is_open()) {
         throw std::runtime_error("failed to open file");
     }
@@ -23,6 +23,15 @@ std::string read_file_content(const std::filesystem::path& filepath) {
     std::stringstream buffer;
     buffer << file.rdbuf();
     return buffer.str();
+}
+
+bool write_file_content(const std::filesystem::path& path, const std::string& content) {
+    std::error_code ec;
+    if (path.has_parent_path()) std::filesystem::create_directories(path.parent_path(), ec);
+    std::ofstream f(path, std::ios::binary | std::ios::trunc);
+    if (!f) return false;
+    f.write(content.data(), static_cast<std::streamsize>(content.size()));
+    return static_cast<bool>(f);
 }
 
 } // namespace io

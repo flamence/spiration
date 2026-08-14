@@ -8,6 +8,7 @@
 
 #include <extension/extension_manager.h>
 
+#include <filesystem>
 #include <string>
 #include <vector>
 #include <memory>
@@ -73,19 +74,9 @@ public:
     void log_error(const char* fmt, ...) const;
 
     /**
-     * @brief 获取应用数据目录。
-     */
-    std::string app_data_dir() const;
-
-    /**
-     * @brief 获取扩展数据目录。
-     */
-    std::string extension_data_dir(const std::string& extension_id) const;
-
-    /**
      * @brief 获取本扩展所在的目录路径。
      */
-    std::string extension_dir() const;
+    std::filesystem::path extension_directory() const;
 
     /**
      * @brief 请求重绘窗口。

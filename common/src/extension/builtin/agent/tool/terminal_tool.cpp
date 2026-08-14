@@ -9,7 +9,6 @@
 
 #include <nlohmann/json.hpp>
 
-#include <algorithm>
 #include <memory>
 
 namespace spiration {
@@ -20,7 +19,7 @@ terminal_manager& terminal_manager::instance() {
     return inst;
 }
 
-std::string terminal_manager::create(const std::string& shell, const std::string& cwd) {
+std::string terminal_manager::create(const std::string& shell, const std::filesystem::path& cwd) {
     std::shared_ptr<terminal_session> s = create_terminal_session(shell, cwd);
     if (!s) return "[error] failed to create terminal session";
     std::lock_guard<std::mutex> lk(mtx_);
@@ -128,7 +127,7 @@ std::string create_terminal_tool::execute(const std::string& args_json) {
     } catch (const std::exception& e) {
         return "[error] invalid arguments: " + std::string(e.what());
     }
-    std::string cwd = workdir_getter_ ? workdir_getter_() : "";
+    std::filesystem::path cwd = workdir_getter_ ? workdir_getter_() : "";
     return terminal_manager::instance().create(shell, cwd);
 }
 

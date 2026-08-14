@@ -10,6 +10,7 @@
 #include <extension/builtin/agent/tool/terminal_tool.h>
 #include <extension/builtin/agent/tool/todo_tool.h>
 
+#include <filesystem>
 #include <mutex>
 #include <string>
 #include <vector>
@@ -54,7 +55,7 @@ public:
      * @brief 构造存储。
      * @param base_dir 数据目录。
      */
-    explicit chat_store(std::string base_dir);
+    explicit chat_store(std::filesystem::path base_dir);
 
     /**
      * @brief 创建新会话。
@@ -86,16 +87,16 @@ public:
     void set_current_uuid(const std::string& uuid);
 
     /// @brief 数据目录。
-    const std::string& base_dir() const { return base_dir_; }
+    const std::filesystem::path& base_dir() const { return base_dir_; }
 
     /// @brief chat/ 子目录路径。
-    std::string chat_dir() const;
+    std::filesystem::path chat_dir() const;
 
     /// @brief 会话目录路径。
-    std::string conversation_dir(const std::string& uuid) const;
+    std::filesystem::path conversation_dir(const std::string& uuid) const;
 
 private:
-    std::string base_dir_;
+    std::filesystem::path base_dir_;
     mutable std::mutex uuid_mtx_;
     std::string current_uuid_;
 

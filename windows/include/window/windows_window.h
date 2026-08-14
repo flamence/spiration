@@ -9,12 +9,10 @@
 #include <renderer/renderer.h>
 #include <ui/widget.h>
 #include <window/window.h>
-#include <window/window_constants.h>
 #include <Windows.h>
 #include <atomic>
 #include <chrono>
 #include <memory>
-#include <functional>
 #include <string>
 
 namespace spiration {

@@ -14,3 +14,7 @@ if(MSVC)
 else()
     add_compile_options(-fexceptions)
 endif()
+
+if(MSVC)
+    add_compile_options("/utf-8")
+endif()

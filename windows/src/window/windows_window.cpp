@@ -4,6 +4,7 @@
  * @author clk
  */
 
+#include <optional>
 #include <resource.h>
 #include <ui/point.h>
 #include <ui/size.h>
@@ -16,6 +17,7 @@
 #include <imm.h>
 #include <cmath>
 #include <functional>
+#include <winuser.h>
 
 #ifndef DWMWA_USE_IMMERSIVE_DARK_MODE
 #define DWMWA_USE_IMMERSIVE_DARK_MODE 20
@@ -326,10 +328,10 @@ LRESULT Window::HandleMessage(UINT uMsg, WPARAM wParam, LPARAM lParam) {
             key_event_data ked;
             ked.codepoint = static_cast<unsigned int>(wParam);
             m_Widget->handle_event(event_type::keyboard, &ked);
-            if (ked.ime_x >= 0) {
+            if (ked.ime_x != std::nullopt && ked.ime_y != std::nullopt) {
                 HIMC hIMC = ImmGetContext(m_hWnd);
                 if (hIMC) {
-                    COMPOSITIONFORM cf = { CFS_POINT, { (LONG)ked.ime_x, (LONG)ked.ime_y }, {} };
+                    COMPOSITIONFORM cf = { CFS_POINT, { (LONG)(ked.ime_x.value() * m_DPIScale), (LONG)(ked.ime_y.value() * m_DPIScale) }, {} };
                     ImmSetCompositionWindow(hIMC, &cf);
                     ImmReleaseContext(m_hWnd, hIMC);
                 }

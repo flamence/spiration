@@ -11,10 +11,10 @@ i18n_manager& i18n_manager::get() {
     return instance;
 }
 
-bool i18n_manager::load(const std::string& locale, const std::string& filepath) {
+bool i18n_manager::load(const std::string& locale, const std::filesystem::path& filepath) {
     std::ifstream file(filepath);
     if (!file.is_open()) {
-        console::warning("i18n", "cannot open '%s'", filepath.c_str());
+        console::warning("i18n", "cannot open '%s'", filepath.string().c_str());
         return false;
     }
 

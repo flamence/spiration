@@ -9,11 +9,11 @@ namespace spiration {
 namespace i18n {
 
 bool extension::initialize() {
-    std::filesystem::path langDir = spiration::platform::resource_directory() / "lang";
+    std::filesystem::path langDir = spiration::platform::resources_directory() / "lang";
     auto& i18n = i18n_manager::get();
     i18n.load("zh-CN", langDir / "zh-CN.properties");
     std::string sysLocale = spiration::platform::system_locale();
-    std::string langPath = langDir + "/" + sysLocale + ".properties";
+    std::filesystem::path langPath = langDir / (std::format("{}.properties", sysLocale));
     i18n.load(sysLocale, langPath);
     i18n.set_locale(sysLocale);
 

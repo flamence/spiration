@@ -4,10 +4,10 @@
  * @author clk
  */
 
-#include <extension/extension_manifest.h>
-
 #include <algorithm>
 #include <cstring>
+#include <extension/extension_manifest.h>
+#include <nlohmann/json.hpp>
 
 namespace spiration {
 

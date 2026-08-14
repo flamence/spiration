@@ -5,8 +5,9 @@
  */
 
 #include <extension/builtin/agent/chat_store.h>
+#include <filesystem>
 #include <utils/console.h>
-#include <utils/path.h>
+#include <utils/io.h>
 #include <utils/platform.h>
 
 #include <nlohmann/json.hpp>
@@ -14,13 +15,9 @@
 #include <algorithm>
 #include <ctime>
 #include <cstdio>
-#include <filesystem>
-#include <fstream>
 #include <mutex>
 #include <random>
-#include <sstream>
 #include <string>
-#include <vector>
 
 namespace spiration {
 namespace agent {
@@ -94,27 +91,9 @@ std::string default_name() {
     return buf;
 }
 
-std::string read_text_file(const std::string& path) {
-    std::ifstream f(path::u8path(path), std::ios::binary);
-    if (!f) return {};
-    std::stringstream ss;
-    ss << f.rdbuf();
-    return ss.str();
-}
-
-bool write_text_file(const std::string& path, const std::string& content) {
-    auto p = path::u8path(path);
-    std::error_code ec;
-    if (p.has_parent_path()) std::filesystem::create_directories(p.parent_path(), ec);
-    std::ofstream f(p, std::ios::binary | std::ios::trunc);
-    if (!f) return false;
-    f.write(content.data(), static_cast<std::streamsize>(content.size()));
-    return static_cast<bool>(f);
-}
-
 } // namespace
 
-chat_store::chat_store(std::string base_dir) : base_dir_(std::move(base_dir)) {
+chat_store::chat_store(std::filesystem::path base_dir) : base_dir_(std::move(base_dir)) {
     std::filesystem::create_directories(base_dir_);
     std::filesystem::create_directories(chat_dir());
 }
@@ -138,12 +117,12 @@ std::string chat_store::make_uuid() {
     return buf;
 }
 
-std::string chat_store::chat_dir() const {
-    return platform::join_path(base_dir_, "chat");
+std::filesystem::path chat_store::chat_dir() const {
+    return base_dir_ / "chat";
 }
 
-std::string chat_store::conversation_dir(const std::string& uuid) const {
-    return platform::join_path(chat_dir(), uuid);
+std::filesystem::path chat_store::conversation_dir(const std::string& uuid) const {
+    return chat_dir() / uuid;
 }
 
 std::string chat_store::current_uuid() const {
@@ -158,7 +137,7 @@ void chat_store::set_current_uuid(const std::string& uuid) {
 
 std::string chat_store::create(const std::string& name) {
     std::string uuid = make_uuid();
-    std::string dir = conversation_dir(uuid);
+    std::filesystem::path dir = conversation_dir(uuid);
     if (!std::filesystem::create_directories(dir)) {
         console::error("extension/agent/chat_store", "create conversation dir failed: %s", dir.c_str());
         return {};
@@ -178,7 +157,7 @@ std::string chat_store::create(const std::string& name) {
     meta["tokens_out"]    = 0;
     meta["todos"]         = nlohmann::json::array();
 
-    if (!write_text_file(platform::join_path(dir, "meta.json"),
+    if (!io::write_file_content(dir / "meta.json",
                          meta.dump(2, ' ', false, nlohmann::json::error_handler_t::replace))) {
         console::error("extension/agent/chat_store", "create meta.json failed: %s", uuid.c_str());
         return {};
@@ -190,7 +169,7 @@ std::string chat_store::create(const std::string& name) {
 
 bool chat_store::save(const chat_archive& archive) {
     if (archive.uuid.empty()) return false;
-    std::string dir = conversation_dir(archive.uuid);
+    std::filesystem::path dir = conversation_dir(archive.uuid);
     if (!std::filesystem::create_directories(dir)) return false;
 
     nlohmann::json meta;
@@ -201,7 +180,7 @@ bool chat_store::save(const chat_archive& archive) {
         std::string existing_updated;
         try {
             nlohmann::json old = nlohmann::json::parse(
-                read_text_file(platform::join_path(dir, "meta.json")));
+                io::read_file_content(dir / "meta.json"));
             existing_updated = old.value("updated_at", "");
         } catch (...) {}
         meta["updated_at"] = existing_updated.empty() ? now_string() : existing_updated;
@@ -239,14 +218,14 @@ bool chat_store::save(const chat_archive& archive) {
     }
     root["terminals"] = std::move(terms);
 
-    if (!write_text_file(platform::join_path(dir, "messages.json"),
+    if (!io::write_file_content(dir / "messages.json",
                          root.dump(2, ' ', false, nlohmann::json::error_handler_t::replace)))
         return false;
-    if (!write_text_file(platform::join_path(dir, "meta.json"),
+    if (!io::write_file_content(dir / "meta.json",
                          meta.dump(2, ' ', false, nlohmann::json::error_handler_t::replace)))
         return false;
     if (!archive.memory.empty())
-        write_text_file(platform::join_path(dir, "memory.md"), archive.memory);
+        io::write_file_content(dir / "memory.md", archive.memory);
 
     console::info("extension/agent/chat_store", "saved conversation '%s' (%zu messages)",
                   archive.name.c_str(), archive.messages.size());
@@ -254,11 +233,11 @@ bool chat_store::save(const chat_archive& archive) {
 }
 
 bool chat_store::load(const std::string& uuid, chat_archive& archive) const {
-    std::string dir = conversation_dir(uuid);
+    std::filesystem::path dir = conversation_dir(uuid);
 
     nlohmann::json root;
     try {
-        root = nlohmann::json::parse(read_text_file(platform::join_path(dir, "messages.json")));
+        root = nlohmann::json::parse(io::read_file_content(dir / "messages.json"));
     } catch (...) {
         return false;
     }
@@ -287,7 +266,7 @@ bool chat_store::load(const std::string& uuid, chat_archive& archive) const {
 
     try {
         nlohmann::json meta = nlohmann::json::parse(
-            read_text_file(platform::join_path(dir, "meta.json")));
+            io::read_file_content(dir / "meta.json"));
         archive.name       = meta.value("name", default_name());
         archive.created_at = meta.value("created_at", "");
         archive.can_continue = meta.value("can_continue", false);
@@ -308,14 +287,14 @@ bool chat_store::load(const std::string& uuid, chat_archive& archive) const {
         archive.name = default_name();
     }
 
-    archive.memory = read_text_file(platform::join_path(dir, "memory.md"));
+    archive.memory = std::filesystem::exists(dir / "memory.md") ? io::read_file_content(dir / "memory.md") : "";
     return true;
 }
 
 bool chat_store::remove(const std::string& uuid) {
     if (uuid.empty()) return false;
     std::error_code ec;
-    std::filesystem::remove_all(path::u8path(conversation_dir(uuid)), ec);
+    std::filesystem::remove_all(conversation_dir(uuid), ec);
     bool ok = !ec;
     if (ok) {
         std::lock_guard<std::mutex> lk(uuid_mtx_);
@@ -328,22 +307,22 @@ bool chat_store::remove(const std::string& uuid) {
 std::vector<conversation_meta> chat_store::list() const {
     std::vector<conversation_meta> out;
     for (const auto& entry : std::filesystem::directory_iterator(chat_dir())) {
-        std::string dir = platform::join_path(chat_dir(), entry);
-        if (!std::filesystem::exists(platform::join_path(dir, "meta.json"))) continue;
+        if (!entry.is_directory()) continue;
+        if (!std::filesystem::exists(entry.path() / "meta.json")) continue;
 
         conversation_meta meta;
-        meta.uuid = entry;
+        meta.uuid = entry.path().filename().string();
         try {
             nlohmann::json j = nlohmann::json::parse(
-                read_text_file(platform::join_path(dir, "meta.json")));
-            meta.name          = j.value("name", entry);
+                io::read_file_content(entry.path() / "meta.json"));
+            meta.name          = j.value("name", entry.path().filename().string());
             meta.created_at    = j.value("created_at", "");
             meta.updated_at    = j.value("updated_at", "");
             meta.provider      = j.value("provider", "");
             meta.model         = j.value("model", "");
             meta.message_count = j.value("message_count", 0);
         } catch (...) {
-            meta.name = entry;
+            meta.name = entry.path().filename().string();
         }
         out.push_back(std::move(meta));
     }
@@ -355,12 +334,12 @@ std::vector<conversation_meta> chat_store::list() const {
 
 std::string chat_store::load_memory(const std::string& uuid) const {
     if (uuid.empty()) return {};
-    return read_text_file(platform::join_path(conversation_dir(uuid), "memory.md"));
+    return io::read_file_content(conversation_dir(uuid) / "memory.md");
 }
 
 bool chat_store::save_memory(const std::string& uuid, const std::string& content) {
     if (uuid.empty()) return false;
-    return write_text_file(platform::join_path(conversation_dir(uuid), "memory.md"), content);
+    return io::write_file_content(conversation_dir(uuid) / "memory.md", content);
 }
 
 } // namespace agent

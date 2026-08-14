@@ -7,6 +7,7 @@
 #pragma once
 
 #include <extension/builtin/agent/tool/tool.h>
+#include <filesystem>
 #include <map>
 #include <memory>
 #include <mutex>
@@ -58,7 +59,7 @@ struct terminal_snapshot {
  * @param cwd 子进程初始工作目录。
  */
 std::unique_ptr<terminal_session> create_terminal_session(const std::string& shell_path,
-                                                          const std::string& cwd = "");
+                                                          const std::filesystem::path& cwd = "");
 
 /**
  * @brief 终端管理器。
@@ -68,7 +69,7 @@ public:
     static terminal_manager& instance();
 
     /// @brief 创建终端会话，返回会话 id。
-    std::string create(const std::string& shell, const std::string& cwd = "");
+    std::string create(const std::string& shell, const std::filesystem::path& cwd = "");
     /// @brief 向指定终端写入内容。
     std::string write(const std::string& id, const std::string& data, bool newline);
     /// @brief 读取指定终端的输出窗口。

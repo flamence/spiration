@@ -96,6 +96,14 @@ public:
     ///< 重置光标/选区/滚动（换内容后调用）。
     void reset_view();
 
+protected:
+    float cursor_pixel_x_ = -1.0f;
+
+    ///< 文本起始 X。
+    float text_x() const {
+        return (show_line_numbers ? gutter_width : 0.0f) + text_pad_left;
+    }
+
 private:
     std::vector<size_t> line_starts_;
     bool line_starts_dirty_ = true;
@@ -109,7 +117,6 @@ private:
     float cursor_timer_ = 0.0f;
     bool cursor_visible_ = true;
     static constexpr float CURSOR_BLINK_MS = 530.0f;
-    float cursor_pixel_x_ = -1.0f;
 
     float scroll_y_ = 0.0f;
     float scroll_x_ = 0.0f;
@@ -160,11 +167,6 @@ private:
     void draw_cursor(std::shared_ptr<renderer> r);
     void draw_selection(std::shared_ptr<renderer> r);
     void draw_scrollbar(std::shared_ptr<renderer> r);
-
-    ///< 文本起始 X。
-    float text_x() const {
-        return (show_line_numbers ? gutter_width : 0.0f) + text_pad_left;
-    }
 
     ///< 水平滚动条是否可见。
     bool h_scroll_visible() const { return scroll_max_x() > 0.0f; }

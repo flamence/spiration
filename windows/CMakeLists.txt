@@ -45,7 +45,7 @@ set_target_properties(${PROJECT_NAME} PROPERTIES
 add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_directory
         ${CMAKE_CURRENT_SOURCE_DIR}/../common/lang
-        $<TARGET_FILE_DIR:${PROJECT_NAME}>/lang
+        $<TARGET_FILE_DIR:${PROJECT_NAME}>/../share/lang
 )
 
 if(MINGW_DIRECTORY)
@@ -60,7 +60,7 @@ if(MINGW_DIRECTORY)
         add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
             COMMAND ${CMAKE_COMMAND} -E copy_if_different
                 ${_mingw_dlls}
-                $<TARGET_FILE_DIR:${PROJECT_NAME}>
+                $<TARGET_FILE_DIR:${PROJECT_NAME}>/../lib
         )
     endif()
 endif()

@@ -19,6 +19,7 @@
 #include <extension/builtin/i18n/i18n.h>
 #include <extension/extension.h>
 
+#include <filesystem>
 #include <memory>
 
 namespace spiration {
@@ -43,7 +44,7 @@ private:
 
     std::shared_ptr<chat_client> client_;
     std::shared_ptr<chat_store> store_;
-    std::string data_dir_;
+    std::filesystem::path data_dir_;
     /// 模型选项。
     std::vector<model_option> models_;
     /// 当前打开的智能体标签页。

@@ -12,6 +12,7 @@
 #include <filesystem>
 #include <utils/console.h>
 #include <utils/platform.h>
+#include <utils/io.h>
 
 #include <nlohmann/json.hpp>
 
@@ -42,15 +43,14 @@ model_option parse_model_json(const nlohmann::json& m, const std::string& key) {
 bool extension::initialize() {
     if (!api) return false;
 
-    data_dir_ = api->extension_data_dir(id());
-    std::string models_path = data_dir_ + "/cnf/models.json";
-    std::string legacy_path = data_dir_ + "/cnf/model.json";
+    data_dir_ = api->extension_directory();
+    std::filesystem::path models_path = data_dir_ / "cnf/models.json";
 
     chat_client::config cfg;
     bool has_config = false;
 
     if (std::filesystem::exists(models_path)) {
-        std::string json = extension_loader::read_file_text(models_path);
+        std::string json = io::read_file_content(models_path);
         if (!json.empty()) {
             try {
                 nlohmann::json j = nlohmann::json::parse(json);
@@ -69,43 +69,6 @@ bool extension::initialize() {
         }
         has_config = !models_.empty();
         if (has_config) cfg = models_.front().cfg;
-    } else if (std::filesystem::exists(legacy_path)) {
-        std::string json = extension_loader::read_file_text(legacy_path);
-        if (!json.empty()) {
-            try {
-                nlohmann::json j = nlohmann::json::parse(json);
-                cfg.endpoint    = j.value("endpoint", cfg.endpoint);
-                cfg.api_key     = j.value("api_key", cfg.api_key);
-                cfg.model       = j.value("model", cfg.model);
-                cfg.provider    = j.value("provider", cfg.provider);
-                cfg.max_tokens  = j.value("max_tokens", cfg.max_tokens);
-                cfg.temperature = j.value("temperature", cfg.temperature);
-                cfg.stream      = j.value("stream", cfg.stream);
-                cfg.timeout_seconds = j.value("timeout", cfg.timeout_seconds);
-                cfg.reasoning = reasoning_level_from_string(j.value("reasoning", "medium"));
-                if (j.contains("models") && j["models"].is_array()) {
-                    for (auto& m : j["models"]) {
-                        if (m.is_string()) {
-                            model_option opt;
-                            opt.display_name = m.get<std::string>();
-                            opt.cfg = cfg;
-                            opt.cfg.model = m.get<std::string>();
-                            models_.push_back(std::move(opt));
-                        } else if (m.is_object()) {
-                            model_option opt = parse_model_json(m, "");
-                            if (opt.cfg.endpoint == chat_client::config().endpoint)
-                                opt.cfg.endpoint = cfg.endpoint;
-                            if (opt.cfg.api_key.empty()) opt.cfg.api_key = cfg.api_key;
-                            if (opt.cfg.provider == "openai") opt.cfg.provider = cfg.provider;
-                            models_.push_back(std::move(opt));
-                        }
-                    }
-                }
-            } catch (const std::exception& e) {
-                api->log_error("parse cnf/model.json failed: %s", e.what());
-            }
-        }
-        has_config = !cfg.model.empty() || !models_.empty();
     }
 
     if (has_config) {
@@ -136,7 +99,7 @@ bool extension::initialize() {
         edit_file_ = std::make_unique<edit_file_tool>();
         rename_ = std::make_unique<rename_tool>();
         delete_ = std::make_unique<delete_tool>();
-        auto workdir = [this]() -> std::string {
+        auto workdir = [this]() -> std::filesystem::path {
             return store_ ? store_->conversation_dir(store_->current_uuid()) : std::string();
         };
         create_file_->set_workdir(workdir);

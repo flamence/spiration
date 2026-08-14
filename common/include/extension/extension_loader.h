@@ -77,13 +77,6 @@ public:
      */
     static load_result load_extension_from_dir(const std::filesystem::path& dir_path,
                                                manifest_data* out_manifest = nullptr);
-
-    /**
-     * @brief 读取文本文件内容。
-     * @param path 文件路径
-     * @return 文件内容，失败返回空字符串
-     */
-    static std::string read_file_text(const std::filesystem::path& path);
 };
 
 /**

@@ -7,15 +7,14 @@
 #include <extension/extension_loader.h>
 #include <extension/extension.h>
 #include <filesystem>
+#include <libloaderapi.h>
 #include <utils/console.h>
+#include <utils/io.h>
 
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 
-#include <fstream>
-#include <sstream>
 #include <string>
-#include <vector>
 
 namespace spiration {
 
@@ -26,19 +25,21 @@ void extension_loader::library_deleter::operator()(
     delete handle;
 }
 
-extension_loader::lib_handle extension_loader::load_library(const std::string& path) {
+extension_loader::lib_handle extension_loader::load_library(const std::filesystem::path& path) {
     auto* handle = new library_handle();
     lib_handle result(handle);
 
-    int wlen = MultiByteToWideChar(CP_UTF8, 0, path.c_str(), -1, nullptr, 0);
-    std::wstring wpath(wlen, L'\0');
-    MultiByteToWideChar(CP_UTF8, 0, path.c_str(), -1, &wpath[0], wlen);
+    auto cokkie = AddDllDirectory(path.parent_path().wstring().c_str());
 
-    handle->mod = reinterpret_cast<void*>(LoadLibraryW(wpath.c_str()));
+    handle->mod = reinterpret_cast<void*>(LoadLibraryExW(path.wstring().c_str(), NULL, LOAD_WITH_ALTERED_SEARCH_PATH));
     if (!handle->mod) {
         console::error("extension/loader", "LoadLibraryW failed with error %s",
                        std::to_string(GetLastError()).c_str());
         return lib_handle(nullptr);
+    }
+
+    if (cokkie) {
+        RemoveDllDirectory(cokkie);
     }
 
     console::info("extension/loader", "loaded library \"%s\"", path.c_str());
@@ -60,7 +61,7 @@ void* extension_loader::find_symbol(library_handle* handle, const std::string& s
     return ptr;
 }
 
-extension_loader::load_result extension_loader::load_extension_from(const std::string& path) {
+extension_loader::load_result extension_loader::load_extension_from(const std::filesystem::path& path) {
     load_result result;
 
     auto handle = load_library(path);
@@ -70,14 +71,14 @@ extension_loader::load_result extension_loader::load_extension_from(const std::s
         find_symbol(handle.get(), "create_extension"));
     if (!create_fn) {
         console::error("extension/loader", "no \"create_extension\" symbol in \"%s\"",
-                       path.c_str());
+                       path.string().c_str());
         return result;
     }
 
     extension* ext = create_fn();
     if (!ext) {
         console::error("extension/loader", "create_extension() returned null from \"%s\"",
-                       path.c_str());
+                       path.string().c_str());
         return result;
     }
 
@@ -89,29 +90,14 @@ extension_loader::load_result extension_loader::load_extension_from(const std::s
     return result;
 }
 
-std::string extension_loader::read_file_text(const std::filesystem::path& path) {
-    std::ifstream file(path);
-    if (!file.is_open()) return {};
-    std::stringstream buf;
-    buf << file.rdbuf();
-    return buf.str();
-}
-
 extension_loader::load_result extension_loader::load_extension_from_dir(
-    const std::string& dir_path, manifest_data* out_manifest) {
+    const std::filesystem::path& dir_path, manifest_data* out_manifest) {
     load_result result;
 
-    std::string manifest_path = platform::join_path(dir_path, "extension.json");
-    std::string manifest_json = read_file_text(manifest_path);
+    std::filesystem::path manifest_path = dir_path / "extension.json";
+    std::string manifest_json = io::read_file_content(manifest_path);
 
     if (manifest_json.empty()) {
-        for (const auto& entry : std::filesystem::directory_iterator(dir_path)) {
-            if (entry.size() >= 4 && entry.substr(entry.size() - 4) == ".dll") {
-                std::string dll_path = platform::join_path(dir_path, entry);
-                result = load_extension_from(dll_path);
-                if (result.instance) return result;
-            }
-        }
         console::error("extension/loader", "no extension.json or .dll found in '%s'",
                        dir_path.c_str());
         return result;
@@ -126,18 +112,9 @@ extension_loader::load_result extension_loader::load_extension_from_dir(
 
     if (out_manifest) *out_manifest = *manifest;
 
-    std::string platform_str = "win-x64";
-    std::string dll_name = manifest->main + ".dll";
-
-    std::string dll_path = platform::join_path(
-        platform::join_path(dir_path, "dist"),
-        platform::join_path(platform_str, dll_name));
+    std::filesystem::path dll_path = dir_path / manifest->main;
 
     result = load_extension_from(dll_path);
-    if (!result.instance) {
-        dll_path = platform::join_path(dir_path, dll_name);
-        result = load_extension_from(dll_path);
-    }
 
     return result;
 }

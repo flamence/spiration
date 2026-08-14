@@ -13,8 +13,7 @@
 #include <filesystem>
 #include <utils/console.h>
 #include <utils/platform.h>
-
-#include <algorithm>
+#include <utils/io.h>
 #include <map>
 #include <memory>
 #include <set>
@@ -101,13 +100,16 @@ size_t extension_manager::load_extensions_from(const std::filesystem::path& dire
     std::vector<ext_info> infos;
 
     for (const auto& entry : std::filesystem::directory_iterator(directory)) {
-        if (!std::filesystem::exists(entry)) continue;
+        if (!std::filesystem::exists(entry.path()) || !std::filesystem::is_directory(entry.path())) continue;
 
         ext_info info;
         info.dir_path = entry.path();
 
         std::filesystem::path manifest_path = entry.path() / "extension.json";
-        std::string json = extension_loader::read_file_text(manifest_path);
+        if (!std::filesystem::exists(manifest_path) || std::filesystem::is_directory(manifest_path)) {
+            continue;
+        }
+        std::string json = io::read_file_content(manifest_path);
         if (!json.empty()) {
             auto m = parse_extension_manifest(json);
             if (m) {
@@ -220,7 +222,7 @@ size_t extension_manager::load_extensions_from(const std::filesystem::path& dire
                     }
                     console::info("extension/manager", "loaded \"%s\"",
                                   info.has_manifest ? info.manifest.name.c_str()
-                                                    : info.dir_path.c_str());
+                                                    : info.dir_path.string().c_str());
                 }
             }
         }
@@ -234,7 +236,7 @@ size_t extension_manager::load_extensions_from(const std::filesystem::path& dire
     }
 
     console::info("extension/manager", "loaded %zu extension(s) from \"%s\"",
-                  count, directory.c_str());
+                  count, directory.string().c_str());
     return count;
 }
 
@@ -308,7 +310,7 @@ size_t extension_manager::count() {
     return extensions_.size();
 }
 
-std::string extension_manager::extension_directory(const std::string& id) {
+std::filesystem::path extension_manager::extension_directory(const std::string& id) {
     for (const auto& le : extensions_) {
         if (le.instance && le.instance->id() == id) {
             if (!le.dir_path.empty() && std::filesystem::exists(le.dir_path))

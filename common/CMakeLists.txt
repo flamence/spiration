@@ -11,7 +11,7 @@ if(NOT (UNIX AND NOT APPLE))
     list(FILTER COMMON_SOURCES EXCLUDE REGEX ".*opengl_renderer\\.cpp$")
 endif()
 
-add_library(spiration.common STATIC ${COMMON_SOURCES} ${COMMON_HEADERS})
+add_library(spiration.common STATIC ${COMMON_HEADERS} ${COMMON_SOURCES})
 
 set_target_properties(spiration.common PROPERTIES
     POSITION_INDEPENDENT_CODE ON
@@ -37,8 +37,11 @@ if(UNIX AND NOT APPLE)
 endif()
 
 target_include_directories(spiration.common PRIVATE
-    ${CMAKE_CURRENT_SOURCE_DIR}/include
     ${CMAKE_CURRENT_SOURCE_DIR}/src
+)
+
+target_include_directories(spiration.common PUBLIC
+    ${CMAKE_CURRENT_SOURCE_DIR}/include
 )
 
 add_library(spiration.common.headers INTERFACE)

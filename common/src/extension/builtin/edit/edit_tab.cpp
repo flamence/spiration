@@ -1,10 +1,9 @@
 #include <extension/builtin/edit/edit_tab.h>
 #include <extension/builtin/i18n/i18n.h>
+#include <filesystem>
 #include <ui/theme_manager.h>
 #include <utils/console.h>
-#include <utils/path.h>
 #include <algorithm>
-#include <filesystem>
 #include <fstream>
 #include <string>
 
@@ -59,8 +58,8 @@ void edit_tab::set_text(const std::string& text) {
     mark_clean();
 }
 
-void edit_tab::load_file(const std::string& path) {
-    std::ifstream file(path::u8path(path), std::ios::binary);
+void edit_tab::load_file(const std::filesystem::path& path) {
+    std::ifstream file(path, std::ios::binary);
     if (!file) {
         spiration::console::warning("edit", "failed to open: %s", path.c_str());
         return;
@@ -77,9 +76,7 @@ void edit_tab::load_file(const std::string& path) {
     }
     file.close();
 
-    size_t sep = path.find_last_of("/\\");
-    base_title_ = (sep != std::string::npos) ? path.substr(sep + 1) : path;
-    title_ = base_title_;
+    title_ = path.filename().string();
 
     editor_->text = std::move(buf);
     editor_->reset_view();
@@ -89,9 +86,8 @@ void edit_tab::load_file(const std::string& path) {
     spiration::console::info("edit", "loaded %zu bytes: %s", editor_->text.size(), path.c_str());
 }
 
-void edit_tab::open_content(const std::string& path, const std::string& content) {
-    size_t sep = path.find_last_of("/\\");
-    base_title_ = (sep != std::string::npos) ? path.substr(sep + 1) : path;
+void edit_tab::open_content(const std::filesystem::path& path, const std::string& content) {
+    base_title_ = path.filename().string();
     title_ = base_title_;
 
     editor_->text = content;
@@ -108,15 +104,12 @@ bool edit_tab::save() {
     return save_as(file_path_);
 }
 
-bool edit_tab::save_as(const std::string& path) {
-    std::string save_path = path;
-
-    std::filesystem::path fs_path = path::u8path(save_path);
-    std::filesystem::path tmp_fs_path = fs_path;
+bool edit_tab::save_as(const std::filesystem::path& path) {
+    std::filesystem::path tmp_fs_path = path;
     tmp_fs_path += ".tmp";
     std::ofstream file(tmp_fs_path, std::ios::binary | std::ios::trunc);
     if (!file) {
-        spiration::console::warning("edit", "save_as: cannot open for write: %s", save_path.c_str());
+        spiration::console::warning("edit", "save_as: cannot open for write: %s", path.string().c_str());
         return false;
     }
 
@@ -139,28 +132,26 @@ bool edit_tab::save_as(const std::string& path) {
     file.close();
 
     std::error_code ec;
-    std::filesystem::rename(tmp_fs_path, fs_path, ec);
+    std::filesystem::rename(tmp_fs_path, path, ec);
     if (ec) {
         spiration::console::warning("edit", "save_as: rename failed: %s", ec.message().c_str());
         std::filesystem::remove(tmp_fs_path);
         return false;
     }
 
-    file_path_ = std::move(save_path);
+    file_path_ = std::move(path);
 
-    size_t sep = file_path_.find_last_of("/\\");
-    base_title_ = (sep != std::string::npos) ? file_path_.substr(sep + 1) : file_path_;
+    base_title_ = path.filename().string().c_str();
     mark_clean();
 
     spiration::console::info("edit", "saved %zu bytes to: %s", editor_->text.size(), file_path_.c_str());
     return true;
 }
 
-void edit_tab::confirm_saved(const std::string& path) {
+void edit_tab::confirm_saved(const std::filesystem::path& path) {
     file_path_ = path;
 
-    size_t sep = file_path_.find_last_of("/\\");
-    base_title_ = (sep != std::string::npos) ? file_path_.substr(sep + 1) : file_path_;
+    base_title_ = path.filename().string();
     mark_clean();
 
     spiration::console::info("edit", "confirmed saved to: %s", path.c_str());

@@ -8,10 +8,9 @@
 
 #include <filesystem>
 #include <string>
-#include <vector>
 
 #ifdef linux
-#undef linux // 解决 OpenHarmony NDK 冲突
+#undef linux
 #endif
 
 namespace spiration {
@@ -23,30 +22,26 @@ enum class os_type {
     windows,
     linux,
     macos,
-    ohos,
-    unknown
+    ohos
 };
 
 /**
- * @brief 跨平台工具类。
- *
- * 提供平台无关的系统信息查询、文件系统操作、语言检测等功能。
- * 所有方法均为静态。
+ * @brief 平台工具类。
  */
 class platform {
 public:
     /**
-     * @brief 获取当前操作系统类型。
+     * @return 当前操作系统类型。
      */
     static os_type current_os();
 
     /**
-     * @brief 获取操作系统名称。
+     * @return 操作系统名称。
      */
     static std::string os_name();
 
     /**
-     * @brief 获取操作系统版本号。
+     * @return 操作系统版本号。
      */
     static std::string os_version();
 
@@ -68,7 +63,7 @@ public:
     /**
      * @brief 获取资源所在目录。
      */
-    static std::filesystem::path resource_directory();
+    static std::filesystem::path resources_directory();
 
     /**
      * @brief 获取系统默认语言代码。
@@ -84,6 +79,11 @@ public:
 
 private:
     platform() = delete;
+
+    /**
+     * @brief 获取可执行文件所在目录。
+     */
+    static std::filesystem::path executable_directory();
 };
 
 } // namespace spiration

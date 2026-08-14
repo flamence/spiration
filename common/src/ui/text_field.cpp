@@ -4,6 +4,11 @@
  * @author clk
  */
 
+#include "ui/margin.h"
+#include "ui/style.h"
+#include <ui/widget.h>
+#include <utils/console.h>
+#include <string>
 #include <ui/text_field.h>
 #include <ui/context_menu.h>
 #include <ui/focus_manager.h>
@@ -247,6 +252,17 @@ void text_field::handle_event(const event_type& type, void* data) {
                 break;
             }
         }
+
+        float actual_x = text_x() - scroll_x_, actual_y = height / 2;
+        widget* pointer = this;
+        while ((pointer = pointer->parent()) != nullptr) {
+            actual_x += pointer->x;
+            actual_y += pointer->y;
+            console::info("debug", "parent: %s; point: (%s, %s);", typeid(pointer).name(), std::to_string(actual_x).c_str(), std::to_string(actual_y).c_str());
+        }
+
+        kd->ime_x = actual_x;
+        kd->ime_y = actual_y;
     }
 
     widget::handle_event(type, data);

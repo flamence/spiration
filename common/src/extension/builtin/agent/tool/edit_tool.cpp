@@ -4,45 +4,19 @@
  * @author clk
  */
 
-#include <extension/builtin/agent/tool/edit_tool.h>
-#include <utils/console.h>
-
-#include <nlohmann/json.hpp>
-
-#include <filesystem>
-#include <fstream>
-#include <string>
 #include <cstdint>
+#include <extension/builtin/agent/tool/edit_tool.h>
+#include <filesystem>
+#include <nlohmann/json.hpp>
+#include <string>
+#include <utils/console.h>
+#include <utils/io.h>
 #include <vector>
-
-#include <utils/path.h>
 
 namespace spiration {
 namespace agent {
 
 namespace {
-
-bool write_file(const std::string& path, const std::string& content) {
-    auto p = path::u8path(path);
-    std::error_code ec;
-    if (p.has_parent_path()) std::filesystem::create_directories(p.parent_path(), ec);
-    std::ofstream f(p, std::ios::binary | std::ios::trunc);
-    if (!f) return false;
-    f.write(content.data(), static_cast<std::streamsize>(content.size()));
-    return static_cast<bool>(f);
-}
-
-bool read_file(const std::string& path, std::string& out) {
-    std::ifstream f(path::u8path(path), std::ios::binary);
-    if (!f) return false;
-    std::string buf;
-    char chunk[65536];
-    while (f.read(chunk, sizeof(chunk)) || f.gcount() > 0) {
-        buf.append(chunk, static_cast<size_t>(f.gcount()));
-    }
-    out = std::move(buf);
-    return true;
-}
 
 /// @brief 行尾风格。
 enum class eol_style { lf, crlf };
@@ -119,7 +93,8 @@ std::string create_file_tool::parameters_json() const {
 }
 
 std::string create_file_tool::execute(const std::string& args_json) {
-    std::string path, content;
+    std::filesystem::path path;
+    std::string content;
     try {
         nlohmann::json j = nlohmann::json::parse(args_json);
         path = j.value("path", "");
@@ -128,9 +103,8 @@ std::string create_file_tool::execute(const std::string& args_json) {
         return "[error] invalid arguments: " + std::string(e.what());
     }
     if (path.empty()) return "[error] missing \"path\"";
-    path = resolve_path(path);
-    if (!write_file(path, content))
-        return "[error] create_file failed: " + path;
+    if (!io::write_file_content(path, content))
+        return "[error] create_file failed: " + path.string();
     console::info("extension/agent/edit", "created file: %s (%zu bytes)", path.c_str(), content.size());
     return "ok";
 }
@@ -164,7 +138,7 @@ std::string read_file_tool::parameters_json() const {
 }
 
 std::string read_file_tool::execute(const std::string& args_json) {
-    std::string path;
+    std::filesystem::path path;
     long start_line = 1;
     long end_line = 0;
     try {
@@ -176,16 +150,14 @@ std::string read_file_tool::execute(const std::string& args_json) {
         return "[error] invalid arguments: " + std::string(e.what());
     }
     if (path.empty()) return "[error] missing \"path\"";
-    path = resolve_path(path);
 
     std::error_code ec;
-    uintmax_t sz = std::filesystem::file_size(path::u8path(path), ec);
-    if (ec) return "[error] read_file failed (stat): " + path;
+    uintmax_t sz = std::filesystem::file_size(path, ec);
+    if (ec) return "[error] read_file failed (stat): " + path.string();
     if (sz > 16u * 1024u * 1024u)
         return "[error] read_file: file too large (" + std::to_string(sz) + " bytes)";
 
-    std::string data;
-    if (!read_file(path, data)) return "[error] read_file failed: " + path;
+    std::string data = io::read_file_content(path);
 
     std::vector<std::string> lines;
     {
@@ -239,7 +211,7 @@ std::string create_directory_tool::parameters_json() const {
 }
 
 std::string create_directory_tool::execute(const std::string& args_json) {
-    std::string path;
+    std::filesystem::path path;
     try {
         nlohmann::json j = nlohmann::json::parse(args_json);
         path = j.value("path", "");
@@ -247,10 +219,9 @@ std::string create_directory_tool::execute(const std::string& args_json) {
         return "[error] invalid arguments: " + std::string(e.what());
     }
     if (path.empty()) return "[error] missing \"path\"";
-    path = resolve_path(path);
     std::error_code ec;
-    std::filesystem::create_directories(path::u8path(path), ec);
-    if (ec) return "[error] create_directory failed: " + path + " (" + ec.message() + ")";
+    std::filesystem::create_directories(path, ec);
+    if (ec) return "[error] create_directory failed: " + path.string() + " (" + ec.message() + ")";
     console::info("extension/agent/edit", "created directory: %s", path.c_str());
     return "ok";
 }
@@ -291,7 +262,8 @@ std::string edit_file_tool::parameters_json() const {
 }
 
 std::string edit_file_tool::execute(const std::string& args_json) {
-    std::string path, content, search, replace;
+    std::filesystem::path path;
+    std::string content, search, replace;
     bool has_content = false, has_search = false, replace_all = false;
     try {
         nlohmann::json j = nlohmann::json::parse(args_json);
@@ -306,25 +278,22 @@ std::string edit_file_tool::execute(const std::string& args_json) {
         return "[error] invalid arguments: " + std::string(e.what());
     }
     if (path.empty()) return "[error] missing \"path\"";
-    path = resolve_path(path);
 
     if (has_content) {
-        // 先统一为 LF，再按目标行尾恢复，避免 content 自带 CRLF 时重复加 \r（\r\r\n）。
         std::string out = content;
         eol_style target = eol_style::lf;
-        std::string old;
-        if (read_file(path, old)) target = detect_eol(old);
+        std::string old = io::read_file_content(path);
+        target = detect_eol(old);
         normalize_to_lf(out);
         if (target == eol_style::crlf) lf_to_crlf(out);
-        if (!write_file(path, out))
-            return "[error] edit_file failed (write): " + path;
+        if (!io::write_file_content(path, out))
+            return "[error] edit_file failed (write): " + path.string();
         console::info("extension/agent/edit", "edited file (full rewrite): %s (%zu bytes)", path.c_str(), out.size());
         return "ok";
     }
 
     if (has_search) {
-        std::string data;
-        if (!read_file(path, data)) return "[error] edit_file failed (read): " + path;
+        std::string data = io::read_file_content(path);
         if (search.empty()) return "[error] \"search\" must not be empty";
         eol_style eol = detect_eol(data);
         normalize_to_lf(data);
@@ -338,15 +307,15 @@ std::string edit_file_tool::execute(const std::string& args_json) {
                 p += replace.size();
                 ++count;
             }
-            if (count == 0) return "[error] \"search\" text not found in " + path;
-            console::info("extension/agent/edit", "replaced %zu occurrence(s) in %s", count, path.c_str());
+            if (count == 0) return "[error] \"search\" text not found in " + path.string();
+            console::info("extension/agent/edit", "replaced %zu occurrence(s) in %s", count, path.string().c_str());
         } else {
             size_t pos = data.find(search);
-            if (pos == std::string::npos) return "[error] \"search\" text not found in " + path;
+            if (pos == std::string::npos) return "[error] \"search\" text not found in " + path.string();
             data.replace(pos, search.size(), replace);
         }
         restore_eol(data, eol);
-        if (!write_file(path, data)) return "[error] edit_file failed (write): " + path;
+        if (!io::write_file_content(path, data)) return "[error] edit_file failed (write): " + path.string();
         return "ok";
     }
 
@@ -375,7 +344,7 @@ std::string rename_tool::parameters_json() const {
 }
 
 std::string rename_tool::execute(const std::string& args_json) {
-    std::string path, new_path;
+    std::filesystem::path path, new_path;
     try {
         nlohmann::json j = nlohmann::json::parse(args_json);
         path = j.value("path", "");
@@ -384,11 +353,9 @@ std::string rename_tool::execute(const std::string& args_json) {
         return "[error] invalid arguments: " + std::string(e.what());
     }
     if (path.empty() || new_path.empty()) return "[error] missing \"path\" or \"new_path\"";
-    path = resolve_path(path);        // 相对路径 → 会话工作目录
-    new_path = resolve_path(new_path);
     std::error_code ec;
-    std::filesystem::rename(path::u8path(path), path::u8path(new_path), ec);
-    if (ec) return "[error] rename failed: " + path + " -> " + new_path + " (" + ec.message() + ")";
+    std::filesystem::rename(path, new_path, ec);
+    if (ec) return "[error] rename failed: " + path.string() + " -> " + new_path.string() + " (" + ec.message() + ")";
     console::info("extension/agent/edit", "renamed: %s -> %s", path.c_str(), new_path.c_str());
     return "ok";
 }
@@ -411,7 +378,7 @@ std::string delete_tool::parameters_json() const {
 }
 
 std::string delete_tool::execute(const std::string& args_json) {
-    std::string path;
+    std::filesystem::path path;
     try {
         nlohmann::json j = nlohmann::json::parse(args_json);
         path = j.value("path", "");
@@ -419,14 +386,12 @@ std::string delete_tool::execute(const std::string& args_json) {
         return "[error] invalid arguments: " + std::string(e.what());
     }
     if (path.empty()) return "[error] missing \"path\"";
-    path = resolve_path(path);  // 相对路径 → 会话工作目录
     std::error_code ec;
-    auto p = path::u8path(path);
-    bool is_dir = std::filesystem::is_directory(p, ec);
-    if (ec) return "[error] delete failed (stat): " + path + " (" + ec.message() + ")";
-    if (is_dir) std::filesystem::remove_all(p, ec);
-    else std::filesystem::remove(p, ec);
-    if (ec) return "[error] delete failed: " + path + " (" + ec.message() + ")";
+    bool is_dir = std::filesystem::is_directory(path, ec);
+    if (ec) return "[error] delete failed (stat): " + path.string() + " (" + ec.message() + ")";
+    if (is_dir) std::filesystem::remove_all(path, ec);
+    else std::filesystem::remove(path, ec);
+    if (ec) return "[error] delete failed: " + path.string() + " (" + ec.message() + ")";
     console::info("extension/agent/edit", "deleted: %s", path.c_str());
     return "ok";
 }

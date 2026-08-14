@@ -7,6 +7,7 @@
 #include <extension/extension_api.h>
 #include <extension/extension.h>
 #include <extension/extension_manager.h>
+#include <filesystem>
 #include <ui/root.h>
 #include <ui/tab_bar.h>
 #include <ui/theme_manager.h>
@@ -89,15 +90,7 @@ void extension_api::log_error(const char* fmt, ...) const {
     console::error(tag.c_str(), "%s", buf);
 }
 
-std::string extension_api::app_data_dir() const {
-    return platform::app_data_dir();
-}
-
-std::string extension_api::extension_data_dir(const std::string& extension_id) const {
-    return platform::data_directory() / extension_id;
-}
-
-std::string extension_api::extension_dir() const {
+std::filesystem::path extension_api::extension_directory() const {
     return extension_manager::extension_directory(id_);
 }
 

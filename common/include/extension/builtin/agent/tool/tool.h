@@ -6,8 +6,7 @@
 
 #pragma once
 
-#include <utils/path.h>
-
+#include <filesystem>
 #include <functional>
 #include <string>
 
@@ -68,21 +67,8 @@ public:
      * @brief 设置工作目录获取器。
      *        未设置时相对路径保持原样。
      */
-    void set_workdir(std::function<std::string()> getter) {
+    void set_workdir(std::function<std::filesystem::path()> getter) {
         workdir_getter_ = std::move(getter);
-    }
-
-    /**
-     * @brief 解析路径。
-     */
-    std::string resolve_path(const std::string& raw) const {
-        if (raw.empty()) return raw;
-        if (path::u8path(raw).is_absolute()) return raw;
-        if (!workdir_getter_) return raw;
-        std::string wd = workdir_getter_();
-        if (wd.empty()) return raw;
-        if (wd.back() != '/' && wd.back() != '\\') wd += '/';
-        return wd + raw;
     }
 
     /**
@@ -93,7 +79,7 @@ public:
     }
 
 protected:
-    std::function<std::string()> workdir_getter_;
+    std::function<std::filesystem::path()> workdir_getter_;
 };
 
 } // namespace agent

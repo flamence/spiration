@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <optional>
 #include <ui/point.h>
 
 namespace spiration {
@@ -52,7 +53,7 @@ struct key_event_data {
     bool shift = false;
     bool alt = false;
     bool consumed = false;
-    float ime_x = -1, ime_y = -1; 
+    std::optional<float> ime_x = std::nullopt, ime_y = std::nullopt; 
 };
 
 }

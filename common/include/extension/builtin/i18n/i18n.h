@@ -6,10 +6,10 @@
 
 #pragma once
 
+#include <filesystem>
 #include <string>
 #include <unordered_map>
 #include <vector>
-#include <cstdint>
 
 namespace spiration {
 
@@ -32,7 +32,7 @@ public:
      * @param filepath 翻译文件路径
      * @return true 加载成功
      */
-    bool load(const std::string& locale, const std::string& filepath);
+    bool load(const std::string& locale, const std::filesystem::path& filepath);
 
     /**
      * @brief 设置当前语言。
