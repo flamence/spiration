@@ -1,8 +1,8 @@
 #include <extension/builtin/i18n/i18n.h>
 #include <utils/console.h>
+#include <utils/properties.h>
 #include <algorithm>
 #include <cctype>
-#include <fstream>
 
 namespace spiration {
 
@@ -12,51 +12,14 @@ i18n_manager& i18n_manager::get() {
 }
 
 bool i18n_manager::load(const std::string& locale, const std::filesystem::path& filepath) {
-    std::ifstream file(filepath);
-    if (!file.is_open()) {
+    properties props;
+    if (!props.load(filepath)) {
         console::warning("i18n", "cannot open '%s'", filepath.string().c_str());
         return false;
     }
 
     locale_data data;
-    std::string line, logical_line;
-
-    while (std::getline(file, line)) {
-        if (!line.empty() && line.back() == '\r')
-            line.pop_back();
-
-        size_t bs = 0;
-        for (auto it = line.rbegin(); it != line.rend() && *it == '\\'; ++it)
-            ++bs;
-        bool cont = (bs % 2 == 1);
-        if (cont) line.pop_back();
-
-        logical_line.empty() ? logical_line = line
-                             : logical_line += line.substr(line.find_first_not_of(" \t\f"));
-        if (cont) continue;
-
-        if (logical_line.empty() || logical_line[0] == '#' || logical_line[0] == '!')
-            { logical_line.clear(); continue; }
-
-        size_t sep = std::string::npos;
-        for (size_t i = 0; i < logical_line.size(); ++i) {
-            if (logical_line[i] == '\\') { ++i; continue; }
-            if (logical_line[i] == '=' || logical_line[i] == ':') { sep = i; break; }
-        }
-        if (sep == std::string::npos)
-            { logical_line.clear(); continue; }
-
-        std::string key = logical_line.substr(0, sep);
-        while (!key.empty() && (key.back() == ' ' || key.back() == '\t'))
-            key.pop_back();
-
-        std::string val = logical_line.substr(sep + 1);
-        size_t vs = val.find_first_not_of(" \t\f");
-        val = (vs != std::string::npos) ? val.substr(vs) : "";
-
-        data.strings[std::move(key)] = std::move(val);
-        logical_line.clear();
-    }
+    data.strings = props.entries();
 
     translations_[locale] = std::move(data);
 

@@ -61,6 +61,7 @@ set(SPIRATION_CORE_SOURCES
     src/utils/crash_log.cpp
     src/utils/io.cpp
     src/utils/platform.cpp
+    src/utils/properties.cpp
 )
 
 if(UNIX AND NOT APPLE)
