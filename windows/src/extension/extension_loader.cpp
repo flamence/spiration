@@ -4,15 +4,17 @@
  * @author clk
  */
 
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
+#include <windows.h>
+#include <libloaderapi.h>
+
 #include <extension/extension_loader.h>
 #include <extension/extension.h>
 #include <filesystem>
-#include <libloaderapi.h>
 #include <utils/console.h>
 #include <utils/io.h>
-
-#define WIN32_LEAN_AND_MEAN
-#include <windows.h>
 
 #include <string>
 
