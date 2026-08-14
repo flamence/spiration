@@ -24,7 +24,7 @@ target_include_directories(${PROJECT_NAME} PRIVATE
 )
 
 target_link_libraries(${PROJECT_NAME} PRIVATE
-    spiration.common
+    spiration::core
     d2d1
     dwrite
     windowscodecs
@@ -38,7 +38,7 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
 )
 
 set_target_properties(${PROJECT_NAME} PROPERTIES
-    OUTPUT_NAME "Spiration"
+    OUTPUT_NAME "${SPIRATION_APP_NAME}"
     WIN32_EXECUTABLE TRUE
 )
 

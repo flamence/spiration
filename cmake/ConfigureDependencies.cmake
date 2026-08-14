@@ -1,11 +1,10 @@
 if(POLICY CMP0135)
     cmake_policy(SET CMP0135 NEW)
 endif()
-if(POLICY CMP0169)
-    cmake_policy(SET CMP0169 OLD)
-endif()
 
 include(FetchContent)
+
+set(BUILD_TESTING OFF)
 
 FetchContent_Declare(
     json
@@ -24,7 +23,7 @@ if(NOT CURL_FOUND)
     set(CURL_USE_LIBSSH2      OFF CACHE BOOL "" FORCE)
     set(CURL_ZLIB             OFF CACHE BOOL "" FORCE)
     set(CURL_ENABLE_SSL        ON CACHE BOOL "" FORCE)
-    if (WIN32)
+    if(WIN32)
         set(CURL_USE_SCHANNEL      ON CACHE BOOL "" FORCE)
         set(CURL_WINDOWS_SSPI      ON CACHE BOOL "" FORCE)
     endif()
@@ -43,5 +42,13 @@ FetchContent_Declare(
     stb
     URL https://raw.githubusercontent.com/nothings/stb/master/stb_image.h
     DOWNLOAD_NO_EXTRACT TRUE
+    DOWNLOAD_NAME stb_image.h
 )
 FetchContent_MakeAvailable(stb)
+
+if(NOT TARGET stb::stb)
+    add_library(stb::stb INTERFACE IMPORTED)
+    set_target_properties(stb::stb PROPERTIES
+        INTERFACE_INCLUDE_DIRECTORIES "${stb_SOURCE_DIR}"
+    )
+endif()

@@ -35,7 +35,7 @@ target_include_directories(${PROJECT_NAME} PRIVATE
 )
 
 target_link_libraries(${PROJECT_NAME} PRIVATE
-    spiration.common
+    spiration::core
     ${X11_LIBRARIES}
     ${XCB_LIBRARIES}
     ${XCB_RANDR_LIBRARIES}
@@ -51,7 +51,7 @@ add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
         ${CMAKE_CURRENT_SOURCE_DIR}/res
         $<TARGET_FILE_DIR:${PROJECT_NAME}>
 )
-install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/res/ DESTINATION SPIRATION_INSTALL_RESOURCES)
+install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/res/ DESTINATION "${SPIRATION_INSTALL_RESOURCES}")
 
 set_target_properties(${PROJECT_NAME} PROPERTIES
     OUTPUT_NAME "spiration"

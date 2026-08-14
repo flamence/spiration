@@ -26,12 +26,10 @@ add_custom_command(
 )
 add_custom_target(compile_metallib DEPENDS ${METALLIB_OUT})
 
-set(SPIRATION_BUNDLE_NAME       "Spiration")
-set(SPIRATION_BUNDLE_IDENTIFIER "com.flamence.spiration")
-set(SPIRATION_COPYRIGHT_HOLDER  "Flamence Tech.")
+set(SPIRATION_BUNDLE_NAME       "${SPIRATION_APP_NAME}")
+set(SPIRATION_BUNDLE_IDENTIFIER "${SPIRATION_BUNDLE_IDENTIFIER}")
+set(SPIRATION_COPYRIGHT_HOLDER  "${SPIRATION_VENDOR}")
 string(TIMESTAMP SPIRATION_COPYRIGHT_YEAR "%Y")
-
-set(SPIRATION_LOCALIZATIONS zh-Hans)
 set(_spiration_localizations_xml "")
 foreach(_loc IN LISTS SPIRATION_LOCALIZATIONS)
     if(_spiration_localizations_xml)
@@ -58,7 +56,7 @@ target_include_directories(spiration PRIVATE
 )
 
 target_link_libraries(${PROJECT_NAME} PRIVATE
-    spiration.common
+    spiration::core
     ${COCOA_LIBRARY}
     ${METAL_LIBRARY}
     ${METALKIT_LIBRARY}
