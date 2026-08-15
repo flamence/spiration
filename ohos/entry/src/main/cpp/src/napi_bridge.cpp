@@ -6,13 +6,12 @@
 
 #include <napi_bridge.h>
 
-#include <utils/platform.h>
-#include <extension/builtin/i18n/i18n.h>
-#include <utils/console.h>
-#include <extension/extension_manager.h>
+#include <spiration/utils/platform.h>
+#include <spiration/extension/builtin/i18n/i18n.h>
+#include <spiration/utils/console.h>
+#include <spiration/extension/extension_manager.h>
 
 #include <string>
-#include <vector>
 
 namespace spiration {
 

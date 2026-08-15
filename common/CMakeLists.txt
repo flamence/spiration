@@ -1,71 +1,71 @@
 set(SPIRATION_CORE_SOURCES
-    src/application.cpp
-    src/extension/extension.cpp
-    src/extension/extension_api.cpp
-    src/extension/extension_manager.cpp
-    src/extension/extension_manifest.cpp
-    src/extension/manifest_extension.cpp
-    src/extension/builtin/agent/agent_tab.cpp
-    src/extension/builtin/agent/chat.cpp
-    src/extension/builtin/agent/chat_store.cpp
-    src/extension/builtin/agent/extension.cpp
-    src/extension/builtin/agent/provider.cpp
-    src/extension/builtin/agent/registry.cpp
-    src/extension/builtin/agent/tool/edit_tool.cpp
-    src/extension/builtin/agent/tool/memory_tool.cpp
-    src/extension/builtin/agent/tool/sleep_tool.cpp
-    src/extension/builtin/agent/tool/terminal_tool.cpp
-    src/extension/builtin/agent/tool/todo_tool.cpp
-    src/extension/builtin/agent/tool/web_tool.cpp
-    src/extension/builtin/agent/ui/todo_view.cpp
-    src/extension/builtin/edit/edit_tab.cpp
-    src/extension/builtin/edit/extension.cpp
-    src/extension/builtin/i18n/extension.cpp
-    src/extension/builtin/i18n/i18n.cpp
-    src/extension/builtin/theme/extension.cpp
-    src/ui/about_tab.cpp
-    src/ui/appbar.cpp
-    src/ui/button.cpp
-    src/ui/checkbox.cpp
-    src/ui/collapsible.cpp
-    src/ui/combo_box.cpp
-    src/ui/container.cpp
-    src/ui/context_menu.cpp
-    src/ui/cursor.cpp
-    src/ui/dialog.cpp
-    src/ui/extension_tab.cpp
-    src/ui/focus_manager.cpp
-    src/ui/input_dialog.cpp
-    src/ui/label.cpp
-    src/ui/layout.cpp
-    src/ui/list_view.cpp
-    src/ui/markdown.cpp
-    src/ui/menu_bar.cpp
-    src/ui/popup_menu.cpp
-    src/ui/progress_bar.cpp
-    src/ui/radio_button.cpp
-    src/ui/root.cpp
-    src/ui/scroll_row.cpp
-    src/ui/separator.cpp
-    src/ui/slider.cpp
-    src/ui/split_pane.cpp
-    src/ui/tab_bar.cpp
-    src/ui/text_area.cpp
-    src/ui/text_field.cpp
-    src/ui/theme_manager.cpp
-    src/ui/toggle_switch.cpp
-    src/ui/tooltip.cpp
-    src/ui/widget.cpp
-    src/ui/window_controls.cpp
-    src/utils/console.cpp
-    src/utils/crash_log.cpp
-    src/utils/io.cpp
-    src/utils/platform.cpp
-    src/utils/properties.cpp
+    src/spiration/application.cpp
+    src/spiration/extension/extension.cpp
+    src/spiration/extension/extension_api.cpp
+    src/spiration/extension/extension_manager.cpp
+    src/spiration/extension/extension_manifest.cpp
+    src/spiration/extension/manifest_extension.cpp
+    src/spiration/extension/builtin/agent/agent_tab.cpp
+    src/spiration/extension/builtin/agent/chat.cpp
+    src/spiration/extension/builtin/agent/chat_store.cpp
+    src/spiration/extension/builtin/agent/extension.cpp
+    src/spiration/extension/builtin/agent/provider.cpp
+    src/spiration/extension/builtin/agent/registry.cpp
+    src/spiration/extension/builtin/agent/tool/edit_tool.cpp
+    src/spiration/extension/builtin/agent/tool/memory_tool.cpp
+    src/spiration/extension/builtin/agent/tool/sleep_tool.cpp
+    src/spiration/extension/builtin/agent/tool/terminal_tool.cpp
+    src/spiration/extension/builtin/agent/tool/todo_tool.cpp
+    src/spiration/extension/builtin/agent/tool/web_tool.cpp
+    src/spiration/extension/builtin/agent/ui/todo_view.cpp
+    src/spiration/extension/builtin/edit/edit_tab.cpp
+    src/spiration/extension/builtin/edit/extension.cpp
+    src/spiration/extension/builtin/i18n/extension.cpp
+    src/spiration/extension/builtin/i18n/i18n.cpp
+    src/spiration/extension/builtin/theme/extension.cpp
+    src/spiration/ui/about_tab.cpp
+    src/spiration/ui/appbar.cpp
+    src/spiration/ui/button.cpp
+    src/spiration/ui/checkbox.cpp
+    src/spiration/ui/collapsible.cpp
+    src/spiration/ui/combo_box.cpp
+    src/spiration/ui/container.cpp
+    src/spiration/ui/context_menu.cpp
+    src/spiration/ui/cursor.cpp
+    src/spiration/ui/dialog.cpp
+    src/spiration/ui/extension_tab.cpp
+    src/spiration/ui/focus_manager.cpp
+    src/spiration/ui/input_dialog.cpp
+    src/spiration/ui/label.cpp
+    src/spiration/ui/layout.cpp
+    src/spiration/ui/list_view.cpp
+    src/spiration/ui/markdown.cpp
+    src/spiration/ui/menu_bar.cpp
+    src/spiration/ui/popup_menu.cpp
+    src/spiration/ui/progress_bar.cpp
+    src/spiration/ui/radio_button.cpp
+    src/spiration/ui/root.cpp
+    src/spiration/ui/scroll_row.cpp
+    src/spiration/ui/separator.cpp
+    src/spiration/ui/slider.cpp
+    src/spiration/ui/split_pane.cpp
+    src/spiration/ui/tab_bar.cpp
+    src/spiration/ui/text_area.cpp
+    src/spiration/ui/text_field.cpp
+    src/spiration/ui/theme_manager.cpp
+    src/spiration/ui/toggle_switch.cpp
+    src/spiration/ui/tooltip.cpp
+    src/spiration/ui/widget.cpp
+    src/spiration/ui/window_controls.cpp
+    src/spiration/utils/console.cpp
+    src/spiration/utils/crash_log.cpp
+    src/spiration/utils/io.cpp
+    src/spiration/utils/platform.cpp
+    src/spiration/utils/properties.cpp
 )
 
 if(UNIX AND NOT APPLE)
-    list(APPEND SPIRATION_CORE_SOURCES src/renderer/opengl_renderer.cpp)
+    list(APPEND SPIRATION_CORE_SOURCES src/spiration/renderer/opengl_renderer.cpp)
 endif()
 
 file(GLOB_RECURSE SPIRATION_CORE_HEADERS CONFIGURE_DEPENDS
@@ -98,8 +98,10 @@ if(UNIX AND NOT APPLE)
         ${OPENGL_LIBRARIES} GLX ${FREETYPE_LIBRARIES})
 endif()
 
+# src/spiration 下的 .cpp 使用 "ui/xxx.h" 等引号相对包含，
+# 因此将 src/spiration 作为私有包含根
 target_include_directories(spiration.core PRIVATE
-    ${CMAKE_CURRENT_SOURCE_DIR}/src
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/spiration
 )
 
 target_include_directories(spiration.core PUBLIC

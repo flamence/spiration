@@ -4,7 +4,7 @@
  * @author clk
  */
 
-#include <application.h>
+#include <spiration/application.h>
 
 int main(int argc, char* argv[]) {
     (void)argc; (void)argv;

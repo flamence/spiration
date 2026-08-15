@@ -4,7 +4,7 @@
  * @author clk
  */
 
-#include <application.h>
+#include <spiration/application.h>
 #include <windows.h>
 
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, 
