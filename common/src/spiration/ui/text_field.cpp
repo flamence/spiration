@@ -258,7 +258,6 @@ void text_field::handle_event(const event_type& type, void* data) {
         while ((pointer = pointer->parent()) != nullptr) {
             actual_x += pointer->x;
             actual_y += pointer->y;
-            console::info("debug", "parent: %s; point: (%s, %s);", typeid(pointer).name(), std::to_string(actual_x).c_str(), std::to_string(actual_y).c_str());
         }
 
         kd->ime_x = actual_x;
