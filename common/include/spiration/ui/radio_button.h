@@ -7,8 +7,6 @@
 #pragma once
 
 #include <spiration/ui/widget.h>
-#include <spiration/ui/theme_manager.h>
-#include <spiration/utils/animation.h>
 #include <functional>
 #include <string>
 

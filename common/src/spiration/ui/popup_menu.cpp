@@ -5,7 +5,6 @@
  */
 
 #include <spiration/ui/popup_menu.h>
-#include <spiration/ui/layout.h>
 #include <spiration/ui/button.h>
 #include <spiration/ui/theme_manager.h>
 

@@ -6,6 +6,7 @@
 
 #include <chrono>
 #include <spiration/window/x11_window.h>
+#include <spiration/window/virtual_key.h>
 #include <spiration/ui/point.h>
 #include <spiration/ui/size.h>
 #include <spiration/ui/cursor.h>

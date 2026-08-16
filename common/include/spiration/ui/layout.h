@@ -8,7 +8,6 @@
 
 #include <memory>
 #include <vector>
-#include <spiration/ui/point.h>
 #include <spiration/ui/rectangle.h>
 #include <spiration/ui/size.h>
 

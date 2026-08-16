@@ -13,7 +13,6 @@
 #include <shellapi.h>
 
 #include <cstdlib>
-#include <vector>
 
 namespace spiration {
 

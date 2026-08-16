@@ -6,6 +6,7 @@
 
 #include <spiration/ui/radio_button.h>
 #include <spiration/ui/focus_manager.h>
+#include <spiration/ui/theme_manager.h>
 
 namespace spiration {
 

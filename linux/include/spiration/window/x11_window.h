@@ -11,7 +11,6 @@
 #include <spiration/ui/widget.h>
 #include <spiration/window/window.h>
 #include <window/window_constants.h>
-#include <spiration/window/virtual_key.h>
 #include <X11/Xlib.h>
 #include <X11/Xutil.h>
 #include <X11/Xatom.h>

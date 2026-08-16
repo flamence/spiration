@@ -4,6 +4,8 @@
  * @author clk
  */
 
+#pragma once
+
 #include <spiration/extension/builtin/agent/extension.h>
 #include <spiration/extension/builtin/edit/extension.h>
 #include <spiration/extension/builtin/i18n/extension.h>

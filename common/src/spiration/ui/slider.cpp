@@ -6,6 +6,8 @@
 
 #include <spiration/ui/slider.h>
 #include <spiration/ui/focus_manager.h>
+#include <spiration/ui/theme_manager.h>
+#include <algorithm>
 
 namespace spiration {
 

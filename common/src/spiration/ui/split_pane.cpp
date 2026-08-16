@@ -6,6 +6,7 @@
 
 #include <spiration/ui/split_pane.h>
 #include <spiration/ui/focus_manager.h>
+#include <spiration/ui/theme_manager.h>
 #include <algorithm>
 
 namespace spiration {

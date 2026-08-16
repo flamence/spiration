@@ -5,8 +5,6 @@
  */
 
 #import <application.h>
-#import <utils/crash_log.h>
-#import <utils/platform.h>
 #import <Cocoa/Cocoa.h>
 
 int main(int argc, const char* argv[]) {
