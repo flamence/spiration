@@ -28,7 +28,7 @@ permissions:
 jobs:
   build:
     concurrency:
-      group: ci-${{ github.ref }}
+      group: ci-${{ github.ref }}-${{ matrix.os }}
       cancel-in-progress: false
     runs-on: ${{ matrix.os }}
     container: ${{ matrix.container }}
