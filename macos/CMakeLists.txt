@@ -14,7 +14,7 @@ file(GLOB_RECURSE MACOS_HEADERS CONFIGURE_DEPENDS
     "include/*.h" "include/*.hpp"
 )
 
-set(METAL_SRC     ${CMAKE_CURRENT_SOURCE_DIR}/src/renderer/metal_shaders.metal)
+set(METAL_SRC     ${CMAKE_CURRENT_SOURCE_DIR}/src/spiration/renderer/metal_shaders.metal)
 set(METAL_AIR     ${CMAKE_CURRENT_BINARY_DIR}/metal_shaders.air)
 set(METALLIB_OUT  ${CMAKE_CURRENT_BINARY_DIR}/default.metallib)
 

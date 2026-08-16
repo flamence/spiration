@@ -100,7 +100,7 @@ bool extension::initialize() {
         rename_ = std::make_unique<rename_tool>();
         delete_ = std::make_unique<delete_tool>();
         auto workdir = [this]() -> std::filesystem::path {
-            return store_ ? store_->conversation_dir(store_->current_uuid()) : std::string();
+            return store_ ? store_->conversation_dir(store_->current_uuid()) : std::filesystem::path();
         };
         create_file_->set_workdir(workdir);
         create_directory_->set_workdir(workdir);
