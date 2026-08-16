@@ -23,6 +23,10 @@ set(SPIRATION_CORE_SOURCES
     src/spiration/extension/builtin/i18n/extension.cpp
     src/spiration/extension/builtin/i18n/i18n.cpp
     src/spiration/extension/builtin/theme/extension.cpp
+    src/spiration/logging/sink/console.cpp
+    src/spiration/logging/sink/file.cpp
+    src/spiration/logging/logger.cpp
+    src/spiration/logging/sink.cpp
     src/spiration/ui/about_tab.cpp
     src/spiration/ui/appbar.cpp
     src/spiration/ui/button.cpp
