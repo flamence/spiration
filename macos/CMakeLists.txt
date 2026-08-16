@@ -54,6 +54,7 @@ target_include_directories(spiration PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/include
     ${CMAKE_CURRENT_SOURCE_DIR}/src
 )
+target_compile_definitions(${PROJECT_NAME} PRIVATE SPIRATION)
 
 target_link_libraries(${PROJECT_NAME} PRIVATE
     spiration::core

@@ -6,10 +6,11 @@
 
 #pragma once
 
+#include "spiration/extension/extension_manager.h"
+#include <memory>
+#include <spiration/export.h>
 #include <spiration/extension/extension_api.h>
 #include <spiration/init_phase.h>
-
-#include <memory>
 #include <string>
 
 namespace spiration {
@@ -17,7 +18,7 @@ namespace spiration {
 /**
  * @brief 拓展基类。
  */
-class extension {
+class SPIRATION_EXPORT extension {
 public:
     virtual ~extension() = default;
 
@@ -45,12 +46,6 @@ public:
      * @brief 声明应在何时被初始化。
      */
     virtual init_phase phase() const { return init_phase::normal; }
-
-    /**
-     * @brief 设置拓展 API 上下文。
-     * @param new_api 拓展 API 上下文。
-     */
-    void set_api(std::unique_ptr<extension_api> new_api) { api = std::move(new_api); }
 
     /**
      * @brief 初始化。
@@ -89,6 +84,14 @@ protected:
     std::unique_ptr<extension_api> api = nullptr;
 
 private:
+    friend extension_manager;
+
+    /**
+     * @brief 设置拓展 API 上下文。
+     * @param new_api 拓展 API 上下文。
+     */
+    void set_api(std::unique_ptr<extension_api> new_api) { api = std::move(new_api); }
+
     /** @brief 注册服务的类型擦除实现。 */
     void register_service_impl(const std::string& name, void* ptr);
     /** @brief 查询服务的类型擦除实现。 */

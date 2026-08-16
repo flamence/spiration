@@ -45,6 +45,8 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
     dl
     pthread
 )
+target_link_options(${PROJECT_NAME} PRIVATE -rdynamic)
+target_compile_definitions(${PROJECT_NAME} PRIVATE SPIRATION)
 
 add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_directory

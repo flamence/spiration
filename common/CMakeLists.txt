@@ -75,10 +75,6 @@ file(GLOB_RECURSE SPIRATION_CORE_HEADERS CONFIGURE_DEPENDS
 
 add_library(spiration.core STATIC ${SPIRATION_CORE_HEADERS} ${SPIRATION_CORE_SOURCES})
 
-set_target_properties(spiration.core PROPERTIES
-    POSITION_INDEPENDENT_CODE ON
-)
-
 target_link_libraries(spiration.core PRIVATE
     nlohmann_json::nlohmann_json
     CURL::libcurl
@@ -98,8 +94,6 @@ if(UNIX AND NOT APPLE)
         ${OPENGL_LIBRARIES} GLX ${FREETYPE_LIBRARIES})
 endif()
 
-# src/spiration 下的 .cpp 使用 "ui/xxx.h" 等引号相对包含，
-# 因此将 src/spiration 作为私有包含根
 target_include_directories(spiration.core PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/src/spiration
 )

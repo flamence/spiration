@@ -31,9 +31,13 @@ extension_loader::lib_handle extension_loader::load_library(const std::filesyste
     auto* handle = new library_handle();
     lib_handle result(handle);
 
-    auto cokkie = AddDllDirectory(path.parent_path().wstring().c_str());
+    std::filesystem::path preferred = path;
+    preferred.make_preferred();
+    const std::wstring dll_path_w = preferred.wstring();
 
-    handle->mod = reinterpret_cast<void*>(LoadLibraryExW(path.wstring().c_str(), NULL, LOAD_WITH_ALTERED_SEARCH_PATH));
+    auto cokkie = AddDllDirectory(preferred.parent_path().wstring().c_str());
+
+    handle->mod = reinterpret_cast<void*>(LoadLibraryExW(dll_path_w.c_str(), NULL, LOAD_WITH_ALTERED_SEARCH_PATH));
     if (!handle->mod) {
         console::error("extension/loader", "LoadLibraryW failed with error %s",
                        std::to_string(GetLastError()).c_str());
@@ -44,7 +48,7 @@ extension_loader::lib_handle extension_loader::load_library(const std::filesyste
         RemoveDllDirectory(cokkie);
     }
 
-    console::info("extension/loader", "loaded library \"%s\"", path.c_str());
+    console::info("extension/loader", "loaded library \"%s\"", path.string().c_str());
     return result;
 }
 
@@ -87,8 +91,15 @@ extension_loader::load_result extension_loader::load_extension_from(const std::f
     result.handle = std::move(handle);
     result.instance = ext;
 
-    console::info("extension/loader", "loaded extension \"%s\" v%s from \"%s\"",
-                  ext->name().c_str(), ext->version().c_str(), path.c_str());
+    try {
+        console::info("extension/loader", "loaded extension \"%s\" v%s from \"%s\"",
+                    ext->name().c_str(), ext->version().c_str(), path.string().c_str());
+    } catch (...) {
+        console::warning("extension/loader", "the library \"%s\" is broken",
+                    path.string().c_str());
+        return result;
+    }
+    
     return result;
 }
 
@@ -100,7 +111,7 @@ extension_loader::load_result extension_loader::load_extension_from_dir(
     std::string manifest_json = io::read_file_content(manifest_path);
 
     if (manifest_json.empty()) {
-        console::error("extension/loader", "no extension.json or .dll found in '%s'",
+        console::error("extension/loader", "no extension.json found in '%s'",
                        dir_path.c_str());
         return result;
     }
