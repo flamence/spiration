@@ -8,7 +8,6 @@
 #import <renderer/metal_renderer.h>
 #import <ui/point.h>
 #import <ui/size.h>
-#import <utils/console.h>
 #import <window/window_constants.h>
 #import <window/virtual_key.h>
 #import <Cocoa/Cocoa.h>

@@ -4,9 +4,9 @@
  * @author clk
  */
 
+#include <spiration/application.h>
 #include <spiration/utils/ohos_clipboard.h>
 #include <spiration/utils/clipboard.h>
-#include <spiration/utils/console.h>
 #include <string>
 
 namespace spiration {
@@ -14,14 +14,14 @@ namespace spiration {
 // 复制文本到剪贴板
 void clipboard::copy(const std::string& text) {
     if (text.empty()) {
-        console::warning("clipboard", "Attempted to copy empty text");
+        application::instance()->logger()->log({ .level = logging::level::warning, .message = "Attempted to copy empty text", .tag = "clipboard" });
         return;
     }
 
     if (clipboard_copy_to_arkts(text)) {
-        console::info("clipboard", "Text copied to clipboard");
+        application::instance()->logger()->log({ .level = logging::level::info, .message = "Text copied to clipboard", .tag = "clipboard" });
     } else {
-        console::warning("clipboard", "clipboard callback not registered");
+        application::instance()->logger()->log({ .level = logging::level::warning, .message = "clipboard callback not registered", .tag = "clipboard" });
     }
 }
 
@@ -29,7 +29,7 @@ void clipboard::copy(const std::string& text) {
 std::string clipboard::paste() {
     std::string text = clipboard_paste_from_arkts();
     if (!text.empty()) {
-        console::info("clipboard", "Text pasted from clipboard");
+        application::instance()->logger()->log({ .level = logging::level::info, .message = "Text pasted from clipboard", .tag = "clipboard" });
     }
     return text;
 }

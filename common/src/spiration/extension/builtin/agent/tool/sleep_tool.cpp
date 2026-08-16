@@ -4,13 +4,14 @@
  * @author clk
  */
 
+#include <spiration/application.h>
 #include <spiration/extension/builtin/agent/tool/sleep_tool.h>
-#include <spiration/utils/console.h>
 
 #include <nlohmann/json.hpp>
 
 #include <chrono>
 #include <exception>
+#include <format>
 #include <thread>
 
 namespace spiration {
@@ -56,7 +57,7 @@ std::string sleep_tool::execute(const std::string& args_json) {
     if (should_stop && should_stop())
         return "[cancelled]";
 
-    console::info("extension/agent/sleep", "slept %.1fs", seconds);
+    application::instance()->logger()->log({ .level = logging::level::info, .message = std::format("slept {:.1f}s", seconds), .tag = "extension/agent/sleep" });
     return "ok";
 }
 

@@ -4,8 +4,10 @@
  * @author clk
  */
 
+#include <spiration/application.h>
 #include <spiration/extension/manifest_extension.h>
-#include <spiration/utils/console.h>
+
+#include <format>
 
 namespace spiration {
 
@@ -13,10 +15,9 @@ manifest_extension::manifest_extension(const std::string& manifest_json) {
     auto result = parse_extension_manifest(manifest_json);
     if (result) {
         manifest_ = std::move(*result);
-        console::info("manifest_extension", "loaded manifest for '%s' v%s",
-                      manifest_.id.c_str(), manifest_.version.c_str());
+        application::instance()->logger()->log({ .level = logging::level::info, .message = std::format("loaded manifest for '{}' v{}", manifest_.id, manifest_.version), .tag = "manifest_extension" });
     } else {
-        console::error("manifest_extension", "failed to parse manifest JSON");
+        application::instance()->logger()->log({ .level = logging::level::error, .message = "failed to parse manifest JSON", .tag = "manifest_extension" });
     }
 }
 

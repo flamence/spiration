@@ -10,11 +10,12 @@
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, 
                    LPSTR lpCmdLine, int nCmdShow) {
     (void)hInstance; (void)hPrevInstance; (void)lpCmdLine; (void)nCmdShow;
-    
+
     auto instance = spiration::application::instance();
-    instance->initialize();
-    instance->loop();
-    instance->shutdown();
+    if (instance->initialize()) {
+        instance->loop();
+        instance->shutdown();
+    }
     
     return 0;
 }

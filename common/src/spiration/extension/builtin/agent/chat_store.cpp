@@ -4,9 +4,9 @@
  * @author clk
  */
 
+#include <spiration/application.h>
 #include <spiration/extension/builtin/agent/chat_store.h>
 #include <filesystem>
-#include <spiration/utils/console.h>
 #include <spiration/utils/io.h>
 #include <spiration/utils/platform.h>
 
@@ -15,6 +15,7 @@
 #include <algorithm>
 #include <ctime>
 #include <cstdio>
+#include <format>
 #include <mutex>
 #include <random>
 #include <string>
@@ -139,7 +140,7 @@ std::string chat_store::create(const std::string& name) {
     std::string uuid = make_uuid();
     std::filesystem::path dir = conversation_dir(uuid);
     if (!std::filesystem::create_directories(dir)) {
-        console::error("extension/agent/chat_store", "create conversation dir failed: %s", dir.c_str());
+        application::instance()->logger()->log({ .level = logging::level::error, .message = std::format("create conversation dir failed: {}", dir.string()), .tag = "extension/agent/chat_store" });
         return {};
     }
 
@@ -159,11 +160,10 @@ std::string chat_store::create(const std::string& name) {
 
     if (!io::write_file_content(dir / "meta.json",
                          meta.dump(2, ' ', false, nlohmann::json::error_handler_t::replace))) {
-        console::error("extension/agent/chat_store", "create meta.json failed: %s", uuid.c_str());
+        application::instance()->logger()->log({ .level = logging::level::error, .message = std::format("create meta.json failed: {}", uuid), .tag = "extension/agent/chat_store" });
         return {};
     }
-    console::info("extension/agent/chat_store", "created conversation '%s' (%s)",
-                  meta["name"].get<std::string>().c_str(), uuid.c_str());
+    application::instance()->logger()->log({ .level = logging::level::info, .message = std::format("created conversation '{}' ({})", meta["name"].get<std::string>(), uuid), .tag = "extension/agent/chat_store" });
     return uuid;
 }
 
@@ -227,8 +227,7 @@ bool chat_store::save(const chat_archive& archive) {
     if (!archive.memory.empty())
         io::write_file_content(dir / "memory.md", archive.memory);
 
-    console::info("extension/agent/chat_store", "saved conversation '%s' (%zu messages)",
-                  archive.name.c_str(), archive.messages.size());
+    application::instance()->logger()->log({ .level = logging::level::info, .message = std::format("saved conversation '{}' ({} messages)", archive.name, archive.messages.size()), .tag = "extension/agent/chat_store" });
     return true;
 }
 
@@ -300,7 +299,7 @@ bool chat_store::remove(const std::string& uuid) {
         std::lock_guard<std::mutex> lk(uuid_mtx_);
         if (current_uuid_ == uuid) current_uuid_.clear();
     }
-    console::info("extension/agent/chat_store", "removed conversation %s", uuid.c_str());
+    application::instance()->logger()->log({ .level = logging::level::info, .message = std::format("removed conversation {}", uuid), .tag = "extension/agent/chat_store" });
     return ok;
 }
 

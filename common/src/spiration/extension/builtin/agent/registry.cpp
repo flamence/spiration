@@ -4,10 +4,11 @@
  * @author clk
  */
 
+#include <spiration/application.h>
 #include <spiration/extension/builtin/agent/registry.h>
-#include <spiration/utils/console.h>
 
 #include <exception>
+#include <format>
 
 namespace spiration {
 namespace agent {
@@ -36,8 +37,7 @@ std::unique_ptr<provider> agent_registry::create_provider(const std::string& nam
             std::unique_ptr<provider> p = factory();
             if (p) return p;
         } catch (const std::exception& e) {
-            console::error("extension/agent/registry",
-                           "provider \"%s\" factory threw: %s", name.c_str(), e.what());
+            application::instance()->logger()->log({ .level = logging::level::error, .message = std::format("provider \"{}\" factory threw: {}", name, e.what()), .tag = "extension/agent/registry" });
         }
     }
     return spiration::agent::create_provider(name);

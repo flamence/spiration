@@ -4,8 +4,8 @@
  * @author clk
  */
 
+#include <spiration/application.h>
 #include <spiration/utils/clipboard.h>
-#include <spiration/utils/console.h>
 
 #include <cstdio>
 #include <string>
@@ -36,8 +36,7 @@ void clipboard::copy(const std::string& text) {
         return;
     }
     if (!tool_available("xclip")) {
-        console::warning("clipboard",
-                         "xclip not found; install with: sudo apt install xclip");
+        application::instance()->logger()->log({ .level = logging::level::warning, .message = "xclip not found; install with: sudo apt install xclip", .tag = "clipboard" });
         return;
     }
     FILE* pipe = popen("xclip -selection clipboard -i >/dev/null 2>&1", "w");
@@ -50,8 +49,7 @@ void clipboard::copy(const std::string& text) {
 std::string clipboard::paste() {
     if (g_paste_fn) return g_paste_fn();
     if (!tool_available("xclip")) {
-        console::warning("clipboard",
-                         "xclip not found; install with: sudo apt install xclip");
+        application::instance()->logger()->log({ .level = logging::level::warning, .message = "xclip not found; install with: sudo apt install xclip", .tag = "clipboard" });
         return {};
     }
     FILE* pipe = popen("xclip -selection clipboard -o 2>/dev/null", "r");

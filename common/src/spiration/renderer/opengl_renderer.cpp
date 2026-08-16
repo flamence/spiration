@@ -4,11 +4,12 @@
  * @author clk
  */
 
+#include <spiration/application.h>
 #include <spiration/renderer/opengl_renderer.h>
-#include <spiration/utils/console.h>
+#include <algorithm>
 #include <cmath>
 #include <cstring>
-#include <algorithm>
+#include <format>
 
 #define STB_IMAGE_IMPLEMENTATION
 #include <stb_image.h>
@@ -126,7 +127,7 @@ GLuint compile_shader_source(GLenum type, const char* source) {
     if (!compiled) {
         char info[512];
         glGetShaderInfoLog(shader, sizeof(info), nullptr, info);
-        console::error("renderer/opengl", "OpenGL shader compilation failed (%d): %s", type, info);
+        application::instance()->logger()->log({ .level = logging::level::error, .message = std::format("OpenGL shader compilation failed ({}): {}", type, info), .tag = "renderer/opengl" });
         glDeleteShader(shader);
         return 0;
     }
@@ -145,7 +146,7 @@ GLuint link_shader_program(GLuint vs, GLuint fs) {
     if (!linked) {
         char info[512];
         glGetProgramInfoLog(program, sizeof(info), nullptr, info);
-        console::error("renderer/opengl", "OpenGL program link failed: %s", info);
+        application::instance()->logger()->log({ .level = logging::level::error, .message = std::format("OpenGL program link failed: {}", info), .tag = "renderer/opengl" });
         glDeleteProgram(program);
         return 0;
     }
@@ -317,7 +318,7 @@ opengl_renderer& opengl_renderer::operator=(opengl_renderer&& other) noexcept {
 
 bool opengl_renderer::initialize(void* native_window_handle) {
     if (!native_window_handle) {
-        console::error("renderer/opengl", "invalid native window handle");
+        application::instance()->logger()->log({ .level = logging::level::error, .message = "invalid native window handle", .tag = "renderer/opengl" });
         return false;
     }
 
@@ -326,24 +327,24 @@ bool opengl_renderer::initialize(void* native_window_handle) {
 
 #if defined(__OHOS__)
     if (!init_egl(native_window_handle)) {
-        console::error("renderer/opengl", "EGL init failed");
+        application::instance()->logger()->log({ .level = logging::level::error, .message = "EGL init failed", .tag = "renderer/opengl" });
         return false;
     }
 #endif
 
     if (!compile_shaders()) {
-        console::error("renderer/opengl", "failed to compile shaders");
+        application::instance()->logger()->log({ .level = logging::level::error, .message = "failed to compile shaders", .tag = "renderer/opengl" });
         return false;
     }
 
     if (!create_buffers()) {
-        console::error("renderer/opengl", "failed to create buffers");
+        application::instance()->logger()->log({ .level = logging::level::error, .message = "failed to create buffers", .tag = "renderer/opengl" });
         return false;
     }
 
 #if !defined(__OHOS__)
     if (!init_freetype()) {
-        console::warning("renderer/opengl", "FreeType init failed, text rendering disabled");
+        application::instance()->logger()->log({ .level = logging::level::warning, .message = "FreeType init failed, text rendering disabled", .tag = "renderer/opengl" });
     } else {
         init_cjk_fallback_font();
     }
@@ -356,7 +357,7 @@ bool opengl_renderer::initialize(void* native_window_handle) {
     mat4_ortho(proj_matrix_, 0.0f, static_cast<float>(width_),
                static_cast<float>(height_), 0.0f);
 
-    console::info("renderer/opengl", "initialized (%ux%u)", width_, height_);
+    application::instance()->logger()->log({ .level = logging::level::info, .message = std::format("initialized ({}x{})", width_, height_), .tag = "renderer/opengl" });
     return true;
 }
 
@@ -402,7 +403,7 @@ void opengl_renderer::shutdown() {
     destroy_egl();
 #endif
 
-    console::info("renderer/opengl", "shutdown");
+    application::instance()->logger()->log({ .level = logging::level::info, .message = "shutdown", .tag = "renderer/opengl" });
 }
 
 void opengl_renderer::resize(uint32_t width, uint32_t height) {
@@ -827,7 +828,7 @@ opengl_renderer::image_resource* opengl_renderer::load_image(const std::string& 
     stbi_set_flip_vertically_on_load(1);
     unsigned char* data = stbi_load(path.c_str(), &w, &h, &channels, 4);
     if (!data) {
-        console::warning("renderer/opengl", "failed to load image: %s", path.c_str());
+        application::instance()->logger()->log({ .level = logging::level::warning, .message = std::format("failed to load image: {}", path), .tag = "renderer/opengl" });
         return nullptr;
     }
 

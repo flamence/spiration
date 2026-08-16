@@ -6,6 +6,8 @@
 
 #include <algorithm>
 #include <cstring>
+#include <format>
+#include <spiration/application.h>
 #include <spiration/extension/extension_manifest.h>
 #include <nlohmann/json.hpp>
 
@@ -105,7 +107,7 @@ std::optional<manifest_data> parse_extension_manifest(const std::string& json) {
     try {
         nlohmann::json root = nlohmann::json::parse(json);
         if (!root.is_object()) {
-            console::error("extension_manifest", "root is not a json object");
+            application::instance()->logger()->log({ .level = logging::level::error, .message = "root is not a json object", .tag = "extension_manifest" });
             return {};
         }
 
@@ -128,13 +130,13 @@ std::optional<manifest_data> parse_extension_manifest(const std::string& json) {
         }
 
         if (m.id.empty() || m.name.empty() || m.version.empty() || m.main.empty()) {
-            console::error("extension_manifest", "missing required fields (id/name/version/main)");
+            application::instance()->logger()->log({ .level = logging::level::error, .message = "missing required fields (id/name/version/main)", .tag = "extension_manifest" });
             return {};
         }
 
         return m;
     } catch (const nlohmann::json::exception& e) {
-        console::error("extension_manifest", "invalid extension.json: %s", e.what());
+        application::instance()->logger()->log({ .level = logging::level::error, .message = std::format("invalid extension.json: {}", e.what()), .tag = "extension_manifest" });
         return {};
     }
 }

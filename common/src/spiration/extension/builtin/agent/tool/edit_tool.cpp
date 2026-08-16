@@ -5,13 +5,14 @@
  */
 
 #include <cstdint>
+#include <spiration/application.h>
 #include <spiration/extension/builtin/agent/tool/edit_tool.h>
 #include <filesystem>
 #include <nlohmann/json.hpp>
 #include <string>
-#include <spiration/utils/console.h>
 #include <spiration/utils/io.h>
 #include <vector>
+#include <format>
 
 namespace spiration {
 namespace agent {
@@ -105,7 +106,7 @@ std::string create_file_tool::execute(const std::string& args_json) {
     if (path.empty()) return "[error] missing \"path\"";
     if (!io::write_file_content(path, content))
         return "[error] create_file failed: " + path.string();
-    console::info("extension/agent/edit", "created file: %s (%zu bytes)", path.c_str(), content.size());
+    application::instance()->logger()->log({ .level = logging::level::info, .message = std::format("created file: {} ({} bytes)", path.string(), content.size()), .tag = "extension/agent/edit" });
     return "ok";
 }
 
@@ -188,8 +189,7 @@ std::string read_file_tool::execute(const std::string& args_json) {
     if (end_line < static_cast<long>(lines.size())) {
         out += "... (剩余 " + std::to_string(lines.size() - end_line) + " 行未显示)\n";
     }
-    console::info("extension/agent/edit", "read file: %s (lines %ld-%ld / %zu)",
-                  path.c_str(), start_line, end_line, lines.size());
+    application::instance()->logger()->log({ .level = logging::level::info, .message = std::format("read file: {} (lines {}-{} / {})", path.string(), start_line, end_line, lines.size()), .tag = "extension/agent/edit" });
     return out;
 }
 
@@ -222,7 +222,7 @@ std::string create_directory_tool::execute(const std::string& args_json) {
     std::error_code ec;
     std::filesystem::create_directories(path, ec);
     if (ec) return "[error] create_directory failed: " + path.string() + " (" + ec.message() + ")";
-    console::info("extension/agent/edit", "created directory: %s", path.c_str());
+    application::instance()->logger()->log({ .level = logging::level::info, .message = std::format("created directory: {}", path.string()), .tag = "extension/agent/edit" });
     return "ok";
 }
 
@@ -288,7 +288,7 @@ std::string edit_file_tool::execute(const std::string& args_json) {
         if (target == eol_style::crlf) lf_to_crlf(out);
         if (!io::write_file_content(path, out))
             return "[error] edit_file failed (write): " + path.string();
-        console::info("extension/agent/edit", "edited file (full rewrite): %s (%zu bytes)", path.c_str(), out.size());
+        application::instance()->logger()->log({ .level = logging::level::info, .message = std::format("edited file (full rewrite): {} ({} bytes)", path.string(), out.size()), .tag = "extension/agent/edit" });
         return "ok";
     }
 
@@ -308,7 +308,7 @@ std::string edit_file_tool::execute(const std::string& args_json) {
                 ++count;
             }
             if (count == 0) return "[error] \"search\" text not found in " + path.string();
-            console::info("extension/agent/edit", "replaced %zu occurrence(s) in %s", count, path.string().c_str());
+            application::instance()->logger()->log({ .level = logging::level::info, .message = std::format("replaced {} occurrence(s) in {}", count, path.string()), .tag = "extension/agent/edit" });
         } else {
             size_t pos = data.find(search);
             if (pos == std::string::npos) return "[error] \"search\" text not found in " + path.string();
@@ -356,7 +356,7 @@ std::string rename_tool::execute(const std::string& args_json) {
     std::error_code ec;
     std::filesystem::rename(path, new_path, ec);
     if (ec) return "[error] rename failed: " + path.string() + " -> " + new_path.string() + " (" + ec.message() + ")";
-    console::info("extension/agent/edit", "renamed: %s -> %s", path.c_str(), new_path.c_str());
+    application::instance()->logger()->log({ .level = logging::level::info, .message = std::format("renamed: {} -> {}", path.string(), new_path.string()), .tag = "extension/agent/edit" });
     return "ok";
 }
 
@@ -392,7 +392,7 @@ std::string delete_tool::execute(const std::string& args_json) {
     if (is_dir) std::filesystem::remove_all(path, ec);
     else std::filesystem::remove(path, ec);
     if (ec) return "[error] delete failed: " + path.string() + " (" + ec.message() + ")";
-    console::info("extension/agent/edit", "deleted: %s", path.c_str());
+    application::instance()->logger()->log({ .level = logging::level::info, .message = std::format("deleted: {}", path.string()), .tag = "extension/agent/edit" });
     return "ok";
 }
 

@@ -6,7 +6,6 @@
 
 #include <filesystem>
 #include <spiration/utils/platform.h>
-#include <spiration/utils/console.h>
 
 #include <unistd.h>
 #include <sys/stat.h>

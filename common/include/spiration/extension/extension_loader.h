@@ -8,7 +8,6 @@
 
 #include <spiration/extension/extension_manifest.h>
 #include <filesystem>
-#include <spiration/utils/console.h>
 #include <spiration/utils/platform.h>
 
 #include <memory>

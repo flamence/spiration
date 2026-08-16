@@ -4,10 +4,10 @@
  * @author clk
  */
 
+#include "spiration/application.h"
 #include <format>
 #include <string>
 #include <spiration/utils/platform.h>
-#include <spiration/utils/console.h>
 
 #include <windows.h>
 #include <shellapi.h>
@@ -162,7 +162,7 @@ void platform::open_url(const std::string& url) {
     const int wide_size = MultiByteToWideChar(CP_UTF8, 0, url.c_str(), -1,
                                               nullptr, 0);
     if (wide_size <= 0) {
-        console::warning("platform", "open_url failed: %s", url.c_str());
+        application::instance()->logger()->log({ .level = logging::level::warning, .message = std::format("open_url failed: {}", url), .tag = "platform" });
         return;
     }
 
@@ -174,7 +174,7 @@ void platform::open_url(const std::string& url) {
     const HINSTANCE hr = ShellExecuteW(nullptr, L"open", wurl.c_str(),
                                        nullptr, nullptr, SW_SHOWNORMAL);
     if (reinterpret_cast<INT_PTR>(hr) <= 32) {
-        console::warning("platform", "open_url failed: %s", url.c_str());
+        application::instance()->logger()->log({ .level = logging::level::warning, .message = "failed to create window", .tag = "main" });
     }
 }
 

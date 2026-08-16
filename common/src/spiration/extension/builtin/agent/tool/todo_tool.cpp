@@ -4,13 +4,14 @@
  * @author clk
  */
 
+#include <spiration/application.h>
 #include <spiration/extension/builtin/agent/tool/todo_tool.h>
-#include <spiration/utils/console.h>
 
 #include <nlohmann/json.hpp>
 
 #include <algorithm>
 #include <exception>
+#include <format>
 
 namespace spiration {
 namespace agent {
@@ -147,8 +148,7 @@ std::string todo_tool::execute(const std::string& args_json) {
             case todo_status::completed:   ++completed;   break;
         }
     }
-    console::info("extension/agent/todo", "todo updated: %zu items (%zu pending, %zu in progress, %zu completed)",
-                  items.size(), pending, in_progress, completed);
+    application::instance()->logger()->log({ .level = logging::level::info, .message = std::format("todo updated: {} items ({} pending, {} in progress, {} completed)", items.size(), pending, in_progress, completed), .tag = "extension/agent/todo" });
     return "ok (" + std::to_string(items.size()) + " items, " +
            std::to_string(pending) + " pending, " +
            std::to_string(in_progress) + " in progress, " +

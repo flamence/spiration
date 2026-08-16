@@ -4,12 +4,13 @@
  * @author clk
  */
 
+#include <spiration/application.h>
 #include <spiration/extension/extension_loader.h>
 #include <spiration/extension/extension.h>
-#include <spiration/utils/console.h>
 
 #include <dlfcn.h>
 
+#include <format>
 #include <fstream>
 #include <sstream>
 #include <string>
@@ -30,23 +31,23 @@ extension_loader::lib_handle extension_loader::load_library(const std::string& p
 
     handle->mod = dlopen(path.c_str(), RTLD_NOW | RTLD_LOCAL);
     if (!handle->mod) {
-        console::error("extension/loader", "%s", dlerror());
+        application::instance()->logger()->log({ .level = logging::level::error, .message = std::format("{}", dlerror()), .tag = "extension/loader" });
         return lib_handle(nullptr);
     }
 
-    console::info("extension/loader", "loaded library \"%s\"", path.c_str());
+    application::instance()->logger()->log({ .level = logging::level::info, .message = std::format("loaded library \"{}\"", path), .tag = "extension/loader" });
     return result;
 }
 
 void* extension_loader::find_symbol(library_handle* handle, const std::string& symbol_name) {
     if (!handle || !handle->mod) {
-        console::error("extension/loader", "invalid library handle");
+        application::instance()->logger()->log({ .level = logging::level::error, .message = "invalid library handle", .tag = "extension/loader" });
         return nullptr;
     }
 
     void* ptr = dlsym(handle->mod, symbol_name.c_str());
     if (!ptr) {
-        console::error("extension/loader", "%s", dlerror());
+        application::instance()->logger()->log({ .level = logging::level::error, .message = std::format("{}", dlerror()), .tag = "extension/loader" });
     }
 
     return ptr;
@@ -61,23 +62,20 @@ extension_loader::load_result extension_loader::load_extension_from(const std::s
     auto create_fn = reinterpret_cast<extension_create_func>(
         find_symbol(handle.get(), "create_extension"));
     if (!create_fn) {
-        console::error("extension/loader", "no \"create_extension\" symbol in \"%s\"",
-                       path.c_str());
+        application::instance()->logger()->log({ .level = logging::level::error, .message = std::format("no \"create_extension\" symbol in \"{}\"", path), .tag = "extension/loader" });
         return result;
     }
 
     extension* ext = create_fn();
     if (!ext) {
-        console::error("extension/loader", "create_extension() returned null from \"%s\"",
-                       path.c_str());
+        application::instance()->logger()->log({ .level = logging::level::error, .message = std::format("create_extension() returned null from \"{}\"", path), .tag = "extension/loader" });
         return result;
     }
 
     result.handle = std::move(handle);
     result.instance = ext;
 
-    console::info("extension/loader", "loaded extension \"%s\" v%s from \"%s\"",
-                  ext->name().c_str(), ext->version().c_str(), path.c_str());
+    application::instance()->logger()->log({ .level = logging::level::info, .message = std::format("loaded extension \"{}\" v{} from \"{}\"", ext->name(), ext->version(), path), .tag = "extension/loader" });
     return result;
 }
 
@@ -105,15 +103,13 @@ extension_loader::load_result extension_loader::load_extension_from_dir(
                 if (result.instance) return result;
             }
         }
-        console::error("extension/loader", "no extension.json or .so found in '%s'",
-                       dir_path.c_str());
+        application::instance()->logger()->log({ .level = logging::level::error, .message = std::format("no extension.json or .so found in '{}'", dir_path), .tag = "extension/loader" });
         return result;
     }
 
     auto manifest = parse_extension_manifest(manifest_json);
     if (!manifest) {
-        console::error("extension/loader", "failed to parse extension.json in '%s'",
-                       dir_path.c_str());
+        application::instance()->logger()->log({ .level = logging::level::error, .message = std::format("failed to parse extension.json in '{}'", dir_path), .tag = "extension/loader" });
         return result;
     }
 

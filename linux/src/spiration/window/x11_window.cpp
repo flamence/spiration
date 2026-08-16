@@ -9,10 +9,10 @@
 #include <spiration/ui/point.h>
 #include <spiration/ui/size.h>
 #include <spiration/ui/cursor.h>
-#include <spiration/utils/console.h>
 #include <spiration/utils/platform.h>
 #include <stb_image.h>
 #include <clocale>
+#include <format>
 #include <X11/Xutil.h>
 #include <X11/cursorfont.h>
 #include <thread>
@@ -27,8 +27,7 @@ x11_window* x11_window::s_active_window_ = nullptr;
 static int x11_error_handler(Display* display, XErrorEvent* event) {
     char buf[256];
     XGetErrorText(display, event->error_code, buf, sizeof(buf));
-    spiration::console::warning("x11", "error: %s (request: %d, minor: %d)",
-                     buf, event->request_code, event->minor_code);
+    application::instance()->logger()->log({ .level = logging::level::warning, .message = std::format("error: {} (request: {}, minor: {})", buf, event->request_code, event->minor_code), .tag = "x11" });
     return 0;
 }
 
@@ -504,8 +503,7 @@ bool x11_window::initialize(const window_parameters& params) {
         xic_ = XCreateIC(xim_, XNInputStyle, XIMPreeditNothing | XIMStatusNothing,
                          XNClientWindow, window_, XNFocusWindow, window_, nullptr);
     } else {
-        console::warning("x11",
-                         "XOpenIM failed (check XMODIFIERS, e.g. @im=fcitx/@im=ibus)");
+        application::instance()->logger()->log({ .level = logging::level::warning, .message = "XOpenIM failed (check XMODIFIERS, e.g. @im=fcitx/@im=ibus)", .tag = "x11" });
     }
 
     update_dpi();
@@ -535,7 +533,7 @@ bool x11_window::initialize(const window_parameters& params) {
                             static_cast<int>(icon_data.size()));
             stbi_image_free(rgba);
         } else {
-            console::warning("window", "Failed to load app icon from %s", iconPath.c_str());
+            application::instance()->logger()->log({ .level = logging::level::warning, .message = std::format("Failed to load app icon from {}", iconPath), .tag = "window" });
         }
     }
 
@@ -604,7 +602,7 @@ void x11_window::shutdown() {
 bool x11_window::connect_to_x11() {
     auto* display = XOpenDisplay(nullptr);
     if (!display) {
-        console::error("x11", "Failed to open X11 display");
+        application::instance()->logger()->log({ .level = logging::level::error, .message = "Failed to open X11 display", .tag = "x11" });
         return false;
     }
     display_ = display;
@@ -615,7 +613,7 @@ bool x11_window::connect_to_x11() {
 
 bool x11_window::create_x11_window(const window_parameters& params) {
     if (!glx_visual_) {
-        console::error("x11", "GLX visual not selected");
+        application::instance()->logger()->log({ .level = logging::level::error, .message = "GLX visual not selected", .tag = "x11" });
         return false;
     }
 
@@ -638,7 +636,7 @@ bool x11_window::create_x11_window(const window_parameters& params) {
                             &swa);
 
     if (!window_) {
-        console::error("x11", "Failed to create X11 window with GLX visual");
+        application::instance()->logger()->log({ .level = logging::level::error, .message = "Failed to create X11 window with GLX visual", .tag = "x11" });
         return false;
     }
 
@@ -717,7 +715,7 @@ bool x11_window::select_fb_config() {
     GLXFBConfig* fb_configs = glXChooseFBConfig(display, screen_number_,
                                                   visual_attrs, &fb_count);
     if (!fb_configs || fb_count == 0) {
-        console::error("x11", "No suitable GLX framebuffer config found");
+        application::instance()->logger()->log({ .level = logging::level::error, .message = "No suitable GLX framebuffer config found", .tag = "x11" });
         return false;
     }
 
@@ -727,7 +725,7 @@ bool x11_window::select_fb_config() {
     XFree(fb_configs);
 
     if (!glx_visual_) {
-        console::error("x11", "Failed to get XVisualInfo from GLX FB config");
+        application::instance()->logger()->log({ .level = logging::level::error, .message = "Failed to get XVisualInfo from GLX FB config", .tag = "x11" });
         return false;
     }
 
@@ -771,12 +769,12 @@ bool x11_window::create_gl_context() {
     }
 
     if (!gl_context_) {
-        console::error("x11", "Failed to create GLX context");
+        application::instance()->logger()->log({ .level = logging::level::error, .message = "Failed to create GLX context", .tag = "x11" });
         return false;
     }
 
     if (!glXMakeCurrent(display, window_, static_cast<GLXContext>(gl_context_))) {
-        console::error("x11", "Failed to make GLX context current");
+        application::instance()->logger()->log({ .level = logging::level::error, .message = "Failed to make GLX context current", .tag = "x11" });
         return false;
     }
 

@@ -8,7 +8,6 @@
 #include <resource.h>
 #include <spiration/ui/point.h>
 #include <spiration/ui/size.h>
-#include <spiration/utils/console.h>
 #include <spiration/window/windows_window.h>
 #include <memory>
 #include <Windows.h>

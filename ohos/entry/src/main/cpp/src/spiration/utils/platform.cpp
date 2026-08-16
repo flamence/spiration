@@ -5,8 +5,9 @@
  */
 
 #include <filesystem>
+#include <format>
+#include <spiration/application.h>
 #include <spiration/utils/platform.h>
-#include <spiration/utils/console.h>
 
 #include <unistd.h>
 #include <sys/stat.h>
@@ -128,8 +129,7 @@ std::string platform::system_locale() {
 }
 
 void platform::open_url(const std::string& url) {
-    console::warning("platform", "open_url not supported on this platform: %s",
-                     url.c_str());
+    application::instance()->logger()->log({ .level = logging::level::warning, .message = std::format("open_url not supported on this platform: {}", url), .tag = "platform" });
 }
 
 } // namespace spiration

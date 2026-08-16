@@ -7,7 +7,6 @@
 #if defined(__OHOS__)
 
 #include <spiration/renderer/opengl_renderer.h>
-#include <spiration/utils/console.h>
 
 #include <native_drawing/drawing_bitmap.h>
 #include <native_drawing/drawing_canvas.h>

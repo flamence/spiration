@@ -4,12 +4,13 @@
  * @author clk
  */
 
+#include <spiration/application.h>
 #include <spiration/extension/builtin/agent/tool/memory_tool.h>
-#include <spiration/utils/console.h>
 
 #include <nlohmann/json.hpp>
 
 #include <exception>
+#include <format>
 
 namespace spiration {
 namespace agent {
@@ -62,7 +63,7 @@ std::string memory_tool::execute(const std::string& args_json) {
     }
     if (action == "write") {
         store_->save_memory(uuid, content);
-        console::info("extension/agent/memory", "wrote memory (%zu chars)", content.size());
+        application::instance()->logger()->log({ .level = logging::level::info, .message = std::format("wrote memory ({} chars)", content.size()), .tag = "extension/agent/memory" });
         return "ok";
     }
     if (action == "append") {
@@ -70,7 +71,7 @@ std::string memory_tool::execute(const std::string& args_json) {
         if (!mem.empty() && mem.back() != '\n') mem += "\n";
         mem += content;
         store_->save_memory(uuid, mem);
-        console::info("extension/agent/memory", "appended memory (%zu chars)", content.size());
+        application::instance()->logger()->log({ .level = logging::level::info, .message = std::format("appended memory ({} chars)", content.size()), .tag = "extension/agent/memory" });
         return "ok";
     }
     if (action == "clear") {

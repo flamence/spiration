@@ -6,7 +6,8 @@
 
 #pragma once
 
-#include <string>
+#include <spiration/logging/log.h>
+#include <spiration/logging/log_formatter.hpp>
 
 namespace spiration {
 namespace logging {
@@ -18,9 +19,7 @@ class sink {
 public:
     virtual ~sink() = default;
 
-    virtual void write(const std::string& message, bool end_line = false) = 0;
-
-    void write_line(const std::string& message);
+    virtual void write(const log& log, log_formatter formatter) = 0;
 };
 
 }

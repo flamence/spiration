@@ -7,7 +7,6 @@
 #include "spiration/ui/margin.h"
 #include "spiration/ui/style.h"
 #include <spiration/ui/widget.h>
-#include <spiration/utils/console.h>
 #include <string>
 #include <spiration/ui/text_field.h>
 #include <spiration/ui/context_menu.h>

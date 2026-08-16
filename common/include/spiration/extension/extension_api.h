@@ -13,6 +13,7 @@
 #include <vector>
 #include <memory>
 #include <functional>
+#include <optional>
 #include <spiration/ui/color.h>
 
 namespace spiration {
@@ -56,22 +57,25 @@ public:
                    const std::vector<std::string>& args) const;
 
     /**
-     * @brief 记录格式化日志信息。
-     * @param fmt 格式化消息
+     * @brief 记录日志信息。
+     * @param message 日志消息
+     * @param tag 日志标签
      */
-    void log_info(const char* fmt, ...) const;
+    void log_info(const std::string& message, std::optional<std::string> tag = std::nullopt) const;
 
     /**
-     * @brief 记录格式化日志警告。
-     * @param fmt 格式化消息
+     * @brief 记录日志警告。
+     * @param message 日志消息
+     * @param tag 日志标签
      */
-    void log_warning(const char* fmt, ...) const;
+    void log_warning(const std::string& message, std::optional<std::string> tag = std::nullopt) const;
 
     /**
-     * @brief 记录格式化日志错误。
-     * @param fmt 格式化消息
+     * @brief 记录日志错误。
+     * @param message 日志消息
+     * @param tag 日志标签
      */
-    void log_error(const char* fmt, ...) const;
+    void log_error(const std::string& message, std::optional<std::string> tag = std::nullopt) const;
 
     /**
      * @brief 获取本扩展所在的目录路径。

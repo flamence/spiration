@@ -1,10 +1,10 @@
 #include <spiration/extension/builtin/edit/extension.h>
 #include <spiration/extension/extension_api.h>
+#include <format>
 #include <spiration/io/file_dialog.h>
 #include <spiration/ui/root.h>
 #include <spiration/ui/tab_bar.h>
 #include <spiration/ui/theme_manager.h>
-#include <spiration/utils/console.h>
 #include <spiration/application.h>
 
 namespace spiration {
@@ -89,7 +89,7 @@ void extension::complete_open_editor_tab(const std::string& path, const std::str
             auto* existing = dynamic_cast<edit_tab*>(tb->get_tab(i));
             if (existing && existing->file_path() == path) {
                 tb->activate_tab(i);
-                api->log_info("switched to already-open tab: %s", path.c_str());
+                api->log_info(std::format("switched to already-open tab: {}", path));
                 return;
             }
         }
@@ -110,7 +110,7 @@ void extension::complete_open_editor_tab(const std::string& path, const std::str
 
     auto* raw = tab.get();
     setup_editor_callbacks(raw);
-    api->log_info("opened file: %s", path.c_str());
+    api->log_info(std::format("opened file: {}", path));
     api->open_tab(std::move(tab));
 }
 
@@ -121,11 +121,11 @@ void extension::save_current() {
         return;
     }
     if (editor->save()) {
-        api->log_info("saved: %s", editor->file_path().c_str());
+        api->log_info(std::format("saved: {}", editor->file_path().string()));
     } else if (editor->file_path().empty()) {
         save_current_as();
     } else {
-        api->log_warning("save failed: %s", editor->file_path().c_str());
+        api->log_warning(std::format("save failed: {}", editor->file_path().string()));
     }
 }
 
@@ -163,12 +163,12 @@ void extension::complete_save_as(const std::string& path) {
     }
 #if defined(OHOS_PLATFORM)
     editor->confirm_saved(path);
-    api->log_info("saved as: %s", path.c_str());
+    api->log_info(std::format("saved as: {}", path));
 #else
     if (editor->save_as(path)) {
-        api->log_info("saved as: %s", path.c_str());
+        api->log_info(std::format("saved as: {}", path));
     } else {
-        api->log_warning("save-as failed: %s", path.c_str());
+        api->log_warning(std::format("save-as failed: {}", path));
     }
 #endif
 }

@@ -10,11 +10,8 @@
 namespace spiration {
 namespace logging {
 
-void console_sink::write(const std::string& message, bool end_line) {
-    std::cout << message;
-    if (end_line) {
-        std::cout << std::endl;
-    }
+void console_sink::write(const log& log, log_formatter formatter) {
+    std::cout << formatter.format(log);
 }
 
 }

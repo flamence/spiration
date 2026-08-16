@@ -12,15 +12,13 @@
 #include <spiration/ui/tab_bar.h>
 #include <spiration/ui/theme_manager.h>
 #include <spiration/extension/builtin/i18n/i18n.h>
-#include <spiration/utils/console.h>
 #include <spiration/utils/platform.h>
 #include <spiration/window/window.h>
 #include <spiration/renderer/renderer.h>
 #include <spiration/application.h>
 
-#include <cstdio>
-#include <cstdarg>
-#include <spiration/application.h>
+#include <format>
+#include <optional>
 
 namespace spiration {
 
@@ -59,35 +57,28 @@ std::string extension_api::simple_id() const {
     return id();
 }
 
-void extension_api::log_info(const char* fmt, ...) const {
-    va_list args;
-    va_start(args, fmt);
-    char buf[1024];
-    int n = vsnprintf(buf, sizeof(buf), fmt, args);
-    (void)n;
-    va_end(args);
-    std::string tag = "extension/" + simple_id();
-    console::info(tag.c_str(), "%s", buf);
+void extension_api::log_info(const std::string& message, std::optional<std::string> tag) const {
+    application::instance()->logger()->log({
+        .level = logging::level::info,
+        .message = message,
+        .tag = std::format("extension/{}", simple_id(), tag ? std::format("/{}", *tag) : "")
+    });
 }
 
-void extension_api::log_warning(const char* fmt, ...) const {
-    va_list args;
-    va_start(args, fmt);
-    char buf[1024];
-    vsnprintf(buf, sizeof(buf), fmt, args);
-    va_end(args);
-    std::string tag = "extension/" + simple_id();
-    console::warning(tag.c_str(), "%s", buf);
+void extension_api::log_warning(const std::string& message, std::optional<std::string> tag) const {
+    application::instance()->logger()->log({
+        .level = logging::level::warning,
+        .message = message,
+        .tag = std::format("extension/{}", simple_id(), tag ? std::format("/{}", *tag) : "")
+    });
 }
 
-void extension_api::log_error(const char* fmt, ...) const {
-    va_list args;
-    va_start(args, fmt);
-    char buf[1024];
-    vsnprintf(buf, sizeof(buf), fmt, args);
-    va_end(args);
-    std::string tag = "extension/" + simple_id();
-    console::error(tag.c_str(), "%s", buf);
+void extension_api::log_error(const std::string& message, std::optional<std::string> tag) const {
+    application::instance()->logger()->log({
+        .level = logging::level::error,
+        .message = message,
+        .tag = std::format("extension/{}", simple_id(), tag ? std::format("/{}", *tag) : "")
+    });
 }
 
 std::filesystem::path extension_api::extension_directory() const {

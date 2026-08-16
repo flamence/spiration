@@ -4,6 +4,7 @@
  * @author clk
  */
 
+#include <spiration/application.h>
 #include <spiration/extension/extension_manager.h>
 #include <spiration/extension/extension.h>
 #include <spiration/extension/extension_api.h>
@@ -11,9 +12,9 @@
 #include <spiration/extension/extension_manifest.h>
 #include <spiration/extension/builtin.h>
 #include <filesystem>
-#include <spiration/utils/console.h>
 #include <spiration/utils/platform.h>
 #include <spiration/utils/io.h>
+#include <format>
 #include <map>
 #include <memory>
 #include <set>
@@ -33,7 +34,7 @@ extension_manager& extension_manager::instance() {
 
 extension_manager::extension_manager() {
     if (initialized_) {
-        console::warning("extension/manager", "already initialized");
+        application::instance()->logger()->log({ .level = logging::level::warning, .message = "already initialized", .tag = "extension/manager" });
         return;
     }
     initialized_ = true;
@@ -43,14 +44,14 @@ extension_manager::extension_manager() {
     register_builtin(std::make_unique<i18n::extension>());
     register_builtin(std::make_unique<theme::extension>());
 
-    console::info("extension/manager", "initialized");
+    application::instance()->logger()->log({ .level = logging::level::info, .message = "initialized", .tag = "extension/manager" });
 }
 
 void extension_manager::shutdown() {
     shutdown_all();
     extensions_.clear();
     initialized_ = false;
-    console::info("extension/manager", "shut down");
+    application::instance()->logger()->log({ .level = logging::level::info, .message = "shut down", .tag = "extension/manager" });
 }
 
 bool extension_manager::load_extension(const std::string& path) {
@@ -60,15 +61,13 @@ bool extension_manager::load_extension(const std::string& path) {
 
     auto ext = extension_loader::load_extension_from(path);
     if (!ext.instance) {
-        console::error("extension/manager", "failed to load extension from \"%s\"",
-                       path.c_str());
+        application::instance()->logger()->log({ .level = logging::level::error, .message = std::format("failed to load extension from \"{}\"", path), .tag = "extension/manager" });
         return false;
     }
 
     for (const auto& existing : extensions_) {
         if (existing.instance && existing.instance->id() == ext.instance->id()) {
-            console::warning("extension/manager", "extension \"%s\" already loaded",
-                             ext.instance->id().c_str());
+            application::instance()->logger()->log({ .level = logging::level::warning, .message = std::format("extension \"{}\" already loaded", ext.instance->id()), .tag = "extension/manager" });
             return false;
         }
     }
@@ -79,16 +78,13 @@ bool extension_manager::load_extension(const std::string& path) {
     le.initialized = false;
     extensions_.push_back(std::move(le));
 
-    console::info("extension/manager", "loaded \"%s\" (%s)",
-                  ext.instance->name().c_str(),
-                  ext.instance->version().c_str());
+    application::instance()->logger()->log({ .level = logging::level::info, .message = std::format("loaded \"{}\" ({})", ext.instance->name(), ext.instance->version()), .tag = "extension/manager" });
     return true;
 }
 
 size_t extension_manager::load_extensions_from(const std::filesystem::path& directory) {
     if (!std::filesystem::exists(directory)) {
-        console::info("extension/manager", "directory \"%s\" does not exist",
-                      directory.c_str());
+        application::instance()->logger()->log({ .level = logging::level::info, .message = std::format("directory \"{}\" does not exist", directory.string()), .tag = "extension/manager" });
         return 0;
     }
 
@@ -115,11 +111,7 @@ size_t extension_manager::load_extensions_from(const std::filesystem::path& dire
             if (m) {
                 if (m->api_version != 0 &&
                     m->api_version != kSupportedExtensionApiVersion) {
-                    console::warning(
-                        "extension/manager",
-                        "skip \"%s\": unsupported api_version=%d (supported=%d)",
-                        m->id.c_str(), m->api_version,
-                        kSupportedExtensionApiVersion);
+                    application::instance()->logger()->log({ .level = logging::level::warning, .message = std::format("skip \"{}\": unsupported api_version={} (supported={})", m->id, m->api_version, kSupportedExtensionApiVersion), .tag = "extension/manager" });
                     continue;
                 }
                 info.manifest = std::move(*m);
@@ -162,11 +154,7 @@ size_t extension_manager::load_extensions_from(const std::filesystem::path& dire
                     extension* dep = find_extension(dep_id);
                     std::string dep_ver = dep ? dep->version() : "";
                     if (dep_ver.empty() || !version_matches(dep_ver, constraint)) {
-                        console::warning(
-                            "extension/manager",
-                            "dependency \"%s\" version \"%s\" does not satisfy \"%s\" for \"%s\"",
-                            dep_id.c_str(), dep_ver.c_str(),
-                            constraint.c_str(), info.manifest.id.c_str());
+                        application::instance()->logger()->log({ .level = logging::level::warning, .message = std::format("dependency \"{}\" version \"{}\" does not satisfy \"{}\" for \"{}\"", dep_id, dep_ver, constraint, info.manifest.id), .tag = "extension/manager" });
                         deps_ok = false;
                         break;
                     }
@@ -181,21 +169,12 @@ size_t extension_manager::load_extensions_from(const std::filesystem::path& dire
                     if (result.instance) {
                         /** 验证 id 一致 */
                         if (result.instance->id() != info.manifest.id) {
-                            console::warning(
-                                "extension/manager",
-                                "id mismatch in \"%s\": "
-                                "manifest=\"%s\", instance=\"%s\"",
-                                info.dir_path.c_str(),
-                                info.manifest.id.c_str(),
-                                result.instance->id().c_str());
+                            application::instance()->logger()->log({ .level = logging::level::warning, .message = std::format("id mismatch in \"{}\": manifest=\"{}\", instance=\"{}\"", info.dir_path.string(), info.manifest.id, result.instance->id()), .tag = "extension/manager" });
                         }
                         for (const auto& existing : extensions_) {
                             if (existing.instance &&
                                 existing.instance->id() == result.instance->id()) {
-                                console::warning(
-                                    "extension/manager",
-                                    "extension \"%s\" already loaded",
-                                    result.instance->id().c_str());
+                                application::instance()->logger()->log({ .level = logging::level::warning, .message = std::format("extension \"{}\" already loaded", result.instance->id()), .tag = "extension/manager" });
                                 ok = false;
                                 break;
                             }
@@ -220,9 +199,7 @@ size_t extension_manager::load_extensions_from(const std::filesystem::path& dire
                     if (info.has_manifest) {
                         loaded_ids.insert(info.manifest.id);
                     }
-                    console::info("extension/manager", "loaded \"%s\"",
-                                  info.has_manifest ? info.manifest.name.c_str()
-                                                    : info.dir_path.string().c_str());
+                    application::instance()->logger()->log({ .level = logging::level::info, .message = std::format("loaded \"{}\"", info.has_manifest ? info.manifest.name : info.dir_path.string()), .tag = "extension/manager" });
                 }
             }
         }
@@ -230,13 +207,11 @@ size_t extension_manager::load_extensions_from(const std::filesystem::path& dire
 
     for (size_t i = 0; i < infos.size(); ++i) {
         if (!loaded[i] && infos[i].has_manifest) {
-            console::warning("extension/manager", "skipped \"%s\" (unmet dependencies)",
-                             infos[i].manifest.id.c_str());
+            application::instance()->logger()->log({ .level = logging::level::warning, .message = std::format("skipped \"{}\" (unmet dependencies)", infos[i].manifest.id), .tag = "extension/manager" });
         }
     }
 
-    console::info("extension/manager", "loaded %zu extension(s) from \"%s\"",
-                  count, directory.string().c_str());
+    application::instance()->logger()->log({ .level = logging::level::info, .message = std::format("loaded {} extension(s) from \"{}\"", count, directory.string()), .tag = "extension/manager" });
     return count;
 }
 
@@ -246,13 +221,13 @@ bool extension_manager::unload_extension(const std::string& id) {
             if (it->initialized) {
                 it->instance->shutdown();
             }
-            console::info("extension/manager", "unloaded \"%s\"", id.c_str());
+            application::instance()->logger()->log({ .level = logging::level::info, .message = std::format("unloaded \"{}\"", id), .tag = "extension/manager" });
             unregister_services(id);
             extensions_.erase(it);
             return true;
         }
     }
-    console::warning("extension/manager", "extension \"%s\" not found", id.c_str());
+    application::instance()->logger()->log({ .level = logging::level::warning, .message = std::format("extension \"{}\" not found", id), .tag = "extension/manager" });
     return false;
 }
 
@@ -264,12 +239,9 @@ size_t extension_manager::initialize_phase(init_phase phase) {
             if (le.instance->initialize()) {
                 le.initialized = true;
                 ++count;
-                console::info("extension/manager", "initialized \"%s\" [%s]",
-                              le.instance->name().c_str(),
-                              phase == init_phase::early ? "early" : "normal");
+                application::instance()->logger()->log({ .level = logging::level::info, .message = std::format("initialized \"{}\" [{}]", le.instance->name(), phase == init_phase::early ? "early" : "normal"), .tag = "extension/manager" });
             } else {
-                console::error("extension/manager", "failed to initialize \"%s\"",
-                               le.instance->name().c_str());
+                application::instance()->logger()->log({ .level = logging::level::error, .message = std::format("failed to initialize \"{}\"", le.instance->name()), .tag = "extension/manager" });
             }
         }
     }
@@ -284,7 +256,7 @@ void extension_manager::shutdown_all() {
         }
     }
     services_.clear();
-    console::info("extension/manager", "all extensions shut down");
+    application::instance()->logger()->log({ .level = logging::level::info, .message = "all extensions shut down", .tag = "extension/manager" });
 }
 
 std::vector<extension*> extension_manager::extensions() {
@@ -326,8 +298,7 @@ void extension_manager::register_builtin(std::unique_ptr<extension> ext) {
 
     for (const auto& existing : extensions_) {
         if (existing.instance && existing.instance->id() == ext->id()) {
-            console::warning("extension/manager", "builtin extension \"%s\" already loaded",
-                             ext->id().c_str());
+            application::instance()->logger()->log({ .level = logging::level::warning, .message = std::format("builtin extension \"{}\" already loaded", ext->id()), .tag = "extension/manager" });
             return;
         }
     }
@@ -340,8 +311,7 @@ void extension_manager::register_builtin(std::unique_ptr<extension> ext) {
     le.dir_path = platform::data_directory() / ext_id;
     extensions_.push_back(std::move(le));
 
-    console::info("extension", "registered builtin \"%s\"", 
-                  extensions_.back().instance->name().c_str());
+    application::instance()->logger()->log({ .level = logging::level::info, .message = std::format("registered builtin \"{}\"", extensions_.back().instance->name()), .tag = "extension" });
 }
 
 int extension_manager::on_event(const std::string& event,
@@ -377,7 +347,7 @@ void extension_manager::emit_event(const std::string& event, const std::string& 
 void extension_manager::register_service(const std::string& ext_id,
                                           const std::string& name, void* ptr) {
     services_[ext_id][name] = ptr;
-    console::info("extension/service", "\"%s\" registered \"%s\"", ext_id.c_str(), name.c_str());
+    application::instance()->logger()->log({ .level = logging::level::info, .message = std::format("\"{}\" registered \"{}\"", ext_id, name), .tag = "extension/service" });
 }
 
 void* extension_manager::get_service(const std::string& ext_id,

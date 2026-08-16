@@ -5,7 +5,6 @@
  */
 
 #import <application.h>
-#import <utils/console.h>
 #import <utils/crash_log.h>
 #import <utils/platform.h>
 #import <Cocoa/Cocoa.h>

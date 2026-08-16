@@ -6,8 +6,6 @@
 
 #pragma once
 
-#include <spiration/utils/console.h>
-
 #include <string>
 #include <map>
 #include <optional>

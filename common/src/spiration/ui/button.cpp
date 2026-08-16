@@ -8,7 +8,6 @@
 #include <spiration/ui/focus_manager.h>
 #include <spiration/ui/theme_manager.h>
 #include <spiration/ui/text_utils.h>
-#include <spiration/utils/console.h>
 
 namespace spiration {
 

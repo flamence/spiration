@@ -11,7 +11,6 @@
 #include <spiration/ui/root.h>
 #include <spiration/ui/spacer.h>
 #include <spiration/ui/window_controls.h>
-#include <spiration/utils/console.h>
 #include <spiration/application.h>
 #include <spiration/extension/builtin/i18n/i18n.h>
 #include <spiration/ui/theme_manager.h>

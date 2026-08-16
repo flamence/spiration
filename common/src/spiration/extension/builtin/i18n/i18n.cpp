@@ -1,8 +1,9 @@
+#include <spiration/application.h>
 #include <spiration/extension/builtin/i18n/i18n.h>
-#include <spiration/utils/console.h>
 #include <spiration/utils/properties.h>
 #include <algorithm>
 #include <cctype>
+#include <format>
 
 namespace spiration {
 
@@ -14,7 +15,7 @@ i18n_manager& i18n_manager::get() {
 bool i18n_manager::load(const std::string& locale, const std::filesystem::path& filepath) {
     properties props;
     if (!props.load(filepath)) {
-        console::warning("i18n", "cannot open '%s'", filepath.string().c_str());
+        application::instance()->logger()->log({ .level = logging::level::warning, .message = std::format("cannot open '{}'", filepath.string()), .tag = "i18n" });
         return false;
     }
 
@@ -23,14 +24,13 @@ bool i18n_manager::load(const std::string& locale, const std::filesystem::path& 
 
     translations_[locale] = std::move(data);
 
-    console::info("i18n", "loaded %zu strings for locale '%s'",
-                  translations_[locale].strings.size(), locale.c_str());
+    application::instance()->logger()->log({ .level = logging::level::info, .message = std::format("loaded {} strings for locale '{}'", translations_[locale].strings.size(), locale), .tag = "i18n" });
     return true;
 }
 
 void i18n_manager::set_locale(const std::string& locale) {
     current_locale_ = locale;
-    console::info("i18n", "switched to locale '%s'", locale.c_str());
+    application::instance()->logger()->log({ .level = logging::level::info, .message = std::format("switched to locale '{}'", locale), .tag = "i18n" });
 }
 
 const std::string& i18n_manager::get_locale() const {

@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <spiration/logging/log.h>
 #include <spiration/logging/sink.h>
 
 namespace spiration {
@@ -16,7 +17,7 @@ namespace logging {
  */
 class console_sink : public sink {
 public:
-    void write(const std::string& message, bool end_line = false) override;
+    void write(const log& log, log_formatter formatter) override;
 };
 
 }

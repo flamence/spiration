@@ -11,7 +11,6 @@
 #include <memory>
 #include <spiration/renderer/renderer.h>
 #include <spiration/ui/style.h>
-#include <spiration/utils/console.h>
 #include <spiration/window/event.h>
 #include <vector>
 

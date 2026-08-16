@@ -6,11 +6,12 @@
 
 #include <napi_bridge.h>
 
+#include <spiration/application.h>
 #include <spiration/utils/platform.h>
 #include <spiration/extension/builtin/i18n/i18n.h>
-#include <spiration/utils/console.h>
 #include <spiration/extension/extension_manager.h>
 
+#include <format>
 #include <string>
 
 namespace spiration {
@@ -20,7 +21,6 @@ void set_ohos_data_dir(const std::string& app_dir, const std::string& module_dir
 namespace bridge {
 
 using spiration::i18n_manager;
-using spiration::console;
 using spiration::platform;
 
 static napi_value CreateString(napi_env env, const std::string& str) {
@@ -75,8 +75,7 @@ napi_value NapiSetDataDir(napi_env env, napi_callback_info info) {
     std::string app_dir = GetStringArg(env, args[0]);
     std::string module_dir = argc >= 2 ? GetStringArg(env, args[1]) : app_dir;
     spiration::set_ohos_data_dir(app_dir, module_dir);
-    console::info("napi", "data dir injected via Context API: app=%s module=%s",
-                  app_dir.c_str(), module_dir.c_str());
+    application::instance()->logger()->log({ .level = logging::level::info, .message = std::format("data dir injected via Context API: app={} module={}", app_dir, module_dir), .tag = "napi" });
     return CreateString(env, app_dir);
 }
 

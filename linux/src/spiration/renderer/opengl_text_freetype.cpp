@@ -6,12 +6,13 @@
 
 #if !defined(__OHOS__)
 
+#include <spiration/application.h>
 #include <spiration/renderer/opengl_renderer.h>
-#include <spiration/utils/console.h>
 
 #include <algorithm>
 #include <cmath>
 #include <cstring>
+#include <format>
 #include <unistd.h>
 
 namespace spiration {
@@ -23,7 +24,7 @@ void opengl_renderer::draw_text(const std::string& text, const point& position, 
 
     font_face* fface = get_font_face(font_family.empty() ? "DejaVuSans" : font_family, font_size);
     if (!fface || !fface->face) {
-        console::warning("text", "font face null for '%s'", font_family.c_str());
+        application::instance()->logger()->log({ .level = logging::level::warning, .message = std::format("font face null for '{}'", font_family), .tag = "text" });
         return;
     }
 
@@ -282,16 +283,16 @@ bool opengl_renderer::init_cjk_fallback_font() {
     };
     std::string path = find_font_file(cjk_paths);
     if (path.empty()) {
-        console::warning("renderer/opengl", "no CJK fallback font found");
+        application::instance()->logger()->log({ .level = logging::level::warning, .message = "no CJK fallback font found", .tag = "renderer/opengl" });
         return false;
     }
     FT_Face ft_face = nullptr;
     if (FT_New_Face(ft_library_, path.c_str(), 0, &ft_face) != 0) {
-        console::warning("renderer/opengl", "failed to load CJK font: %s", path.c_str());
+        application::instance()->logger()->log({ .level = logging::level::warning, .message = std::format("failed to load CJK font: {}", path), .tag = "renderer/opengl" });
         return false;
     }
     cjk_fallback_ = new font_face{ft_face, 0.0f};
-    console::info("renderer/opengl", "loaded CJK fallback font from %s", path.c_str());
+    application::instance()->logger()->log({ .level = logging::level::info, .message = std::format("loaded CJK fallback font from {}", path), .tag = "renderer/opengl" });
     return true;
 }
 
@@ -350,13 +351,12 @@ opengl_renderer::font_face* opengl_renderer::get_font_face(const std::string& fa
     }
 
     if (!font_faces_[key].face) {
-        console::warning("renderer/opengl", "no font found for '%s'", family.c_str());
+        application::instance()->logger()->log({ .level = logging::level::warning, .message = std::format("no font found for '{}'", family), .tag = "renderer/opengl" });
         font_faces_.erase(key);
         return nullptr;
     }
 
-    console::info("renderer/opengl", "loaded font '%s' from %s",
-                  family.c_str(), font_path.c_str());
+    application::instance()->logger()->log({ .level = logging::level::info, .message = std::format("loaded font '{}' from {}", family, font_path), .tag = "renderer/opengl" });
 
     font_faces_[key].size = size;
     FT_Set_Pixel_Sizes(font_faces_[key].face, 0, static_cast<FT_UInt>(size));

@@ -22,7 +22,7 @@ public:
 
     ~file_sink() override;
     
-    void write(const std::string& message, bool end_line = false) override;
+    void write(const log& log, log_formatter formatter) override;
 
 private:
     std::ofstream file_;

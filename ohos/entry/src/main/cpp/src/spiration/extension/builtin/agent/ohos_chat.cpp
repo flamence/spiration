@@ -4,15 +4,15 @@
  * @author clk
  */
 
+#include <spiration/application.h>
 #include <spiration/extension/builtin/agent/chat.h>
-#include <spiration/utils/console.h>
 
 namespace spiration {
 
 namespace agent {
 
 chat_client::chat_client(const config& cfg) : cfg_(cfg) {
-    console::warning("chat", "Chat client not fully implemented on OHOS platform");
+    application::instance()->logger()->log({ .level = logging::level::warning, .message = "Chat client not fully implemented on OHOS platform", .tag = "chat" });
 }
 
 chat_client::~chat_client() = default;
@@ -62,12 +62,12 @@ void chat_client::wait_all_tools() {
 }
 
 chat_response chat_client::send() {
-    console::warning("chat", "Chat send not implemented on OHOS platform");
+    application::instance()->logger()->log({ .level = logging::level::warning, .message = "Chat send not implemented on OHOS platform", .tag = "chat" });
     return chat_response{};
 }
 
 chat_response chat_client::run(int max_rounds, const chat_events& events) {
-    console::warning("chat", "Chat run not implemented on OHOS platform");
+    application::instance()->logger()->log({ .level = logging::level::warning, .message = "Chat run not implemented on OHOS platform", .tag = "chat" });
     return chat_response{};
 }
 

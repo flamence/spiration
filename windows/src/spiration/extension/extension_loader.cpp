@@ -10,12 +10,13 @@
 #include <windows.h>
 #include <libloaderapi.h>
 
+#include <spiration/application.h>
 #include <spiration/extension/extension_loader.h>
 #include <spiration/extension/extension.h>
 #include <filesystem>
-#include <spiration/utils/console.h>
 #include <spiration/utils/io.h>
 
+#include <format>
 #include <string>
 
 namespace spiration {
@@ -39,8 +40,7 @@ extension_loader::lib_handle extension_loader::load_library(const std::filesyste
 
     handle->mod = reinterpret_cast<void*>(LoadLibraryExW(dll_path_w.c_str(), NULL, LOAD_WITH_ALTERED_SEARCH_PATH));
     if (!handle->mod) {
-        console::error("extension/loader", "LoadLibraryW failed with error %s",
-                       std::to_string(GetLastError()).c_str());
+        application::instance()->logger()->log({ .level = logging::level::error, .message = std::format("LoadLibraryW failed with error {}", std::to_string(GetLastError())), .tag = "extension/loader" });
         return lib_handle(nullptr);
     }
 
@@ -48,20 +48,20 @@ extension_loader::lib_handle extension_loader::load_library(const std::filesyste
         RemoveDllDirectory(cokkie);
     }
 
-    console::info("extension/loader", "loaded library \"%s\"", path.string().c_str());
+    application::instance()->logger()->log({ .level = logging::level::info, .message = std::format("loaded library \"{}\"", path.string()), .tag = "extension/loader" });
     return result;
 }
 
 void* extension_loader::find_symbol(library_handle* handle, const std::string& symbol_name) {
     if (!handle || !handle->mod) {
-        console::error("extension/loader", "invalid library handle");
+        application::instance()->logger()->log({ .level = logging::level::error, .message = "invalid library handle", .tag = "extension/loader" });
         return nullptr;
     }
 
     void* ptr = reinterpret_cast<void*>(
         GetProcAddress(static_cast<HMODULE>(handle->mod), symbol_name.c_str()));
     if (!ptr) {
-        console::error("extension/loader", "GetProcAddress: %s failed", symbol_name.c_str());
+        application::instance()->logger()->log({ .level = logging::level::error, .message = std::format("GetProcAddress: {} failed", symbol_name), .tag = "extension/loader" });
     }
 
     return ptr;
@@ -76,15 +76,13 @@ extension_loader::load_result extension_loader::load_extension_from(const std::f
     auto create_fn = reinterpret_cast<extension_create_func>(
         find_symbol(handle.get(), "create_extension"));
     if (!create_fn) {
-        console::error("extension/loader", "no \"create_extension\" symbol in \"%s\"",
-                       path.string().c_str());
+        application::instance()->logger()->log({ .level = logging::level::error, .message = std::format("no \"create_extension\" symbol in \"{}\"", path.string()), .tag = "extension/loader" });
         return result;
     }
 
     extension* ext = create_fn();
     if (!ext) {
-        console::error("extension/loader", "create_extension() returned null from \"%s\"",
-                       path.string().c_str());
+        application::instance()->logger()->log({ .level = logging::level::error, .message = std::format("create_extension() returned null from \"{}\"", path.string()), .tag = "extension/loader" });
         return result;
     }
 
@@ -92,11 +90,9 @@ extension_loader::load_result extension_loader::load_extension_from(const std::f
     result.instance = ext;
 
     try {
-        console::info("extension/loader", "loaded extension \"%s\" v%s from \"%s\"",
-                    ext->name().c_str(), ext->version().c_str(), path.string().c_str());
+        application::instance()->logger()->log({ .level = logging::level::info, .message = std::format("loaded extension \"{}\" v{} from \"{}\"", ext->name(), ext->version(), path.string()), .tag = "extension/loader" });
     } catch (...) {
-        console::warning("extension/loader", "the library \"%s\" is broken",
-                    path.string().c_str());
+        application::instance()->logger()->log({ .level = logging::level::warning, .message = std::format("the library \"{}\" is broken", path.string()), .tag = "extension/loader" });
         return result;
     }
     
@@ -111,15 +107,13 @@ extension_loader::load_result extension_loader::load_extension_from_dir(
     std::string manifest_json = io::read_file_content(manifest_path);
 
     if (manifest_json.empty()) {
-        console::error("extension/loader", "no extension.json found in '%s'",
-                       dir_path.c_str());
+        application::instance()->logger()->log({ .level = logging::level::error, .message = std::format("no extension.json found in '{}'", dir_path.string()), .tag = "extension/loader" });
         return result;
     }
 
     auto manifest = parse_extension_manifest(manifest_json);
     if (!manifest) {
-        console::error("extension/loader", "failed to parse extension.json in '%s'",
-                       dir_path.c_str());
+        application::instance()->logger()->log({ .level = logging::level::error, .message = std::format("failed to parse extension.json in '{}'", dir_path.string()), .tag = "extension/loader" });
         return result;
     }
 

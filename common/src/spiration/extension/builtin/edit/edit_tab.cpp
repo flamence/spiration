@@ -1,9 +1,10 @@
+#include <spiration/application.h>
 #include <spiration/extension/builtin/edit/edit_tab.h>
 #include <spiration/extension/builtin/i18n/i18n.h>
 #include <filesystem>
 #include <spiration/ui/theme_manager.h>
-#include <spiration/utils/console.h>
 #include <algorithm>
+#include <format>
 #include <fstream>
 #include <string>
 
@@ -61,7 +62,7 @@ void edit_tab::set_text(const std::string& text) {
 void edit_tab::load_file(const std::filesystem::path& path) {
     std::ifstream file(path, std::ios::binary);
     if (!file) {
-        spiration::console::warning("edit", "failed to open: %s", path.c_str());
+        application::instance()->logger()->log({ .level = logging::level::warning, .message = std::format("failed to open: {}", path.string()), .tag = "edit" });
         return;
     }
 
@@ -70,7 +71,7 @@ void edit_tab::load_file(const std::filesystem::path& path) {
     while (file.read(chunk, sizeof(chunk)) || file.gcount() > 0) {
         buf.append(chunk, static_cast<size_t>(file.gcount()));
         if (buf.size() > MAX_FILE_SIZE) {
-            spiration::console::warning("edit", "file too large (>100MB): %s", path.c_str());
+            application::instance()->logger()->log({ .level = logging::level::warning, .message = std::format("file too large (>100MB): {}", path.string()), .tag = "edit" });
             return;
         }
     }
@@ -83,7 +84,7 @@ void edit_tab::load_file(const std::filesystem::path& path) {
     file_path_ = path;
     mark_clean();
 
-    spiration::console::info("edit", "loaded %zu bytes: %s", editor_->text.size(), path.c_str());
+    application::instance()->logger()->log({ .level = logging::level::info, .message = std::format("loaded {} bytes: {}", editor_->text.size(), path.string()), .tag = "edit" });
 }
 
 void edit_tab::open_content(const std::filesystem::path& path, const std::string& content) {
@@ -95,8 +96,7 @@ void edit_tab::open_content(const std::filesystem::path& path, const std::string
     file_path_ = path;
     mark_clean();
 
-    spiration::console::info("edit", "opened content %zu bytes: %s",
-                             content.size(), path.c_str());
+    application::instance()->logger()->log({ .level = logging::level::info, .message = std::format("opened content {} bytes: {}", content.size(), path.string()), .tag = "edit" });
 }
 
 bool edit_tab::save() {
@@ -109,7 +109,7 @@ bool edit_tab::save_as(const std::filesystem::path& path) {
     tmp_fs_path += ".tmp";
     std::ofstream file(tmp_fs_path, std::ios::binary | std::ios::trunc);
     if (!file) {
-        spiration::console::warning("edit", "save_as: cannot open for write: %s", path.string().c_str());
+        application::instance()->logger()->log({ .level = logging::level::warning, .message = std::format("save_as: cannot open for write: {}", path.string()), .tag = "edit" });
         return false;
     }
 
@@ -122,7 +122,7 @@ bool edit_tab::save_as(const std::filesystem::path& path) {
         if (!file) {
             file.close();
             std::filesystem::remove(tmp_fs_path);
-            spiration::console::warning("edit", "save_as: write error at offset %zu", offset);
+            application::instance()->logger()->log({ .level = logging::level::warning, .message = std::format("save_as: write error at offset {}", offset), .tag = "edit" });
             return false;
         }
         offset += to_write;
@@ -134,7 +134,7 @@ bool edit_tab::save_as(const std::filesystem::path& path) {
     std::error_code ec;
     std::filesystem::rename(tmp_fs_path, path, ec);
     if (ec) {
-        spiration::console::warning("edit", "save_as: rename failed: %s", ec.message().c_str());
+        application::instance()->logger()->log({ .level = logging::level::warning, .message = std::format("save_as: rename failed: {}", ec.message()), .tag = "edit" });
         std::filesystem::remove(tmp_fs_path);
         return false;
     }
@@ -144,7 +144,7 @@ bool edit_tab::save_as(const std::filesystem::path& path) {
     base_title_ = path.filename().string().c_str();
     mark_clean();
 
-    spiration::console::info("edit", "saved %zu bytes to: %s", editor_->text.size(), file_path_.c_str());
+    application::instance()->logger()->log({ .level = logging::level::info, .message = std::format("saved {} bytes to: {}", editor_->text.size(), file_path_.string()), .tag = "edit" });
     return true;
 }
 
@@ -154,7 +154,7 @@ void edit_tab::confirm_saved(const std::filesystem::path& path) {
     base_title_ = path.filename().string();
     mark_clean();
 
-    spiration::console::info("edit", "confirmed saved to: %s", path.c_str());
+    application::instance()->logger()->log({ .level = logging::level::info, .message = std::format("confirmed saved to: {}", path.string()), .tag = "edit" });
 }
 
 void edit_tab::paint(std::shared_ptr<renderer> r) {

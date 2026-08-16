@@ -4,17 +4,20 @@
  * @author clk
  */
 
+#include <spiration/application.h>
 #include <spiration/window/ohos_window.h>
+
+#include <format>
 
 namespace spiration {
 
 std::shared_ptr<window> window::create() {
-    console::warning("window", "Window creation not fully implemented on OHOS platform");
+    application::instance()->logger()->log({ .level = logging::level::warning, .message = "Window creation not fully implemented on OHOS platform", .tag = "window" });
     return nullptr;
 }
 
 std::shared_ptr<window> window::create(const window_parameters& params) {
-    console::warning("window", "Window creation not fully implemented on OHOS platform");
+    application::instance()->logger()->log({ .level = logging::level::warning, .message = "Window creation not fully implemented on OHOS platform", .tag = "window" });
     (void)params;
     return nullptr;
 }
@@ -170,8 +173,7 @@ void ohos_window::on_key_event(int key_code, unsigned int codepoint, bool ctrl, 
     if (!root_widget_ || !is_down) return;  // 只处理按键按下事件
 
     // 诊断日志：确认按键事件已到达 C++（hilog 过滤 window）
-    spiration::console::info("window", "key code=%d cp=%u ctrl=%d shift=%d alt=%d",
-        key_code, codepoint, ctrl, shift, alt);
+    application::instance()->logger()->log({ .level = logging::level::info, .message = std::format("key code={} cp={} ctrl={} shift={} alt={}", key_code, codepoint, ctrl, shift, alt), .tag = "window" });
 
     key_event_data key;
     key.key_code = key_code;

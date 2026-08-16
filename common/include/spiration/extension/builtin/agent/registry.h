@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include "spiration/extension/builtin/agent/agent_tab.h"
 #include <spiration/extension/builtin/agent/provider.h>
 #include <spiration/extension/builtin/agent/tool/tool.h>
 
@@ -44,6 +45,9 @@ public:
 
     /// @brief 注册工具。
     void register_tool(std::unique_ptr<tool> t);
+
+    /// @brief 注册模型。
+    void register_model(std::unique_ptr<provider> t);
 
     /// @brief 全部已注册工具。
     std::vector<tool*> tools() const;

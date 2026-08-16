@@ -4,9 +4,10 @@
  * @author clk
  */
 
-#include "spiration/extension/extension_manager.h"
+#include <memory>
+#include <spiration/logging/file_sink.h>
+#include <spiration/logging/console_sink.h>
 #include <spiration/init_phase.h>
-#include <spiration/utils/console.h>
 #include <spiration/application.h>
 #include <spiration/extension/builtin/i18n/i18n.h>
 #include <filesystem>
@@ -35,13 +36,22 @@ std::shared_ptr<spiration::window> create_window() {
     params.height = 600;
     params.decorated = false;
     params.visible = false;
-    auto window = spiration::window::create(params);
-    if (!window) {
-        spiration::console::error("window", "expect a window instance.");
-    }
-    return window;
+    return spiration::window::create(params);
 }
 #endif
+
+std::filesystem::path make_log_path() {
+    std::time_t now = std::time(nullptr);
+    struct tm tmv;
+#ifdef _WIN32
+    localtime_s(&tmv, &now);
+#else
+    localtime_r(&now, &tmv);
+#endif
+    char ts[32];
+    std::strftime(ts, sizeof(ts), "%Y-%m-%d-%H-%M-%S", &tmv);
+    return application::instance()->data_directory("logs") / std::format("{}.log", ts);
+}
 
 }
 
@@ -58,21 +68,21 @@ spiration::extension_manager* application::extension() const {
     return &spiration::extension_manager::instance();
 }
 
-void application::initialize(std::optional<init_phase> phase) {
+bool application::initialize(std::optional<init_phase> phase) {
     if (phase == std::nullopt) {
-        initialize(init_phase::early);
-        initialize(init_phase::normal);
-        initialize(init_phase::late);
+        return initialize(init_phase::early) && initialize(init_phase::normal) && initialize(init_phase::late);
     } else if (phase == init_phase::early) {
-        auto log_path = console::make_log_path(data_directory("logs"), APPLICATION_LOWER_NAME);
-        spiration::console::set_log_file(log_path);
-        spiration::crash_log::install(log_path);
         spiration::extension_manager::instance();
         spiration::extension_manager::load_extensions_from(platform::data_directory());
-        spiration::extension_manager::initialize_phase(init_phase::early);  
+        spiration::extension_manager::initialize_phase(init_phase::early);
+        return true;
     } else if (phase == init_phase::normal) {
 #ifndef __OHOS__
         window_ = std::move(create_window());
+        if (!window_) {
+            logger()->log({ .level = logging::level::error, .message = "failed to create window", .tag = "main" });
+            return false;
+        }
 #endif
         auto widget = std::make_unique<spiration::root>(window_);
         widget_ = widget.get();
@@ -81,9 +91,12 @@ void application::initialize(std::optional<init_phase> phase) {
 #ifndef __OHOS__
         window_->show();
 #endif
+        return true;
     } else if (phase == init_phase::late) {
         spiration::extension_manager::initialize_phase(init_phase::late);
+        return true;
     }
+    return false;
 }
 
 std::unique_ptr<application> application::instance_ = nullptr;
@@ -95,10 +108,19 @@ application* application::instance() {
     return instance_.get();
 }
 
-void application::loop() {
-    while (!window_->should_close()) {
-        window_->loop();
+std::shared_ptr<logging::logger> application::logger() {
+    if (logger_ == nullptr) {
+        auto file = make_log_path();
+        spiration::crash_log::install(file);
+        logger_ = std::make_shared<logging::logger>();
+        logger_->add_sink(std::make_unique<logging::console_sink>());
+        logger_->add_sink(std::make_unique<logging::file_sink>(file));
     }
+    return logger_;
+}
+
+void application::loop() {
+    window_->loop();
 }
 
 void application::shutdown() {

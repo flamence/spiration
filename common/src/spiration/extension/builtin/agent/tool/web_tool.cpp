@@ -4,13 +4,14 @@
  * @author clk
  */
 
+#include <spiration/application.h>
 #include <spiration/extension/builtin/agent/tool/web_tool.h>
-#include <spiration/utils/console.h>
 
 #include <nlohmann/json.hpp>
 
 #include <cctype>
 #include <cstdio>
+#include <format>
 #include <string>
 #include <utility>
 #include <vector>
@@ -192,7 +193,7 @@ std::string fetch_tool::execute(const std::string& args_json) {
     if (!response.empty()) {
         out += "\n" + response;
     }
-    console::info("extension/agent/web", "fetch %s -> status %ld, %zu bytes", full_url.c_str(), status, response.size());
+    application::instance()->logger()->log({ .level = logging::level::info, .message = std::format("fetch {} -> status {}, {} bytes", full_url, status, response.size()), .tag = "extension/agent/web" });
     return out;
 }
 

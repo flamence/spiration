@@ -10,7 +10,7 @@
 #include <spiration/extension/extension_loader.h>
 #include <spiration/extension/extension_manager.h>
 #include <filesystem>
-#include <spiration/utils/console.h>
+#include <format>
 #include <spiration/utils/platform.h>
 #include <spiration/utils/io.h>
 
@@ -64,7 +64,7 @@ bool extension::initialize() {
                     }
                 }
             } catch (const std::exception& e) {
-                api->log_error("parse cnf/models.json failed: %s", e.what());
+                api->log_error(std::format("parse cnf/models.json failed: {}", e.what()));
             }
         }
         has_config = !models_.empty();
@@ -128,9 +128,9 @@ bool extension::initialize() {
         memory_ = std::make_unique<memory_tool>();
         client_->register_tool(memory_.get());
 
-        api->log_info("agent extension initialized (%zu model(s))", models_.size());
+        api->log_info(std::format("agent extension initialized ({} model(s))", models_.size()));
     } else {
-        api->log_info("agent extension initialized (no config at %s)", models_path.c_str());
+        api->log_info(std::format("agent extension initialized (no config at {})", models_path.string()));
     }
 
     store_ = std::make_shared<chat_store>(data_dir_);

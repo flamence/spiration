@@ -8,6 +8,11 @@
 
 namespace spiration {
 namespace logging {
+namespace {
+
+log_formatter log_formatter_ = log_formatter();
+
+}
 
 logger::logger() {
     level = level::info;
@@ -17,38 +22,13 @@ logger::~logger() {
     sinks_.clear();
 }
 
-template <class... T>
-void logger::debug(const std::format_string<T...> format, T&&... arguments) {
-    log(level::debug, std::format(format, std::forward<T>(arguments)...));
-}
-
-template <class... T>
-void logger::error(const std::format_string<T...> format, T&&... arguments) {
-    log(level::error, std::format(format, std::forward<T>(arguments)...));
-}
-
-template <class... T>
-void logger::info(const std::format_string<T...> format, T&&... arguments) {
-    log(level::info, std::format(format, std::forward<T>(arguments)...));
-}
-
-void logger::log(logging::level level, const std::string message) {
-    if (level < this->level) {
+void logger::log(logging::log log) {
+    if (log.level < this->level) {
         return;
     }
     for (auto& sink : sinks_) {
-        sink->write_line(std::format("[{}] {}", std::to_string(level), message));
+        sink->write(log, log_formatter_);
     }
-}
-
-template <class... T>
-void logger::trace(const std::format_string<T...> format, T&&... arguments) {
-    log(level::trace, std::format(format, std::forward<T>(arguments)...));
-}
-
-template <class... T>
-void logger::warn(const std::format_string<T...> format, T&&... arguments) {
-    log(level::warning, std::format(format, std::forward<T>(arguments)...));
 }
 
 }

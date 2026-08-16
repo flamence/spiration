@@ -26,7 +26,6 @@ set(SPIRATION_CORE_SOURCES
     src/spiration/logging/sink/console.cpp
     src/spiration/logging/sink/file.cpp
     src/spiration/logging/logger.cpp
-    src/spiration/logging/sink.cpp
     src/spiration/ui/about_tab.cpp
     src/spiration/ui/appbar.cpp
     src/spiration/ui/button.cpp
@@ -61,7 +60,6 @@ set(SPIRATION_CORE_SOURCES
     src/spiration/ui/tooltip.cpp
     src/spiration/ui/widget.cpp
     src/spiration/ui/window_controls.cpp
-    src/spiration/utils/console.cpp
     src/spiration/utils/crash_log.cpp
     src/spiration/utils/io.cpp
     src/spiration/utils/platform.cpp

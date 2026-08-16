@@ -4,11 +4,12 @@
  * @author clk
  */
 
+#include <spiration/application.h>
 #include <spiration/extension/builtin/agent/tool/terminal_tool.h>
-#include <spiration/utils/console.h>
 
 #include <nlohmann/json.hpp>
 
+#include <format>
 #include <memory>
 
 namespace spiration {
@@ -26,7 +27,7 @@ std::string terminal_manager::create(const std::string& shell, const std::filesy
     std::string id = "t" + std::to_string(next_id_++);
     sessions_[id] = std::move(s);
     shells_[id] = shell;
-    console::info("extension/agent/terminal", "created session %s", id.c_str());
+    application::instance()->logger()->log({ .level = logging::level::info, .message = std::format("created session {}", id), .tag = "extension/agent/terminal" });
     return id;
 }
 
@@ -69,12 +70,12 @@ void terminal_manager::kill(const std::string& id) {
     std::lock_guard<std::mutex> lk(mtx_);
     auto it = sessions_.find(id);
     if (it == sessions_.end()) {
-        console::warning("extension/agent/terminal", "kill: session not found: %s", id.c_str());
+        application::instance()->logger()->log({ .level = logging::level::warning, .message = std::format("kill: session not found: {}", id), .tag = "extension/agent/terminal" });
         return;
     }
     sessions_.erase(it);
     shells_.erase(id);
-    console::info("extension/agent/terminal", "killed session %s", id.c_str());
+    application::instance()->logger()->log({ .level = logging::level::info, .message = std::format("killed session {}", id), .tag = "extension/agent/terminal" });
 }
 
 std::vector<terminal_snapshot> terminal_manager::snapshots() const {

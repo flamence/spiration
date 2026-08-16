@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <spiration/logging/logger.hpp>
 #include <spiration/extension/extension_manager.h>
 #include <filesystem>
 #include <spiration/init_phase.h>
@@ -34,6 +35,11 @@ public:
 #endif
 
     /**
+     * @return 数据目录。
+     */
+    std::filesystem::path data_directory(std::optional<std::string> sub = std::nullopt);
+
+    /**
      * @return 该应用附加的拓展管理器实例。
      */
     spiration::extension_manager* extension() const;
@@ -43,13 +49,19 @@ public:
      * @param phase 指定所执行应用初始化阶段。
      * @note 对于鸿蒙平台，默认禁止了对窗口的创建，原因是其窗口伴随鸿蒙应用的生命周期。
      */
-    void initialize(std::optional<init_phase> phase = std::nullopt);
+    bool initialize(std::optional<init_phase> phase = std::nullopt);
     
     /**
      * @return 应用实例。
      */
     static application* instance();
     
+    /**
+     * @return 日志器。
+     * @note 懒加载实例。
+     */
+    std::shared_ptr<logging::logger> logger();
+
     /**
      * @brief 执行应用循环。
      */
@@ -78,10 +90,9 @@ public:
     
 private:
     static std::unique_ptr<application> instance_;
+    std::shared_ptr<logging::logger> logger_;
     spiration::widget* widget_;
     std::shared_ptr<spiration::window> window_;
-
-    std::filesystem::path data_directory(std::optional<std::string> sub = std::nullopt);
 };
 
 }

@@ -5,7 +5,6 @@
  */
 
 #include <spiration/extension/builtin/agent/provider.h>
-#include <spiration/utils/console.h>
 
 #include <nlohmann/json.hpp>
 
