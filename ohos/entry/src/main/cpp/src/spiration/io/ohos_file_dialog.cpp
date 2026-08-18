@@ -36,7 +36,7 @@ std::function<void(const std::string&)> g_save_cb;                      // (uri)
 } // namespace
 
 std::string open_file(const std::string& title, const std::string& filter, const std::vector<std::string>& patterns) {
-    application::instance()->logger()->log({ .level = logging::level::warning, .message = "sync open_file unsupported on OHOS, use open_file_async", .tag = "io" });
+    application::instance()->logger()->log({logging::level::warning, "sync open_file unsupported on OHOS, use open_file_async", "io"});
     (void)title;
     (void)filter;
     (void)patterns;
@@ -44,7 +44,7 @@ std::string open_file(const std::string& title, const std::string& filter, const
 }
 
 std::string save_file(const std::string& title, const std::string& filter, const std::vector<std::string>& patterns) {
-    application::instance()->logger()->log({ .level = logging::level::warning, .message = "sync save_file unsupported on OHOS, use save_file_async", .tag = "io" });
+    application::instance()->logger()->log({logging::level::warning, "sync save_file unsupported on OHOS, use save_file_async", "io"});
     (void)title;
     (void)filter;
     (void)patterns;
@@ -59,7 +59,7 @@ void open_file_async(const std::string& title, const std::string& filter,
     g_open_cb = std::move(on_result);
     g_save_cb = nullptr;
     if (!invoke_file_picker(title, false, "")) {
-        application::instance()->logger()->log({ .level = logging::level::error, .message = "file picker callback not registered", .tag = "io" });
+        application::instance()->logger()->log({logging::level::error, "file picker callback not registered", "io"});
         if (g_open_cb) {
             auto cb = std::move(g_open_cb);
             g_open_cb = nullptr;
@@ -77,7 +77,7 @@ void save_file_async(const std::string& title, const std::string& filter,
     g_save_cb = std::move(on_result);
     g_open_cb = nullptr;
     if (!invoke_file_picker(title, true, content)) {
-        application::instance()->logger()->log({ .level = logging::level::error, .message = "file picker callback not registered", .tag = "io" });
+        application::instance()->logger()->log({logging::level::error, "file picker callback not registered", "io"});
         if (g_save_cb) {
             auto cb = std::move(g_save_cb);
             g_save_cb = nullptr;

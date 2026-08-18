@@ -9,7 +9,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstring>
-#include <format>
+#include <fmt/format.h>
 
 #define STB_IMAGE_IMPLEMENTATION
 #include <stb_image.h>
@@ -127,7 +127,7 @@ GLuint compile_shader_source(GLenum type, const char* source) {
     if (!compiled) {
         char info[512];
         glGetShaderInfoLog(shader, sizeof(info), nullptr, info);
-        application::instance()->logger()->log({ .level = logging::level::error, .message = std::format("OpenGL shader compilation failed ({}): {}", type, info), .tag = "renderer/opengl" });
+        application::instance()->logger()->log({logging::level::error, fmt::format("OpenGL shader compilation failed ({}): {}", type, info), "renderer/opengl"});
         glDeleteShader(shader);
         return 0;
     }
@@ -146,7 +146,7 @@ GLuint link_shader_program(GLuint vs, GLuint fs) {
     if (!linked) {
         char info[512];
         glGetProgramInfoLog(program, sizeof(info), nullptr, info);
-        application::instance()->logger()->log({ .level = logging::level::error, .message = std::format("OpenGL program link failed: {}", info), .tag = "renderer/opengl" });
+        application::instance()->logger()->log({logging::level::error, fmt::format("OpenGL program link failed: {}", info), "renderer/opengl"});
         glDeleteProgram(program);
         return 0;
     }
@@ -318,7 +318,7 @@ opengl_renderer& opengl_renderer::operator=(opengl_renderer&& other) noexcept {
 
 bool opengl_renderer::initialize(void* native_window_handle) {
     if (!native_window_handle) {
-        application::instance()->logger()->log({ .level = logging::level::error, .message = "invalid native window handle", .tag = "renderer/opengl" });
+        application::instance()->logger()->log({logging::level::error, "invalid native window handle", "renderer/opengl"});
         return false;
     }
 
@@ -327,24 +327,24 @@ bool opengl_renderer::initialize(void* native_window_handle) {
 
 #if defined(__OHOS__)
     if (!init_egl(native_window_handle)) {
-        application::instance()->logger()->log({ .level = logging::level::error, .message = "EGL init failed", .tag = "renderer/opengl" });
+        application::instance()->logger()->log({logging::level::error, "EGL init failed", "renderer/opengl"});
         return false;
     }
 #endif
 
     if (!compile_shaders()) {
-        application::instance()->logger()->log({ .level = logging::level::error, .message = "failed to compile shaders", .tag = "renderer/opengl" });
+        application::instance()->logger()->log({logging::level::error, "failed to compile shaders", "renderer/opengl"});
         return false;
     }
 
     if (!create_buffers()) {
-        application::instance()->logger()->log({ .level = logging::level::error, .message = "failed to create buffers", .tag = "renderer/opengl" });
+        application::instance()->logger()->log({logging::level::error, "failed to create buffers", "renderer/opengl"});
         return false;
     }
 
 #if !defined(__OHOS__)
     if (!init_freetype()) {
-        application::instance()->logger()->log({ .level = logging::level::warning, .message = "FreeType init failed, text rendering disabled", .tag = "renderer/opengl" });
+        application::instance()->logger()->log({logging::level::warning, "FreeType init failed, text rendering disabled", "renderer/opengl"});
     } else {
         init_cjk_fallback_font();
     }
@@ -357,7 +357,7 @@ bool opengl_renderer::initialize(void* native_window_handle) {
     mat4_ortho(proj_matrix_, 0.0f, static_cast<float>(width_),
                static_cast<float>(height_), 0.0f);
 
-    application::instance()->logger()->log({ .level = logging::level::info, .message = std::format("initialized ({}x{})", width_, height_), .tag = "renderer/opengl" });
+    application::instance()->logger()->log({logging::level::info, fmt::format("initialized ({}x{})", width_, height_), "renderer/opengl"});
     return true;
 }
 
@@ -366,8 +366,8 @@ void opengl_renderer::shutdown() {
         flush_batch();
     }
 
-    for (auto& [path, img] : images_) {
-        if (img.texture_id) glDeleteTextures(1, &img.texture_id);
+    for (auto& img_entry : images_) {
+        if (img_entry.second.texture_id) glDeleteTextures(1, &img_entry.second.texture_id);
     }
     images_.clear();
 
@@ -382,8 +382,8 @@ void opengl_renderer::shutdown() {
         delete cjk_fallback_;
         cjk_fallback_ = nullptr;
     }
-    for (auto& [key, face] : font_faces_) {
-        if (face.face) FT_Done_Face(face.face);
+    for (auto& face_entry : font_faces_) {
+        if (face_entry.second.face) FT_Done_Face(face_entry.second.face);
     }
     font_faces_.clear();
     glyph_cache_.clear();
@@ -403,7 +403,7 @@ void opengl_renderer::shutdown() {
     destroy_egl();
 #endif
 
-    application::instance()->logger()->log({ .level = logging::level::info, .message = "shutdown", .tag = "renderer/opengl" });
+    application::instance()->logger()->log({logging::level::info, "shutdown", "renderer/opengl"});
 }
 
 void opengl_renderer::resize(uint32_t width, uint32_t height) {
@@ -710,7 +710,7 @@ void opengl_renderer::set_blend_mode(bool enabled) {
 }
 
 void opengl_renderer::set_alpha(float alpha) {
-    alpha_ = std::clamp(alpha, 0.0f, 1.0f);
+    alpha_ = std::max(0.0f, std::min(1.0f, alpha));
 }
 
 void opengl_renderer::get_viewport_size(uint32_t& width, uint32_t& height) const {
@@ -828,7 +828,7 @@ opengl_renderer::image_resource* opengl_renderer::load_image(const std::string& 
     stbi_set_flip_vertically_on_load(1);
     unsigned char* data = stbi_load(path.c_str(), &w, &h, &channels, 4);
     if (!data) {
-        application::instance()->logger()->log({ .level = logging::level::warning, .message = std::format("failed to load image: {}", path), .tag = "renderer/opengl" });
+        application::instance()->logger()->log({logging::level::warning, fmt::format("failed to load image: {}", path), "renderer/opengl"});
         return nullptr;
     }
 

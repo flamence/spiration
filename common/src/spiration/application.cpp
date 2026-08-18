@@ -10,8 +10,8 @@
 #include <spiration/init_phase.h>
 #include <spiration/application.h>
 #include <spiration/extension/builtin/i18n/i18n.h>
-#include <filesystem>
-#include <optional>
+#include <ghc/filesystem.hpp>
+#include <tl/optional.hpp>
 #include <string>
 #include <spiration/ui/root.h>
 #include <utility>
@@ -19,6 +19,10 @@
 #include <spiration/utils/platform.h>
 
 namespace spiration {
+
+const std::string application::APPLICATION_NAME = "Spiration";
+const std::string application::APPLICATION_LOWER_NAME = "spiration";
+const std::string application::APPLICATION_PACKAGE = "com.flamence.spiration";
 
 #ifdef __OHOS__
 void application::bind_window(std::shared_ptr<spiration::window> window) {
@@ -40,7 +44,7 @@ std::shared_ptr<spiration::window> create_window() {
 }
 #endif
 
-std::filesystem::path make_log_path() {
+ghc::filesystem::path make_log_path() {
     std::time_t now = std::time(nullptr);
     struct tm tmv;
 #ifdef _WIN32
@@ -50,17 +54,17 @@ std::filesystem::path make_log_path() {
 #endif
     char ts[32];
     std::strftime(ts, sizeof(ts), "%Y-%m-%d-%H-%M-%S", &tmv);
-    return application::instance()->data_directory("logs") / std::format("{}.log", ts);
+    return application::instance()->data_directory("logs") / fmt::format("{}.log", ts);
 }
 
 }
 
-std::filesystem::path application::data_directory(std::optional<std::string> sub) {
-    std::filesystem::path base = spiration::platform::data_directory() / APPLICATION_PACKAGE;
-    if (sub != std::nullopt) {
+ghc::filesystem::path application::data_directory(tl::optional<std::string> sub) {
+    ghc::filesystem::path base = spiration::platform::data_directory() / APPLICATION_PACKAGE;
+    if (sub != tl::nullopt) {
         base = base / *sub;
     }
-    std::filesystem::create_directories(base);
+    ghc::filesystem::create_directories(base);
     return base;
 }
 
@@ -68,8 +72,8 @@ spiration::extension_manager* application::extension() const {
     return &spiration::extension_manager::instance();
 }
 
-bool application::initialize(std::optional<init_phase> phase) {
-    if (phase == std::nullopt) {
+bool application::initialize(tl::optional<init_phase> phase) {
+    if (phase == tl::nullopt) {
         return initialize(init_phase::early) && initialize(init_phase::normal) && initialize(init_phase::late);
     } else if (phase == init_phase::early) {
         spiration::extension_manager::instance();
@@ -80,7 +84,7 @@ bool application::initialize(std::optional<init_phase> phase) {
 #ifndef __OHOS__
         window_ = std::move(create_window());
         if (!window_) {
-            logger()->log({ .level = logging::level::error, .message = "failed to create window", .tag = "main" });
+            logger()->log({logging::level::error, "failed to create window", "main"});
             return false;
         }
 #endif

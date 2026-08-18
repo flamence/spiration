@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include <filesystem>
+#include <ghc/filesystem.hpp>
 #include <fstream>
 #include <spiration/logging/sink.h>
 
@@ -18,7 +18,7 @@ namespace logging {
  */
 class file_sink : public sink {
 public:
-    explicit file_sink(const std::filesystem::path& path) : file_(path, std::ios::app) {}
+    explicit file_sink(const ghc::filesystem::path& path) : file_(path, std::ios::app) {}
 
     ~file_sink() override;
     

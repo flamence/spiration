@@ -7,7 +7,7 @@
 #pragma once
 
 #include <spiration/extension/extension_manifest.h>
-#include <filesystem>
+#include <ghc/filesystem.hpp>
 #include <spiration/utils/platform.h>
 
 #include <memory>
@@ -43,7 +43,7 @@ public:
      * @param path 动态库路径
      * @return 库句柄，失败返回 nullptr
      */
-    static lib_handle load_library(const std::filesystem::path& path);
+    static lib_handle load_library(const ghc::filesystem::path& path);
 
     /**
      * @brief 从已加载的动态库中查找符号地址。
@@ -66,7 +66,7 @@ public:
      * @param path 动态库路径
      * @return 加载结果，失败时 instance 为 nullptr
      */
-    static load_result load_extension_from(const std::filesystem::path& path);
+    static load_result load_extension_from(const ghc::filesystem::path& path);
 
     /**
      * @brief 从扩展目录加载。
@@ -74,7 +74,7 @@ public:
      * @param out_manifest 解析后的清单
      * @return 加载结果，失败时 instance 为 nullptr
      */
-    static load_result load_extension_from_dir(const std::filesystem::path& dir_path,
+    static load_result load_extension_from_dir(const ghc::filesystem::path& dir_path,
                                                manifest_data* out_manifest = nullptr);
 };
 

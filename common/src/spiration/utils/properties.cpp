@@ -4,7 +4,7 @@
  * @brief 属性工具实现。
  */
 
-#include <optional>
+#include <tl/optional.hpp>
 #include <spiration/utils/properties.h>
 
 #include <cstdint>
@@ -146,7 +146,7 @@ void store_entry(std::unordered_map<std::string, std::string>& data,
 
 } // namespace
 
-bool properties::load(const std::filesystem::path& filepath) {
+bool properties::load(const ghc::filesystem::path& filepath) {
     std::ifstream file(filepath);
     if (!file.is_open()) {
         return false;
@@ -212,9 +212,9 @@ bool properties::contains(const std::string& key) const {
     return data_.find(key) != data_.end();
 }
 
-std::optional<std::string> properties::get(const std::string& key) const {
+tl::optional<std::string> properties::get(const std::string& key) const {
     auto it = data_.find(key);
-    return it == data_.end() ? std::nullopt : std::optional(it->second);
+    return it == data_.end() ? tl::nullopt : tl::optional<std::string>(it->second);
 }
 
 const std::unordered_map<std::string, std::string>& properties::entries() const {

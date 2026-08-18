@@ -891,7 +891,7 @@ void metal_renderer::set_blend_mode(bool enabled) {
 }
 
 void metal_renderer::set_alpha(float alpha) {
-    m_Alpha = std::clamp(alpha, 0.0f, 1.0f);
+    m_Alpha = std::max(0.0f, std::min(1.0f, alpha));
 }
 
 void metal_renderer::get_viewport_size(uint32_t& width, uint32_t& height) const {

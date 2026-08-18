@@ -1,10 +1,10 @@
 #include <spiration/application.h>
 #include <spiration/extension/builtin/edit/edit_tab.h>
 #include <spiration/extension/builtin/i18n/i18n.h>
-#include <filesystem>
+#include <ghc/filesystem.hpp>
 #include <spiration/ui/theme_manager.h>
 #include <algorithm>
-#include <format>
+#include <fmt/format.h>
 #include <fstream>
 #include <string>
 
@@ -59,10 +59,10 @@ void edit_tab::set_text(const std::string& text) {
     mark_clean();
 }
 
-void edit_tab::load_file(const std::filesystem::path& path) {
+void edit_tab::load_file(const ghc::filesystem::path& path) {
     std::ifstream file(path, std::ios::binary);
     if (!file) {
-        application::instance()->logger()->log({ .level = logging::level::warning, .message = std::format("failed to open: {}", path.string()), .tag = "edit" });
+        application::instance()->logger()->log({logging::level::warning, fmt::format("failed to open: {}", path.string()), "edit"});
         return;
     }
 
@@ -71,7 +71,7 @@ void edit_tab::load_file(const std::filesystem::path& path) {
     while (file.read(chunk, sizeof(chunk)) || file.gcount() > 0) {
         buf.append(chunk, static_cast<size_t>(file.gcount()));
         if (buf.size() > MAX_FILE_SIZE) {
-            application::instance()->logger()->log({ .level = logging::level::warning, .message = std::format("file too large (>100MB): {}", path.string()), .tag = "edit" });
+            application::instance()->logger()->log({logging::level::warning, fmt::format("file too large (>100MB): {}", path.string()), "edit"});
             return;
         }
     }
@@ -84,10 +84,10 @@ void edit_tab::load_file(const std::filesystem::path& path) {
     file_path_ = path;
     mark_clean();
 
-    application::instance()->logger()->log({ .level = logging::level::info, .message = std::format("loaded {} bytes: {}", editor_->text.size(), path.string()), .tag = "edit" });
+    application::instance()->logger()->log({logging::level::info, fmt::format("loaded {} bytes: {}", editor_->text.size(), path.string()), "edit"});
 }
 
-void edit_tab::open_content(const std::filesystem::path& path, const std::string& content) {
+void edit_tab::open_content(const ghc::filesystem::path& path, const std::string& content) {
     base_title_ = path.filename().string();
     title_ = base_title_;
 
@@ -96,7 +96,7 @@ void edit_tab::open_content(const std::filesystem::path& path, const std::string
     file_path_ = path;
     mark_clean();
 
-    application::instance()->logger()->log({ .level = logging::level::info, .message = std::format("opened content {} bytes: {}", content.size(), path.string()), .tag = "edit" });
+    application::instance()->logger()->log({logging::level::info, fmt::format("opened content {} bytes: {}", content.size(), path.string()), "edit"});
 }
 
 bool edit_tab::save() {
@@ -104,12 +104,12 @@ bool edit_tab::save() {
     return save_as(file_path_);
 }
 
-bool edit_tab::save_as(const std::filesystem::path& path) {
-    std::filesystem::path tmp_fs_path = path;
+bool edit_tab::save_as(const ghc::filesystem::path& path) {
+    ghc::filesystem::path tmp_fs_path = path;
     tmp_fs_path += ".tmp";
     std::ofstream file(tmp_fs_path, std::ios::binary | std::ios::trunc);
     if (!file) {
-        application::instance()->logger()->log({ .level = logging::level::warning, .message = std::format("save_as: cannot open for write: {}", path.string()), .tag = "edit" });
+        application::instance()->logger()->log({logging::level::warning, fmt::format("save_as: cannot open for write: {}", path.string()), "edit"});
         return false;
     }
 
@@ -121,8 +121,8 @@ bool edit_tab::save_as(const std::filesystem::path& path) {
         file.write(editor_->text.data() + offset, static_cast<std::streamsize>(to_write));
         if (!file) {
             file.close();
-            std::filesystem::remove(tmp_fs_path);
-            application::instance()->logger()->log({ .level = logging::level::warning, .message = std::format("save_as: write error at offset {}", offset), .tag = "edit" });
+            ghc::filesystem::remove(tmp_fs_path);
+            application::instance()->logger()->log({logging::level::warning, fmt::format("save_as: write error at offset {}", offset), "edit"});
             return false;
         }
         offset += to_write;
@@ -132,10 +132,10 @@ bool edit_tab::save_as(const std::filesystem::path& path) {
     file.close();
 
     std::error_code ec;
-    std::filesystem::rename(tmp_fs_path, path, ec);
+    ghc::filesystem::rename(tmp_fs_path, path, ec);
     if (ec) {
-        application::instance()->logger()->log({ .level = logging::level::warning, .message = std::format("save_as: rename failed: {}", ec.message()), .tag = "edit" });
-        std::filesystem::remove(tmp_fs_path);
+        application::instance()->logger()->log({logging::level::warning, fmt::format("save_as: rename failed: {}", ec.message()), "edit"});
+        ghc::filesystem::remove(tmp_fs_path);
         return false;
     }
 
@@ -144,17 +144,17 @@ bool edit_tab::save_as(const std::filesystem::path& path) {
     base_title_ = path.filename().string().c_str();
     mark_clean();
 
-    application::instance()->logger()->log({ .level = logging::level::info, .message = std::format("saved {} bytes to: {}", editor_->text.size(), file_path_.string()), .tag = "edit" });
+    application::instance()->logger()->log({logging::level::info, fmt::format("saved {} bytes to: {}", editor_->text.size(), file_path_.string()), "edit"});
     return true;
 }
 
-void edit_tab::confirm_saved(const std::filesystem::path& path) {
+void edit_tab::confirm_saved(const ghc::filesystem::path& path) {
     file_path_ = path;
 
     base_title_ = path.filename().string();
     mark_clean();
 
-    application::instance()->logger()->log({ .level = logging::level::info, .message = std::format("confirmed saved to: {}", path.string()), .tag = "edit" });
+    application::instance()->logger()->log({logging::level::info, fmt::format("confirmed saved to: {}", path.string()), "edit"});
 }
 
 void edit_tab::paint(std::shared_ptr<renderer> r) {

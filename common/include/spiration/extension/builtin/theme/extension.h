@@ -25,7 +25,7 @@ public:
     bool initialize() override;
     void shutdown() override;
 
-    static inline std::string ID = "com.flamence.spiration.theme";
+    static const std::string ID;
 };
 
 } // namespace theme

@@ -9,7 +9,7 @@
 
 #include <nlohmann/json.hpp>
 
-#include <format>
+#include <fmt/format.h>
 #include <memory>
 
 namespace spiration {
@@ -20,14 +20,14 @@ terminal_manager& terminal_manager::instance() {
     return inst;
 }
 
-std::string terminal_manager::create(const std::string& shell, const std::filesystem::path& cwd) {
+std::string terminal_manager::create(const std::string& shell, const ghc::filesystem::path& cwd) {
     std::shared_ptr<terminal_session> s = create_terminal_session(shell, cwd);
     if (!s) return "[error] failed to create terminal session";
     std::lock_guard<std::mutex> lk(mtx_);
     std::string id = "t" + std::to_string(next_id_++);
     sessions_[id] = std::move(s);
     shells_[id] = shell;
-    application::instance()->logger()->log({ .level = logging::level::info, .message = std::format("created session {}", id), .tag = "extension/agent/terminal" });
+    application::instance()->logger()->log({logging::level::info, fmt::format("created session {}", id), "extension/agent/terminal"});
     return id;
 }
 
@@ -70,25 +70,25 @@ void terminal_manager::kill(const std::string& id) {
     std::lock_guard<std::mutex> lk(mtx_);
     auto it = sessions_.find(id);
     if (it == sessions_.end()) {
-        application::instance()->logger()->log({ .level = logging::level::warning, .message = std::format("kill: session not found: {}", id), .tag = "extension/agent/terminal" });
+        application::instance()->logger()->log({logging::level::warning, fmt::format("kill: session not found: {}", id), "extension/agent/terminal"});
         return;
     }
     sessions_.erase(it);
     shells_.erase(id);
-    application::instance()->logger()->log({ .level = logging::level::info, .message = std::format("killed session {}", id), .tag = "extension/agent/terminal" });
+    application::instance()->logger()->log({logging::level::info, fmt::format("killed session {}", id), "extension/agent/terminal"});
 }
 
 std::vector<terminal_snapshot> terminal_manager::snapshots() const {
     std::lock_guard<std::mutex> lk(mtx_);
     std::vector<terminal_snapshot> out;
     out.reserve(sessions_.size());
-    for (const auto& [id, s] : sessions_) {
+    for (const auto& sess : sessions_) {
         terminal_snapshot snap;
-        snap.id = id;
-        auto sit = shells_.find(id);
+        snap.id = sess.first;
+        auto sit = shells_.find(sess.first);
         snap.shell = (sit != shells_.end()) ? sit->second : "";
-        size_t n = s->line_count();
-        if (n > 0) snap.lines = s->read_window(1, n);
+        size_t n = sess.second->line_count();
+        if (n > 0) snap.lines = sess.second->read_window(1, n);
         out.push_back(std::move(snap));
     }
     return out;
@@ -128,7 +128,7 @@ std::string create_terminal_tool::execute(const std::string& args_json) {
     } catch (const std::exception& e) {
         return "[error] invalid arguments: " + std::string(e.what());
     }
-    std::filesystem::path cwd = workdir_getter_ ? workdir_getter_() : "";
+    ghc::filesystem::path cwd = workdir_getter_ ? workdir_getter_() : "";
     return terminal_manager::instance().create(shell, cwd);
 }
 

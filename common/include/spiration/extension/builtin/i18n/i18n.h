@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include <filesystem>
+#include <ghc/filesystem.hpp>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -32,7 +32,7 @@ public:
      * @param filepath 翻译文件路径
      * @return true 加载成功
      */
-    bool load(const std::string& locale, const std::filesystem::path& filepath);
+    bool load(const std::string& locale, const ghc::filesystem::path& filepath);
 
     /**
      * @brief 设置当前语言。

@@ -6,7 +6,7 @@
 
 #include <algorithm>
 #include <cstring>
-#include <format>
+#include <fmt/format.h>
 #include <spiration/application.h>
 #include <spiration/extension/extension_manifest.h>
 #include <nlohmann/json.hpp>
@@ -103,11 +103,11 @@ bool version_matches(const std::string& version, const std::string& constraint) 
     return cmp == 0; // = / == 精确匹配
 }
 
-std::optional<manifest_data> parse_extension_manifest(const std::string& json) {
+tl::optional<manifest_data> parse_extension_manifest(const std::string& json) {
     try {
         nlohmann::json root = nlohmann::json::parse(json);
         if (!root.is_object()) {
-            application::instance()->logger()->log({ .level = logging::level::error, .message = "root is not a json object", .tag = "extension_manifest" });
+            application::instance()->logger()->log({logging::level::error, "root is not a json object", "extension_manifest"});
             return {};
         }
 
@@ -122,7 +122,9 @@ std::optional<manifest_data> parse_extension_manifest(const std::string& json) {
 
         auto dep_it = root.find("depends");
         if (dep_it != root.end() && dep_it->is_object()) {
-            for (auto& [k, v] : dep_it->items()) {
+            for (auto& item : dep_it->items()) {
+                const auto& k = item.key();
+                auto& v = item.value();
                 if (v.is_string()) {
                     m.depends[k] = v.get<std::string>();
                 }
@@ -130,13 +132,13 @@ std::optional<manifest_data> parse_extension_manifest(const std::string& json) {
         }
 
         if (m.id.empty() || m.name.empty() || m.version.empty() || m.main.empty()) {
-            application::instance()->logger()->log({ .level = logging::level::error, .message = "missing required fields (id/name/version/main)", .tag = "extension_manifest" });
+            application::instance()->logger()->log({logging::level::error, "missing required fields (id/name/version/main)", "extension_manifest"});
             return {};
         }
 
         return m;
     } catch (const nlohmann::json::exception& e) {
-        application::instance()->logger()->log({ .level = logging::level::error, .message = std::format("invalid extension.json: {}", e.what()), .tag = "extension_manifest" });
+        application::instance()->logger()->log({logging::level::error, fmt::format("invalid extension.json: {}", e.what()), "extension_manifest"});
         return {};
     }
 }

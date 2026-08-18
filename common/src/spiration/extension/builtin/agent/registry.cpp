@@ -8,7 +8,7 @@
 #include <spiration/extension/builtin/agent/registry.h>
 
 #include <exception>
-#include <format>
+#include <fmt/format.h>
 
 namespace spiration {
 namespace agent {
@@ -37,7 +37,7 @@ std::unique_ptr<provider> agent_registry::create_provider(const std::string& nam
             std::unique_ptr<provider> p = factory();
             if (p) return p;
         } catch (const std::exception& e) {
-            application::instance()->logger()->log({ .level = logging::level::error, .message = std::format("provider \"{}\" factory threw: {}", name, e.what()), .tag = "extension/agent/registry" });
+            application::instance()->logger()->log({logging::level::error, fmt::format("provider \"{}\" factory threw: {}", name, e.what()), "extension/agent/registry"});
         }
     }
     return spiration::agent::create_provider(name);
@@ -47,7 +47,7 @@ std::vector<std::string> agent_registry::provider_names() const {
     std::lock_guard<std::mutex> lk(mtx_);
     std::vector<std::string> names;
     names.reserve(providers_.size());
-    for (const auto& [name, fn] : providers_) names.push_back(name);
+    for (const auto& p : providers_) names.push_back(p.first);
     return names;
 }
 

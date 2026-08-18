@@ -7,12 +7,12 @@
 #include <cstdint>
 #include <spiration/application.h>
 #include <spiration/extension/builtin/agent/tool/edit_tool.h>
-#include <filesystem>
+#include <ghc/filesystem.hpp>
 #include <nlohmann/json.hpp>
 #include <string>
 #include <spiration/utils/io.h>
 #include <vector>
-#include <format>
+#include <fmt/format.h>
 
 namespace spiration {
 namespace agent {
@@ -94,7 +94,7 @@ std::string create_file_tool::parameters_json() const {
 }
 
 std::string create_file_tool::execute(const std::string& args_json) {
-    std::filesystem::path path;
+    ghc::filesystem::path path;
     std::string content;
     try {
         nlohmann::json j = nlohmann::json::parse(args_json);
@@ -106,7 +106,7 @@ std::string create_file_tool::execute(const std::string& args_json) {
     if (path.empty()) return "[error] missing \"path\"";
     if (!io::write_file_content(path, content))
         return "[error] create_file failed: " + path.string();
-    application::instance()->logger()->log({ .level = logging::level::info, .message = std::format("created file: {} ({} bytes)", path.string(), content.size()), .tag = "extension/agent/edit" });
+    application::instance()->logger()->log({logging::level::info, fmt::format("created file: {} ({} bytes)", path.string(), content.size()), "extension/agent/edit"});
     return "ok";
 }
 
@@ -139,7 +139,7 @@ std::string read_file_tool::parameters_json() const {
 }
 
 std::string read_file_tool::execute(const std::string& args_json) {
-    std::filesystem::path path;
+    ghc::filesystem::path path;
     long start_line = 1;
     long end_line = 0;
     try {
@@ -153,7 +153,7 @@ std::string read_file_tool::execute(const std::string& args_json) {
     if (path.empty()) return "[error] missing \"path\"";
 
     std::error_code ec;
-    uintmax_t sz = std::filesystem::file_size(path, ec);
+    uintmax_t sz = ghc::filesystem::file_size(path, ec);
     if (ec) return "[error] read_file failed (stat): " + path.string();
     if (sz > 16u * 1024u * 1024u)
         return "[error] read_file: file too large (" + std::to_string(sz) + " bytes)";
@@ -189,7 +189,7 @@ std::string read_file_tool::execute(const std::string& args_json) {
     if (end_line < static_cast<long>(lines.size())) {
         out += "... (剩余 " + std::to_string(lines.size() - end_line) + " 行未显示)\n";
     }
-    application::instance()->logger()->log({ .level = logging::level::info, .message = std::format("read file: {} (lines {}-{} / {})", path.string(), start_line, end_line, lines.size()), .tag = "extension/agent/edit" });
+    application::instance()->logger()->log({logging::level::info, fmt::format("read file: {} (lines {}-{} / {})", path.string(), start_line, end_line, lines.size()), "extension/agent/edit"});
     return out;
 }
 
@@ -211,7 +211,7 @@ std::string create_directory_tool::parameters_json() const {
 }
 
 std::string create_directory_tool::execute(const std::string& args_json) {
-    std::filesystem::path path;
+    ghc::filesystem::path path;
     try {
         nlohmann::json j = nlohmann::json::parse(args_json);
         path = j.value("path", "");
@@ -220,9 +220,9 @@ std::string create_directory_tool::execute(const std::string& args_json) {
     }
     if (path.empty()) return "[error] missing \"path\"";
     std::error_code ec;
-    std::filesystem::create_directories(path, ec);
+    ghc::filesystem::create_directories(path, ec);
     if (ec) return "[error] create_directory failed: " + path.string() + " (" + ec.message() + ")";
-    application::instance()->logger()->log({ .level = logging::level::info, .message = std::format("created directory: {}", path.string()), .tag = "extension/agent/edit" });
+    application::instance()->logger()->log({logging::level::info, fmt::format("created directory: {}", path.string()), "extension/agent/edit"});
     return "ok";
 }
 
@@ -262,7 +262,7 @@ std::string edit_file_tool::parameters_json() const {
 }
 
 std::string edit_file_tool::execute(const std::string& args_json) {
-    std::filesystem::path path;
+    ghc::filesystem::path path;
     std::string content, search, replace;
     bool has_content = false, has_search = false, replace_all = false;
     try {
@@ -288,7 +288,7 @@ std::string edit_file_tool::execute(const std::string& args_json) {
         if (target == eol_style::crlf) lf_to_crlf(out);
         if (!io::write_file_content(path, out))
             return "[error] edit_file failed (write): " + path.string();
-        application::instance()->logger()->log({ .level = logging::level::info, .message = std::format("edited file (full rewrite): {} ({} bytes)", path.string(), out.size()), .tag = "extension/agent/edit" });
+        application::instance()->logger()->log({logging::level::info, fmt::format("edited file (full rewrite): {} ({} bytes)", path.string(), out.size()), "extension/agent/edit"});
         return "ok";
     }
 
@@ -308,7 +308,7 @@ std::string edit_file_tool::execute(const std::string& args_json) {
                 ++count;
             }
             if (count == 0) return "[error] \"search\" text not found in " + path.string();
-            application::instance()->logger()->log({ .level = logging::level::info, .message = std::format("replaced {} occurrence(s) in {}", count, path.string()), .tag = "extension/agent/edit" });
+            application::instance()->logger()->log({logging::level::info, fmt::format("replaced {} occurrence(s) in {}", count, path.string()), "extension/agent/edit"});
         } else {
             size_t pos = data.find(search);
             if (pos == std::string::npos) return "[error] \"search\" text not found in " + path.string();
@@ -344,7 +344,7 @@ std::string rename_tool::parameters_json() const {
 }
 
 std::string rename_tool::execute(const std::string& args_json) {
-    std::filesystem::path path, new_path;
+    ghc::filesystem::path path, new_path;
     try {
         nlohmann::json j = nlohmann::json::parse(args_json);
         path = j.value("path", "");
@@ -354,9 +354,9 @@ std::string rename_tool::execute(const std::string& args_json) {
     }
     if (path.empty() || new_path.empty()) return "[error] missing \"path\" or \"new_path\"";
     std::error_code ec;
-    std::filesystem::rename(path, new_path, ec);
+    ghc::filesystem::rename(path, new_path, ec);
     if (ec) return "[error] rename failed: " + path.string() + " -> " + new_path.string() + " (" + ec.message() + ")";
-    application::instance()->logger()->log({ .level = logging::level::info, .message = std::format("renamed: {} -> {}", path.string(), new_path.string()), .tag = "extension/agent/edit" });
+    application::instance()->logger()->log({logging::level::info, fmt::format("renamed: {} -> {}", path.string(), new_path.string()), "extension/agent/edit"});
     return "ok";
 }
 
@@ -378,7 +378,7 @@ std::string delete_tool::parameters_json() const {
 }
 
 std::string delete_tool::execute(const std::string& args_json) {
-    std::filesystem::path path;
+    ghc::filesystem::path path;
     try {
         nlohmann::json j = nlohmann::json::parse(args_json);
         path = j.value("path", "");
@@ -387,12 +387,12 @@ std::string delete_tool::execute(const std::string& args_json) {
     }
     if (path.empty()) return "[error] missing \"path\"";
     std::error_code ec;
-    bool is_dir = std::filesystem::is_directory(path, ec);
+    bool is_dir = ghc::filesystem::is_directory(path, ec);
     if (ec) return "[error] delete failed (stat): " + path.string() + " (" + ec.message() + ")";
-    if (is_dir) std::filesystem::remove_all(path, ec);
-    else std::filesystem::remove(path, ec);
+    if (is_dir) ghc::filesystem::remove_all(path, ec);
+    else ghc::filesystem::remove(path, ec);
     if (ec) return "[error] delete failed: " + path.string() + " (" + ec.message() + ")";
-    application::instance()->logger()->log({ .level = logging::level::info, .message = std::format("deleted: {}", path.string()), .tag = "extension/agent/edit" });
+    application::instance()->logger()->log({logging::level::info, fmt::format("deleted: {}", path.string()), "extension/agent/edit"});
     return "ok";
 }
 

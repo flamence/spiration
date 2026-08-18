@@ -4,13 +4,13 @@
  * @author clk
  */
 
-#include <filesystem>
+#include <ghc/filesystem.hpp>
 #include <spiration/utils/platform.h>
 
 namespace spiration {
 
-std::filesystem::path platform::temp_directory() {
-    return std::filesystem::temp_directory_path() / "spiration";
+ghc::filesystem::path platform::temp_directory() {
+    return ghc::filesystem::temp_directory_path() / "spiration";
 }
 
 }

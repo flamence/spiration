@@ -10,7 +10,7 @@
 
 #include <dlfcn.h>
 
-#include <format>
+#include <fmt/format.h>
 #include <fstream>
 #include <sstream>
 #include <string>
@@ -31,23 +31,23 @@ extension_loader::lib_handle extension_loader::load_library(const std::string& p
 
     handle->mod = dlopen(path.c_str(), RTLD_NOW | RTLD_LOCAL);
     if (!handle->mod) {
-        application::instance()->logger()->log({ .level = logging::level::error, .message = std::format("{}", dlerror()), .tag = "extension/loader" });
+        application::instance()->logger()->log({logging::level::error, fmt::format("{}", dlerror()), "extension/loader"});
         return lib_handle(nullptr);
     }
 
-    application::instance()->logger()->log({ .level = logging::level::info, .message = std::format("loaded library \"{}\"", path), .tag = "extension/loader" });
+    application::instance()->logger()->log({logging::level::info, fmt::format("loaded library \"{}\"", path), "extension/loader"});
     return result;
 }
 
 void* extension_loader::find_symbol(library_handle* handle, const std::string& symbol_name) {
     if (!handle || !handle->mod) {
-        application::instance()->logger()->log({ .level = logging::level::error, .message = "invalid library handle", .tag = "extension/loader" });
+        application::instance()->logger()->log({logging::level::error, "invalid library handle", "extension/loader"});
         return nullptr;
     }
 
     void* ptr = dlsym(handle->mod, symbol_name.c_str());
     if (!ptr) {
-        application::instance()->logger()->log({ .level = logging::level::error, .message = std::format("{}", dlerror()), .tag = "extension/loader" });
+        application::instance()->logger()->log({logging::level::error, fmt::format("{}", dlerror()), "extension/loader"});
     }
 
     return ptr;
@@ -62,20 +62,20 @@ extension_loader::load_result extension_loader::load_extension_from(const std::s
     auto create_fn = reinterpret_cast<extension_create_func>(
         find_symbol(handle.get(), "create_extension"));
     if (!create_fn) {
-        application::instance()->logger()->log({ .level = logging::level::error, .message = std::format("no \"create_extension\" symbol in \"{}\"", path), .tag = "extension/loader" });
+        application::instance()->logger()->log({logging::level::error, fmt::format("no \"create_extension\" symbol in \"{}\"", path), "extension/loader"});
         return result;
     }
 
     extension* ext = create_fn();
     if (!ext) {
-        application::instance()->logger()->log({ .level = logging::level::error, .message = std::format("create_extension() returned null from \"{}\"", path), .tag = "extension/loader" });
+        application::instance()->logger()->log({logging::level::error, fmt::format("create_extension() returned null from \"{}\"", path), "extension/loader"});
         return result;
     }
 
     result.handle = std::move(handle);
     result.instance = ext;
 
-    application::instance()->logger()->log({ .level = logging::level::info, .message = std::format("loaded extension \"{}\" v{} from \"{}\"", ext->name(), ext->version(), path), .tag = "extension/loader" });
+    application::instance()->logger()->log({logging::level::info, fmt::format("loaded extension \"{}\" v{} from \"{}\"", ext->name(), ext->version(), path), "extension/loader"});
     return result;
 }
 
@@ -103,13 +103,13 @@ extension_loader::load_result extension_loader::load_extension_from_dir(
                 if (result.instance) return result;
             }
         }
-        application::instance()->logger()->log({ .level = logging::level::error, .message = std::format("no extension.json or .so found in '{}'", dir_path), .tag = "extension/loader" });
+        application::instance()->logger()->log({logging::level::error, fmt::format("no extension.json or .so found in '{}'", dir_path), "extension/loader"});
         return result;
     }
 
     auto manifest = parse_extension_manifest(manifest_json);
     if (!manifest) {
-        application::instance()->logger()->log({ .level = logging::level::error, .message = std::format("failed to parse extension.json in '{}'", dir_path), .tag = "extension/loader" });
+        application::instance()->logger()->log({logging::level::error, fmt::format("failed to parse extension.json in '{}'", dir_path), "extension/loader"});
         return result;
     }
 

@@ -10,7 +10,7 @@
 #include <nlohmann/json.hpp>
 
 #include <exception>
-#include <format>
+#include <fmt/format.h>
 
 namespace spiration {
 namespace agent {
@@ -63,7 +63,7 @@ std::string memory_tool::execute(const std::string& args_json) {
     }
     if (action == "write") {
         store_->save_memory(uuid, content);
-        application::instance()->logger()->log({ .level = logging::level::info, .message = std::format("wrote memory ({} chars)", content.size()), .tag = "extension/agent/memory" });
+        application::instance()->logger()->log({logging::level::info, fmt::format("wrote memory ({} chars)", content.size()), "extension/agent/memory"});
         return "ok";
     }
     if (action == "append") {
@@ -71,7 +71,7 @@ std::string memory_tool::execute(const std::string& args_json) {
         if (!mem.empty() && mem.back() != '\n') mem += "\n";
         mem += content;
         store_->save_memory(uuid, mem);
-        application::instance()->logger()->log({ .level = logging::level::info, .message = std::format("appended memory ({} chars)", content.size()), .tag = "extension/agent/memory" });
+        application::instance()->logger()->log({logging::level::info, fmt::format("appended memory ({} chars)", content.size()), "extension/agent/memory"});
         return "ok";
     }
     if (action == "clear") {

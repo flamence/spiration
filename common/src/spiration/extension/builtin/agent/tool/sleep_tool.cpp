@@ -11,7 +11,7 @@
 
 #include <chrono>
 #include <exception>
-#include <format>
+#include <fmt/format.h>
 #include <thread>
 
 namespace spiration {
@@ -57,7 +57,7 @@ std::string sleep_tool::execute(const std::string& args_json) {
     if (should_stop && should_stop())
         return "[cancelled]";
 
-    application::instance()->logger()->log({ .level = logging::level::info, .message = std::format("slept {:.1f}s", seconds), .tag = "extension/agent/sleep" });
+    application::instance()->logger()->log({logging::level::info, fmt::format("slept {:.1f}s", seconds), "extension/agent/sleep"});
     return "ok";
 }
 

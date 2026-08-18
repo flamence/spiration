@@ -108,7 +108,7 @@ size_t text_area::line_count() const {
     return line_starts_.size() - 1;
 }
 
-std::string_view text_area::line_text(size_t n) const {
+nonstd::string_view text_area::line_text(size_t n) const {
     if (line_starts_dirty_ || line_starts_.empty())
         const_cast<text_area*>(this)->rebuild_line_starts();
     if (line_starts_.size() <= 1 || n >= line_starts_.size() - 1) return {};
@@ -118,7 +118,7 @@ std::string_view text_area::line_text(size_t n) const {
         if (text[end - 1] == '\n') --end;
         if (end > start && text[end - 1] == '\r') --end;
     }
-    return std::string_view(text.data() + start, end - start);
+    return nonstd::string_view(text.data() + start, end - start);
 }
 
 void text_area::scroll_to_y(float y) {
@@ -142,7 +142,7 @@ float text_area::compute_max_line_width(std::shared_ptr<renderer> r) {
     max_line_width_ = 0.0f;
     size_t n = line_count();
     for (size_t i = 0; i < n; ++i) {
-        std::string_view sv = line_text(i);
+        nonstd::string_view sv = line_text(i);
         if (sv.empty()) continue;
         float w = r->measure_text_width(std::string(sv.data(), sv.size()),
                                         font_size, font_family);
@@ -447,7 +447,7 @@ void text_area::do_backspace() {
     if (line_starts_dirty_) rebuild_line_starts();
 
     if (cursor_col_ > 0) {
-        std::string_view sv = line_text(cursor_line_);
+        nonstd::string_view sv = line_text(cursor_line_);
         size_t start = cursor_col_;
         while (start > 0 && (static_cast<unsigned char>(sv[start - 1]) & 0xC0) == 0x80)
             --start;
@@ -475,7 +475,7 @@ void text_area::do_delete() {
 
     if (line_starts_dirty_) rebuild_line_starts();
 
-    std::string_view sv = line_text(cursor_line_);
+    nonstd::string_view sv = line_text(cursor_line_);
     if (cursor_col_ < sv.size()) {
         size_t end = cursor_col_ + 1;
         while (end < sv.size() && (static_cast<unsigned char>(sv[end]) & 0xC0) == 0x80)
@@ -552,7 +552,7 @@ void text_area::handle_paste() {
 
 void text_area::cursor_left() {
     if (cursor_col_ > 0) {
-        std::string_view sv = line_text(cursor_line_);
+        nonstd::string_view sv = line_text(cursor_line_);
         size_t new_col = cursor_col_ - 1;
         while (new_col > 0 && (static_cast<unsigned char>(sv[new_col]) & 0xC0) == 0x80)
             --new_col;
@@ -564,7 +564,7 @@ void text_area::cursor_left() {
 }
 
 void text_area::cursor_right() {
-    std::string_view sv = line_text(cursor_line_);
+    nonstd::string_view sv = line_text(cursor_line_);
     if (cursor_col_ < sv.size()) {
         size_t new_col = cursor_col_ + 1;
         while (new_col < sv.size() && (static_cast<unsigned char>(sv[new_col]) & 0xC0) == 0x80)
@@ -599,7 +599,7 @@ void text_area::cursor_end() {
 }
 
 void text_area::cursor_word_left() {
-    std::string_view sv = line_text(cursor_line_);
+    nonstd::string_view sv = line_text(cursor_line_);
     if (cursor_col_ == 0) {
         if (cursor_line_ > 0) { cursor_line_--; cursor_col_ = line_text(cursor_line_).size(); }
         return;
@@ -611,7 +611,7 @@ void text_area::cursor_word_left() {
 }
 
 void text_area::cursor_word_right() {
-    std::string_view sv = line_text(cursor_line_);
+    nonstd::string_view sv = line_text(cursor_line_);
     if (cursor_col_ >= sv.size()) {
         if (cursor_line_ + 1 < line_count()) { cursor_line_++; cursor_col_ = 0; }
         return;
@@ -622,7 +622,7 @@ void text_area::cursor_word_right() {
     cursor_col_ = std::min(pos, sv.size());
 }
 
-void text_area::select_word_at(size_t line, size_t col, std::string_view sv) {
+void text_area::select_word_at(size_t line, size_t col, nonstd::string_view sv) {
     if (sv.empty() || col >= sv.size()) return;
     if (!is_word_char(sv[col])) { selecting_ = false; return; }
     size_t start = col;
@@ -681,7 +681,7 @@ void text_area::resolve_position(float px, float py, size_t& out_line, size_t& o
 
     out_col = 0;
     if (click_x > 0) {
-        std::string_view sv = line_text(out_line);
+        nonstd::string_view sv = line_text(out_line);
         std::string line_str(sv.data(), sv.size());
 
         size_t best_col = 0;
@@ -716,7 +716,7 @@ void text_area::resolve_click(std::shared_ptr<renderer> r) {
     if (pending_click_.dbl) {
         cursor_line_ = resolved_line;
         cursor_col_ = resolved_col;
-        std::string_view sv = line_text(cursor_line_);
+        nonstd::string_view sv = line_text(cursor_line_);
         select_word_at(cursor_line_, cursor_col_, sv);
     } else if (pending_is_drag_) {
         pending_is_drag_ = false;
@@ -816,7 +816,7 @@ void text_area::draw_line_numbers(std::shared_ptr<renderer> r, size_t line_idx, 
 }
 
 void text_area::draw_line_content(std::shared_ptr<renderer> r, size_t line_idx, float line_y) {
-    std::string_view sv = line_text(line_idx);
+    nonstd::string_view sv = line_text(line_idx);
     if (sv.empty()) return;
 
     float text_x_pos = text_x() - scroll_x_;
@@ -828,7 +828,7 @@ void text_area::draw_line_content(std::shared_ptr<renderer> r, size_t line_idx, 
 void text_area::draw_cursor(std::shared_ptr<renderer> r) {
     if (!cursor_visible_) return;
 
-    std::string_view sv = line_text(cursor_line_);
+    nonstd::string_view sv = line_text(cursor_line_);
     std::string prefix(sv.data(), std::min(cursor_col_, sv.size()));
     cursor_pixel_x_ = r->measure_text_width(prefix, font_size, font_family);
 
@@ -852,7 +852,7 @@ void text_area::draw_selection(std::shared_ptr<renderer> r) {
     color sel_color = {0.20f, 0.40f, 0.80f, 0.35f};
 
     for (size_t line = sl; line <= el; ++line) {
-        std::string_view sv = line_text(line);
+        nonstd::string_view sv = line_text(line);
         if (sv.empty()) continue;
 
         size_t col_start = (line == sl) ? sc : 0;

@@ -1,19 +1,21 @@
 #include <spiration/extension/builtin/i18n/extension.h>
 #include <spiration/extension/builtin/i18n/i18n.h>
 #include <spiration/extension/extension_api.h>
-#include <filesystem>
+#include <ghc/filesystem.hpp>
 #include <spiration/utils/platform.h>
 #include <string>
 
 namespace spiration {
 namespace i18n {
 
+const std::string i18n::extension::ID = "com.flamence.spiration.i18n";
+
 bool extension::initialize() {
-    std::filesystem::path langDir = spiration::platform::resources_directory() / "lang";
+    ghc::filesystem::path langDir = spiration::platform::resources_directory() / "lang";
     auto& i18n = i18n_manager::get();
     i18n.load("zh-CN", langDir / "zh-CN.properties");
     std::string sysLocale = spiration::platform::system_locale();
-    std::filesystem::path langPath = langDir / (std::format("{}.properties", sysLocale));
+    ghc::filesystem::path langPath = langDir / (fmt::format("{}.properties", sysLocale));
     i18n.load(sysLocale, langPath);
     i18n.set_locale(sysLocale);
 

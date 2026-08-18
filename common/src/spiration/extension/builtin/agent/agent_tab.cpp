@@ -21,8 +21,6 @@ constexpr float SETTINGS_H = 34.0f;   ///< 底部设置栏高度
 constexpr float INPUTBAR_H = 46.0f;   ///< 输入栏高度
 constexpr float PAD        = 12.0f;   ///< 输入栏外边距
 
-constexpr int VK_ESCAPE = 0x1B;
-
 std::string tool_display_name(const std::string& name) {
     return i18n_manager::get().tr("tool." + name, name);
 }

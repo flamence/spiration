@@ -7,7 +7,7 @@
 #include <spiration/extension/extension_api.h>
 #include <spiration/extension/extension.h>
 #include <spiration/extension/extension_manager.h>
-#include <filesystem>
+#include <ghc/filesystem.hpp>
 #include <spiration/ui/root.h>
 #include <spiration/ui/tab_bar.h>
 #include <spiration/ui/theme_manager.h>
@@ -17,8 +17,8 @@
 #include <spiration/renderer/renderer.h>
 #include <spiration/application.h>
 
-#include <format>
-#include <optional>
+#include <fmt/format.h>
+#include <tl/optional.hpp>
 
 namespace spiration {
 
@@ -57,31 +57,19 @@ std::string extension_api::simple_id() const {
     return id();
 }
 
-void extension_api::log_info(const std::string& message, std::optional<std::string> tag) const {
-    application::instance()->logger()->log({
-        .level = logging::level::info,
-        .message = message,
-        .tag = std::format("extension/{}", simple_id(), tag ? std::format("/{}", *tag) : "")
-    });
+void extension_api::log_info(const std::string& message, tl::optional<std::string> tag) const {
+    application::instance()->logger()->log({logging::level::info, message, fmt::format("extension/{}{}", simple_id(), tag ? fmt::format("/{}", *tag) : "")});
 }
 
-void extension_api::log_warning(const std::string& message, std::optional<std::string> tag) const {
-    application::instance()->logger()->log({
-        .level = logging::level::warning,
-        .message = message,
-        .tag = std::format("extension/{}", simple_id(), tag ? std::format("/{}", *tag) : "")
-    });
+void extension_api::log_warning(const std::string& message, tl::optional<std::string> tag) const {
+    application::instance()->logger()->log({logging::level::warning, message, fmt::format("extension/{}{}", simple_id(), tag ? fmt::format("/{}", *tag) : "")});
 }
 
-void extension_api::log_error(const std::string& message, std::optional<std::string> tag) const {
-    application::instance()->logger()->log({
-        .level = logging::level::error,
-        .message = message,
-        .tag = std::format("extension/{}", simple_id(), tag ? std::format("/{}", *tag) : "")
-    });
+void extension_api::log_error(const std::string& message, tl::optional<std::string> tag) const {
+    application::instance()->logger()->log({logging::level::error, message, fmt::format("extension/{}{}", simple_id(), tag ? fmt::format("/{}", *tag) : "")});
 }
 
-std::filesystem::path extension_api::extension_directory() const {
+ghc::filesystem::path extension_api::extension_directory() const {
     return extension_manager::extension_directory(id_);
 }
 

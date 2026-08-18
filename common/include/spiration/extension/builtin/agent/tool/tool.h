@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include <filesystem>
+#include <ghc/filesystem.hpp>
 #include <functional>
 #include <string>
 
@@ -67,7 +67,7 @@ public:
      * @brief 设置工作目录获取器。
      *        未设置时相对路径保持原样。
      */
-    void set_workdir(std::function<std::filesystem::path()> getter) {
+    void set_workdir(std::function<ghc::filesystem::path()> getter) {
         workdir_getter_ = std::move(getter);
     }
 
@@ -79,7 +79,7 @@ public:
     }
 
 protected:
-    std::function<std::filesystem::path()> workdir_getter_;
+    std::function<ghc::filesystem::path()> workdir_getter_;
 };
 
 } // namespace agent

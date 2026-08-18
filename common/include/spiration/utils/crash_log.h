@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include <filesystem>
+#include <ghc/filesystem.hpp>
 
 namespace spiration {
 namespace crash_log {
@@ -15,7 +15,7 @@ namespace crash_log {
  * @brief 安装崩溃处理器。
  * @param path 日志文件完整路径。
  */
-void install(const std::filesystem::path& path);
+void install(const ghc::filesystem::path& path);
 
 } // namespace crash_log
 } // namespace spiration

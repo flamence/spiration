@@ -8,12 +8,12 @@
 
 #include <spiration/extension/extension_manager.h>
 
-#include <filesystem>
+#include <ghc/filesystem.hpp>
 #include <string>
 #include <vector>
 #include <memory>
 #include <functional>
-#include <optional>
+#include <tl/optional.hpp>
 #include <spiration/ui/color.h>
 
 namespace spiration {
@@ -61,26 +61,26 @@ public:
      * @param message 日志消息
      * @param tag 日志标签
      */
-    void log_info(const std::string& message, std::optional<std::string> tag = std::nullopt) const;
+    void log_info(const std::string& message, tl::optional<std::string> tag = tl::nullopt) const;
 
     /**
      * @brief 记录日志警告。
      * @param message 日志消息
      * @param tag 日志标签
      */
-    void log_warning(const std::string& message, std::optional<std::string> tag = std::nullopt) const;
+    void log_warning(const std::string& message, tl::optional<std::string> tag = tl::nullopt) const;
 
     /**
      * @brief 记录日志错误。
      * @param message 日志消息
      * @param tag 日志标签
      */
-    void log_error(const std::string& message, std::optional<std::string> tag = std::nullopt) const;
+    void log_error(const std::string& message, tl::optional<std::string> tag = tl::nullopt) const;
 
     /**
      * @brief 获取本扩展所在的目录路径。
      */
-    std::filesystem::path extension_directory() const;
+    ghc::filesystem::path extension_directory() const;
 
     /**
      * @brief 请求重绘窗口。

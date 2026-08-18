@@ -37,15 +37,6 @@ static std::wstring string_to_wstring(const std::string& str) {
     return wstr;
 }
 
-[[maybe_unused]] static std::string wstring_to_string(const std::wstring& wstr) {
-    if (wstr.empty()) return "";
-    int size_needed = WideCharToMultiByte(CP_UTF8, 0, wstr.c_str(), static_cast<int>(wstr.size()), nullptr, 0, nullptr, nullptr);
-    if (size_needed == 0) return "";
-    std::string str(size_needed, 0);
-    WideCharToMultiByte(CP_UTF8, 0, wstr.c_str(), static_cast<int>(wstr.size()), &str[0], size_needed, nullptr, nullptr);
-    return str;
-}
-
 
 direct2d_renderer::direct2d_renderer() = default;
 
@@ -428,7 +419,7 @@ void direct2d_renderer::set_blend_mode(bool enabled) {
 }
 
 void direct2d_renderer::set_alpha(float alpha) {
-    m_Alpha = std::clamp(alpha, 0.0f, 1.0f);
+    m_Alpha = std::max(0.0f, std::min(1.0f, alpha));
 }
 
 void direct2d_renderer::get_viewport_size(uint32_t& width, uint32_t& height) const {
@@ -514,7 +505,7 @@ bool direct2d_renderer::create_device_resources() {
         D2D1::PixelFormat(DXGI_FORMAT_B8G8R8A8_UNORM, D2D1_ALPHA_MODE_PREMULTIPLIED),
         dpi, dpi, D2D1_RENDER_TARGET_USAGE_NONE);
 
-    D2D1_HWND_RENDER_TARGET_PROPERTIES hwndProps(m_hWnd, size, D2D1_PRESENT_OPTIONS_NONE);
+    D2D1_HWND_RENDER_TARGET_PROPERTIES hwndProps{ m_hWnd, size, D2D1_PRESENT_OPTIONS_NONE };
     HRESULT hr = m_D2DFactory->CreateHwndRenderTarget(rtProps, hwndProps,
         m_RenderTarget.ReleaseAndGetAddressOf());
     if (FAILED(hr)) return false;

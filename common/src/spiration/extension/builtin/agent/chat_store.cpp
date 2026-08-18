@@ -6,7 +6,7 @@
 
 #include <spiration/application.h>
 #include <spiration/extension/builtin/agent/chat_store.h>
-#include <filesystem>
+#include <ghc/filesystem.hpp>
 #include <spiration/utils/io.h>
 #include <spiration/utils/platform.h>
 
@@ -15,7 +15,7 @@
 #include <algorithm>
 #include <ctime>
 #include <cstdio>
-#include <format>
+#include <fmt/format.h>
 #include <mutex>
 #include <random>
 #include <string>
@@ -94,9 +94,9 @@ std::string default_name() {
 
 } // namespace
 
-chat_store::chat_store(std::filesystem::path base_dir) : base_dir_(std::move(base_dir)) {
-    std::filesystem::create_directories(base_dir_);
-    std::filesystem::create_directories(chat_dir());
+chat_store::chat_store(ghc::filesystem::path base_dir) : base_dir_(std::move(base_dir)) {
+    ghc::filesystem::create_directories(base_dir_);
+    ghc::filesystem::create_directories(chat_dir());
 }
 
 std::string chat_store::make_uuid() {
@@ -118,11 +118,11 @@ std::string chat_store::make_uuid() {
     return buf;
 }
 
-std::filesystem::path chat_store::chat_dir() const {
+ghc::filesystem::path chat_store::chat_dir() const {
     return base_dir_ / "chat";
 }
 
-std::filesystem::path chat_store::conversation_dir(const std::string& uuid) const {
+ghc::filesystem::path chat_store::conversation_dir(const std::string& uuid) const {
     return chat_dir() / uuid;
 }
 
@@ -138,9 +138,9 @@ void chat_store::set_current_uuid(const std::string& uuid) {
 
 std::string chat_store::create(const std::string& name) {
     std::string uuid = make_uuid();
-    std::filesystem::path dir = conversation_dir(uuid);
-    if (!std::filesystem::create_directories(dir)) {
-        application::instance()->logger()->log({ .level = logging::level::error, .message = std::format("create conversation dir failed: {}", dir.string()), .tag = "extension/agent/chat_store" });
+    ghc::filesystem::path dir = conversation_dir(uuid);
+    if (!ghc::filesystem::create_directories(dir)) {
+        application::instance()->logger()->log({logging::level::error, fmt::format("create conversation dir failed: {}", dir.string()), "extension/agent/chat_store"});
         return {};
     }
 
@@ -160,17 +160,17 @@ std::string chat_store::create(const std::string& name) {
 
     if (!io::write_file_content(dir / "meta.json",
                          meta.dump(2, ' ', false, nlohmann::json::error_handler_t::replace))) {
-        application::instance()->logger()->log({ .level = logging::level::error, .message = std::format("create meta.json failed: {}", uuid), .tag = "extension/agent/chat_store" });
+        application::instance()->logger()->log({logging::level::error, fmt::format("create meta.json failed: {}", uuid), "extension/agent/chat_store"});
         return {};
     }
-    application::instance()->logger()->log({ .level = logging::level::info, .message = std::format("created conversation '{}' ({})", meta["name"].get<std::string>(), uuid), .tag = "extension/agent/chat_store" });
+    application::instance()->logger()->log({logging::level::info, fmt::format("created conversation '{}' ({})", meta["name"].get<std::string>(), uuid), "extension/agent/chat_store"});
     return uuid;
 }
 
 bool chat_store::save(const chat_archive& archive) {
     if (archive.uuid.empty()) return false;
-    std::filesystem::path dir = conversation_dir(archive.uuid);
-    if (!std::filesystem::create_directories(dir)) return false;
+    ghc::filesystem::path dir = conversation_dir(archive.uuid);
+    if (!ghc::filesystem::create_directories(dir)) return false;
 
     nlohmann::json meta;
     meta["uuid"]       = archive.uuid;
@@ -227,12 +227,12 @@ bool chat_store::save(const chat_archive& archive) {
     if (!archive.memory.empty())
         io::write_file_content(dir / "memory.md", archive.memory);
 
-    application::instance()->logger()->log({ .level = logging::level::info, .message = std::format("saved conversation '{}' ({} messages)", archive.name, archive.messages.size()), .tag = "extension/agent/chat_store" });
+    application::instance()->logger()->log({logging::level::info, fmt::format("saved conversation '{}' ({} messages)", archive.name, archive.messages.size()), "extension/agent/chat_store"});
     return true;
 }
 
 bool chat_store::load(const std::string& uuid, chat_archive& archive) const {
-    std::filesystem::path dir = conversation_dir(uuid);
+    ghc::filesystem::path dir = conversation_dir(uuid);
 
     nlohmann::json root;
     try {
@@ -286,28 +286,28 @@ bool chat_store::load(const std::string& uuid, chat_archive& archive) const {
         archive.name = default_name();
     }
 
-    archive.memory = std::filesystem::exists(dir / "memory.md") ? io::read_file_content(dir / "memory.md") : "";
+    archive.memory = ghc::filesystem::exists(dir / "memory.md") ? io::read_file_content(dir / "memory.md") : "";
     return true;
 }
 
 bool chat_store::remove(const std::string& uuid) {
     if (uuid.empty()) return false;
     std::error_code ec;
-    std::filesystem::remove_all(conversation_dir(uuid), ec);
+    ghc::filesystem::remove_all(conversation_dir(uuid), ec);
     bool ok = !ec;
     if (ok) {
         std::lock_guard<std::mutex> lk(uuid_mtx_);
         if (current_uuid_ == uuid) current_uuid_.clear();
     }
-    application::instance()->logger()->log({ .level = logging::level::info, .message = std::format("removed conversation {}", uuid), .tag = "extension/agent/chat_store" });
+    application::instance()->logger()->log({logging::level::info, fmt::format("removed conversation {}", uuid), "extension/agent/chat_store"});
     return ok;
 }
 
 std::vector<conversation_meta> chat_store::list() const {
     std::vector<conversation_meta> out;
-    for (const auto& entry : std::filesystem::directory_iterator(chat_dir())) {
+    for (const auto& entry : ghc::filesystem::directory_iterator(chat_dir())) {
         if (!entry.is_directory()) continue;
-        if (!std::filesystem::exists(entry.path() / "meta.json")) continue;
+        if (!ghc::filesystem::exists(entry.path() / "meta.json")) continue;
 
         conversation_meta meta;
         meta.uuid = entry.path().filename().string();

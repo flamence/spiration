@@ -9,6 +9,7 @@
 #include <memory>
 #include <spiration/logging/log.h>
 #include <spiration/logging/sink.h>
+#include <type_traits>
 #include <vector>
 
 namespace spiration {
@@ -26,11 +27,13 @@ public:
     
     /**
      * @brief 添加接收器。
-     * @param sink 接收器
+     * @param s 接收器
      */
-    template <std::derived_from<sink> T>
-    void add_sink(std::unique_ptr<T> sink) {
-        sinks_.emplace_back(std::move(sink));
+    template <typename T>
+    void add_sink(std::unique_ptr<T> s) {
+        static_assert(std::is_base_of<sink, T>::value,
+                      "T 必须是 spiration::logging::sink 的派生类型");
+        sinks_.emplace_back(std::move(s));
     }
 
     /**

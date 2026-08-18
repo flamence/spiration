@@ -77,6 +77,13 @@ file(GLOB_RECURSE SPIRATION_CORE_HEADERS CONFIGURE_DEPENDS
 
 add_library(spiration.core STATIC ${SPIRATION_CORE_HEADERS} ${SPIRATION_CORE_SOURCES})
 
+target_link_libraries(spiration.core PUBLIC
+    fmt::fmt
+    ghc::filesystem
+    tl::optional
+    nonstd::string_view
+)
+
 target_link_libraries(spiration.core PRIVATE
     nlohmann_json::nlohmann_json
     CURL::libcurl
@@ -111,6 +118,13 @@ add_library(spiration.api INTERFACE)
 target_include_directories(spiration.api INTERFACE
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
     $<INSTALL_INTERFACE:include>
+)
+
+target_link_libraries(spiration.api INTERFACE
+    fmt::fmt
+    ghc::filesystem
+    tl::optional
+    nonstd::string_view
 )
 
 add_library(spiration::api ALIAS spiration.api)

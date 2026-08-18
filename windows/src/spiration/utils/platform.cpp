@@ -5,7 +5,7 @@
  */
 
 #include "spiration/application.h"
-#include <format>
+#include <fmt/format.h>
 #include <string>
 #include <spiration/utils/platform.h>
 
@@ -47,10 +47,10 @@ std::string platform::os_name() {
         if (auto RtlGetVersion = reinterpret_cast<RtlGetVersionPtr>(
                 GetProcAddress(ntdll, "RtlGetVersion"))) {
 
-            RTL_OSVERSIONINFOW vi{ .dwOSVersionInfoSize = sizeof(vi) };
+            RTL_OSVERSIONINFOW vi{sizeof(vi)};
 
             if (RtlGetVersion(&vi) == 0) {
-                return std::format("Windows {}.{} (Build {})",
+                return fmt::format("Windows {}.{} (Build {})",
                                    vi.dwMajorVersion,
                                    vi.dwMinorVersion,
                                    vi.dwBuildNumber);
@@ -67,7 +67,7 @@ std::string platform::os_version() {
         if (auto RtlGetVersion = reinterpret_cast<RtlGetVersionPtr>(
                 GetProcAddress(ntdll, "RtlGetVersion"))) {
 
-            RTL_OSVERSIONINFOW vi{ .dwOSVersionInfoSize = sizeof(vi) };
+            RTL_OSVERSIONINFOW vi{sizeof(vi)};
 
             if (RtlGetVersion(&vi) == 0) {
                 return std::to_string(vi.dwBuildNumber);
@@ -94,34 +94,34 @@ std::string platform::architecture() {
     return arch;
 }
 
-std::filesystem::path platform::data_directory() {
+ghc::filesystem::path platform::data_directory() {
     wchar_t* raw = nullptr;
     size_t len = 0;
 
     if (_wdupenv_s(&raw, &len, L"APPDATA") == 0 && raw) {
         std::unique_ptr<wchar_t, decltype(&free)> appdata(raw, &free);
-        return std::filesystem::path(appdata.get()) / "spiration";
+        return ghc::filesystem::path(appdata.get()) / "spiration";
     }
 
     return temp_directory() / "data";
 }
 
-std::filesystem::path platform::executable_directory() {
+ghc::filesystem::path platform::executable_directory() {
     std::wstring buffer;
     DWORD length = 0;
     do {
         buffer.resize(buffer.size() + MAX_PATH);
-        length = GetModuleFileNameW(nullptr, buffer.data(), static_cast<DWORD>(buffer.size()));
+        length = GetModuleFileNameW(nullptr, &buffer[0], static_cast<DWORD>(buffer.size()));
     } while (length == buffer.size() && GetLastError() == ERROR_INSUFFICIENT_BUFFER);
 
     if (length == 0) {
         return temp_directory() / "bin";
     }
     buffer.resize(length);
-    return std::filesystem::path(buffer).parent_path();
+    return ghc::filesystem::path(buffer).parent_path();
 }
 
-std::filesystem::path platform::resources_directory() {
+ghc::filesystem::path platform::resources_directory() {
     return executable_directory().parent_path() / "share";
 }
 
@@ -149,7 +149,7 @@ std::string platform::system_locale() {
 
     std::string result(static_cast<size_t>(utf8_size), '\0');
     WideCharToMultiByte(CP_UTF8, 0, simplified.c_str(), -1,
-                        result.data(), utf8_size, nullptr, nullptr);
+                        &result[0], utf8_size, nullptr, nullptr);
     result.resize(static_cast<size_t>(utf8_size) - 1);
     return result;
 }
@@ -161,19 +161,19 @@ void platform::open_url(const std::string& url) {
     const int wide_size = MultiByteToWideChar(CP_UTF8, 0, url.c_str(), -1,
                                               nullptr, 0);
     if (wide_size <= 0) {
-        application::instance()->logger()->log({ .level = logging::level::warning, .message = std::format("open_url failed: {}", url), .tag = "platform" });
+        application::instance()->logger()->log({logging::level::warning, fmt::format("open_url failed: {}", url), "platform"});
         return;
     }
 
     std::wstring wurl(static_cast<size_t>(wide_size), L'\0');
     MultiByteToWideChar(CP_UTF8, 0, url.c_str(), -1,
-                        wurl.data(), wide_size);
+                        &wurl[0], wide_size);
     wurl.resize(static_cast<size_t>(wide_size) - 1);   // 移除末尾空字符
 
     const HINSTANCE hr = ShellExecuteW(nullptr, L"open", wurl.c_str(),
                                        nullptr, nullptr, SW_SHOWNORMAL);
     if (reinterpret_cast<INT_PTR>(hr) <= 32) {
-        application::instance()->logger()->log({ .level = logging::level::warning, .message = "failed to create window", .tag = "main" });
+        application::instance()->logger()->log({logging::level::warning, "failed to create window", "main"});
     }
 }
 

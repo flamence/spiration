@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include <filesystem>
+#include <ghc/filesystem.hpp>
 #include <spiration/ui/tab_bar.h>
 #include <spiration/ui/text_area.h>
 #include <functional>
@@ -45,32 +45,32 @@ public:
     void set_text(const std::string& text);
 
     /** @brief 从文件加载文本内容。 */
-    void load_file(const std::filesystem::path& path);
+    void load_file(const ghc::filesystem::path& path);
 
     /**
      * @brief 以预读内容打开。
      * @param path    文件路径/URI
      * @param content 已读取的文件内容
      */
-    void open_content(const std::filesystem::path& path, const std::string& content);
+    void open_content(const ghc::filesystem::path& path, const std::string& content);
 
     /** @brief 保存当前内容到已打开的文件。 */
     bool save();
 
     /** @brief 另存当前内容到指定路径。 */
-    bool save_as(const std::filesystem::path& path);
+    bool save_as(const ghc::filesystem::path& path);
 
     /**
      * @brief 确认已保存到指定路径。
      * @param path 目标路径/URI
      */
-    void confirm_saved(const std::filesystem::path& path);
+    void confirm_saved(const ghc::filesystem::path& path);
 
     /** @brief 获取编辑器的文本内容。 */
     const std::string& text() const { return editor_->text; }
 
     /** @brief 获取当前关联的文件路径。 */
-    const std::filesystem::path& file_path() const { return file_path_; }
+    const ghc::filesystem::path& file_path() const { return file_path_; }
 
     /** @brief 获取光标行号。 */
     size_t cursor_line() const { return editor_->cursor_line(); }
@@ -94,7 +94,7 @@ private:
     /** @brief 内嵌编辑器子控件。 */
     text_area* editor_ = nullptr;
     /** @brief 当前关联的文件路径，空串表示未保存。 */
-    std::filesystem::path file_path_;
+    ghc::filesystem::path file_path_;
     /** @brief 内容是否已修改未保存。 */
     bool dirty_ = false;
     /** @brief 不含脏标记的基础标题。 */

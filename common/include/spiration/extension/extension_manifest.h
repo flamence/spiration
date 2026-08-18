@@ -8,7 +8,7 @@
 
 #include <string>
 #include <map>
-#include <optional>
+#include <tl/optional.hpp>
 
 namespace spiration {
 
@@ -29,8 +29,9 @@ struct manifest_data {
 /**
  * @brief 当前支持的扩展 API 版本。
  * @note 外部扩展 api_version 为 0（未声明）视为兼容；声明了非本值的版本将被拒绝加载。
+ * @note C++14：命名空间作用域 constexpr 变量隐式 internal 链接，无需（也不支持）inline 变量。
  */
-inline constexpr int kSupportedExtensionApiVersion = 1;
+constexpr int kSupportedExtensionApiVersion = 1;
 
 /**
  * @brief 语义化版本比较。
@@ -49,6 +50,6 @@ bool version_matches(const std::string& version, const std::string& constraint);
  * @param json extension.json 内容
  * @return 成功返回 `manifest_data`，失败返回 `nullopt`
  */
-std::optional<manifest_data> parse_extension_manifest(const std::string& json);
+tl::optional<manifest_data> parse_extension_manifest(const std::string& json);
 
 } // namespace spiration

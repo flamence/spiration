@@ -10,8 +10,8 @@
 
 namespace spiration {
 
-std::filesystem::path path::u8path(const std::string& s) {
-    return std::filesystem::path(s);
+ghc::filesystem::path path::u8path(const std::string& s) {
+    return ghc::filesystem::path(s);
 }
 
 } // namespace spiration

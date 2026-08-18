@@ -11,7 +11,7 @@
 #include <spiration/extension/builtin/i18n/i18n.h>
 #include <spiration/extension/extension_manager.h>
 
-#include <format>
+#include <fmt/format.h>
 #include <string>
 
 namespace spiration {
@@ -75,7 +75,7 @@ napi_value NapiSetDataDir(napi_env env, napi_callback_info info) {
     std::string app_dir = GetStringArg(env, args[0]);
     std::string module_dir = argc >= 2 ? GetStringArg(env, args[1]) : app_dir;
     spiration::set_ohos_data_dir(app_dir, module_dir);
-    application::instance()->logger()->log({ .level = logging::level::info, .message = std::format("data dir injected via Context API: app={} module={}", app_dir, module_dir), .tag = "napi" });
+    application::instance()->logger()->log({logging::level::info, fmt::format("data dir injected via Context API: app={} module={}", app_dir, module_dir), "napi"});
     return CreateString(env, app_dir);
 }
 

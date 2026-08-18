@@ -162,7 +162,8 @@ private:
 
     /// @brief 停止标志（共享原子）：后台线程只读共享指针指向的原子，避免析构后访问成员。
     std::shared_ptr<std::atomic<bool>> stop_flag_ = std::make_shared<std::atomic<bool>>(false);
-    std::atomic<bool> supplement_requested_ = false;
+    // C++14 注意：std::atomic 拷贝构造已删除，此处用 {} 直接初始化（= 形式的拷贝初始化在 C++14 不保证复制省略）。
+    std::atomic<bool> supplement_requested_{false};
     std::deque<std::string> queued_inputs_;
     button* continue_btn_ = nullptr;
     std::atomic<bool> tokens_dirty_{false};

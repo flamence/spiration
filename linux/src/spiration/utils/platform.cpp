@@ -4,7 +4,7 @@
  * @author clk
  */
 
-#include <filesystem>
+#include <ghc/filesystem.hpp>
 #include <spiration/utils/platform.h>
 
 #include <unistd.h>
@@ -42,7 +42,7 @@ std::string platform::architecture() {
     return uts.machine;
 }
 
-std::filesystem::path platform::data_directory() {
+ghc::filesystem::path platform::data_directory() {
     const char* home = getenv("HOME");
     if (home) return std::string(home) + "/.config/spiration";
     return temp_directory() / "data";

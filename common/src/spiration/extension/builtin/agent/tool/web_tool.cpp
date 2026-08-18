@@ -11,7 +11,7 @@
 
 #include <cctype>
 #include <cstdio>
-#include <format>
+#include <fmt/format.h>
 #include <string>
 #include <utility>
 #include <vector>
@@ -193,7 +193,7 @@ std::string fetch_tool::execute(const std::string& args_json) {
     if (!response.empty()) {
         out += "\n" + response;
     }
-    application::instance()->logger()->log({ .level = logging::level::info, .message = std::format("fetch {} -> status {}, {} bytes", full_url, status, response.size()), .tag = "extension/agent/web" });
+    application::instance()->logger()->log({logging::level::info, fmt::format("fetch {} -> status {}, {} bytes", full_url, status, response.size()), "extension/agent/web"});
     return out;
 }
 

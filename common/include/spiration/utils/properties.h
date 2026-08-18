@@ -6,8 +6,8 @@
 
 #pragma once
 
-#include <filesystem>
-#include <optional>
+#include <ghc/filesystem.hpp>
+#include <tl/optional.hpp>
 #include <string>
 #include <unordered_map>
 
@@ -25,7 +25,7 @@ public:
      * @param filepath 文件路径
      * @return 文件是否存在且成功解析。
      */
-    bool load(const std::filesystem::path& filepath);
+    bool load(const ghc::filesystem::path& filepath);
 
     /**
      * @brief 从内存文本解析。
@@ -43,7 +43,7 @@ public:
      * @param key 键
      * @return 指定键的值。
      */
-    std::optional<std::string> get(const std::string& key) const;
+    tl::optional<std::string> get(const std::string& key) const;
 
     /**
      * @return 全部键值对。

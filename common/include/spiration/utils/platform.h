@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include <filesystem>
+#include <ghc/filesystem.hpp>
 #include <string>
 
 #ifdef linux
@@ -53,17 +53,17 @@ public:
     /**
      * @brief 获取应用数据目录。
      */
-    static std::filesystem::path data_directory();
+    static ghc::filesystem::path data_directory();
 
     /**
      * @brief 获取临时数据目录。
      */
-    static std::filesystem::path temp_directory();
+    static ghc::filesystem::path temp_directory();
 
     /**
      * @brief 获取资源所在目录。
      */
-    static std::filesystem::path resources_directory();
+    static ghc::filesystem::path resources_directory();
 
     /**
      * @brief 获取系统默认语言代码。
@@ -83,7 +83,7 @@ private:
     /**
      * @brief 获取可执行文件所在目录。
      */
-    static std::filesystem::path executable_directory();
+    static ghc::filesystem::path executable_directory();
 };
 
 } // namespace spiration

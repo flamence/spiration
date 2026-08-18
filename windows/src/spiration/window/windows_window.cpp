@@ -4,7 +4,7 @@
  * @author clk
  */
 
-#include <optional>
+#include <tl/optional.hpp>
 #include <resource.h>
 #include <spiration/ui/point.h>
 #include <spiration/ui/size.h>
@@ -327,7 +327,7 @@ LRESULT Window::HandleMessage(UINT uMsg, WPARAM wParam, LPARAM lParam) {
             key_event_data ked;
             ked.codepoint = static_cast<unsigned int>(wParam);
             m_Widget->handle_event(event_type::keyboard, &ked);
-            if (ked.ime_x != std::nullopt && ked.ime_y != std::nullopt) {
+            if (ked.ime_x != tl::nullopt && ked.ime_y != tl::nullopt) {
                 HIMC hIMC = ImmGetContext(m_hWnd);
                 if (hIMC) {
                     COMPOSITIONFORM cf = { CFS_POINT, { (LONG)(ked.ime_x.value() * m_DPIScale), (LONG)(ked.ime_y.value() * m_DPIScale) }, {} };

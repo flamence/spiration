@@ -19,7 +19,7 @@
 #include <spiration/extension/builtin/i18n/i18n.h>
 #include <spiration/extension/extension.h>
 
-#include <filesystem>
+#include <ghc/filesystem.hpp>
 #include <memory>
 
 namespace spiration {
@@ -35,7 +35,7 @@ public:
     bool initialize() override;
     void shutdown() override;
 
-    static inline std::string ID = "com.flamence.spiration.agent";
+    static const std::string ID;
 
 private:
     void open_agent_tab();
@@ -44,7 +44,7 @@ private:
 
     std::shared_ptr<chat_client> client_;
     std::shared_ptr<chat_store> store_;
-    std::filesystem::path data_dir_;
+    ghc::filesystem::path data_dir_;
     /// 模型选项。
     std::vector<model_option> models_;
     /// 当前打开的智能体标签页。

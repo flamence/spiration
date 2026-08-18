@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include <format>
+#include <fmt/format.h>
 #include <spiration/logging/log.h>
 
 namespace spiration {
@@ -33,7 +33,7 @@ public:
                 formatted_level = "ERROR";
                 break;
         }
-        return std::format("[{}] [{}] {}{}", formatted_level, log.tag, log.message, log.end_line ? '\n' : '\0');
+        return fmt::format("[{}] [{}] {}{}", formatted_level, log.tag, log.message, log.end_line ? '\n' : '\0');
     }
 };
 

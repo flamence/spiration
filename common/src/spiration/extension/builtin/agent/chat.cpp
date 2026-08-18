@@ -16,7 +16,7 @@
 #include <chrono>
 #include <cstdio>
 #include <exception>
-#include <format>
+#include <fmt/format.h>
 #include <future>
 #include <memory>
 #include <mutex>
@@ -35,12 +35,12 @@ chat_client::chat_client(const config& cfg) : cfg_(cfg) {
 
 void chat_client::configure(const config& c) {
     if (running_.load(std::memory_order_acquire)) {
-        application::instance()->logger()->log({ .level = logging::level::warning, .message = "configure ignored: a run is in progress", .tag = "extension/agent" });
+        application::instance()->logger()->log({logging::level::warning, "configure ignored: a run is in progress", "extension/agent"});
         return;
     }
     cfg_ = c;
     provider_ = agent_registry::instance().create_provider(cfg_.provider);
-    application::instance()->logger()->log({ .level = logging::level::info, .message = std::format("configured: provider={} model={}", cfg_.provider, cfg_.model), .tag = "extension/agent" });
+    application::instance()->logger()->log({logging::level::info, fmt::format("configured: provider={} model={}", cfg_.provider, cfg_.model), "extension/agent"});
 }
 
 chat_client::~chat_client() = default;
@@ -121,7 +121,7 @@ std::string chat_client::http_post(const std::string& url, const std::string& bo
                                    const std::vector<std::pair<std::string, std::string>>& headers) const {
     CURL* curl = curl_easy_init();
     if (!curl) {
-        application::instance()->logger()->log({ .level = logging::level::error, .message = "curl_easy_init failed", .tag = "extension/agent" });
+        application::instance()->logger()->log({logging::level::error, "curl_easy_init failed", "extension/agent"});
         return {};
     }
 
@@ -146,7 +146,7 @@ std::string chat_client::http_post(const std::string& url, const std::string& bo
 
     CURLcode res = curl_easy_perform(curl);
     if (res != CURLE_OK) {
-        application::instance()->logger()->log({ .level = logging::level::error, .message = std::format("curl request failed: {}", curl_easy_strerror(res)), .tag = "extension/agent" });
+        application::instance()->logger()->log({logging::level::error, fmt::format("curl request failed: {}", curl_easy_strerror(res)), "extension/agent"});
         response.clear();
     }
 
@@ -226,7 +226,7 @@ void chat_client::sanitize_history() {
 
 chat_response chat_client::send_stream(const chat_events& events) {
     if (!provider_) {
-        application::instance()->logger()->log({ .level = logging::level::error, .message = "no provider configured", .tag = "extension/agent" });
+        application::instance()->logger()->log({logging::level::error, "no provider configured", "extension/agent"});
         return {};
     }
     std::vector<chat_message> msgs;
@@ -253,16 +253,16 @@ chat_response chat_client::send_stream(const chat_events& events) {
     try {
         body = provider_->build_request_body(req);
     } catch (const std::exception& e) {
-        application::instance()->logger()->log({ .level = logging::level::error, .message = std::format("build request body failed: {}", e.what()), .tag = "extension/agent" });
+        application::instance()->logger()->log({logging::level::error, fmt::format("build request body failed: {}", e.what()), "extension/agent"});
         return {};
     }
 
-    application::instance()->logger()->log({ .level = logging::level::info, .message = std::format("POST {} (provider={}, stream={})", url, provider_->name(), cfg_.stream ? 1 : 0), .tag = "extension/agent" });
+    application::instance()->logger()->log({logging::level::info, fmt::format("POST {} (provider={}, stream={})", url, provider_->name(), cfg_.stream ? 1 : 0), "extension/agent"});
 
     if (!cfg_.stream) {
         std::string response = http_post(url, body, headers);
         if (response.empty()) {
-            application::instance()->logger()->log({ .level = logging::level::warning, .message = "empty response", .tag = "extension/agent" });
+            application::instance()->logger()->log({logging::level::warning, "empty response", "extension/agent"});
             return {};
         }
         chat_response resp;
@@ -276,7 +276,7 @@ chat_response chat_client::send_stream(const chat_events& events) {
             total_output_.fetch_add(pr.completion_tokens, std::memory_order_relaxed);
             if (on_tokens_updated) on_tokens_updated();
         } catch (const std::exception& e) {
-            application::instance()->logger()->log({ .level = logging::level::error, .message = std::format("parse response failed: {}", e.what()), .tag = "extension/agent" });
+            application::instance()->logger()->log({logging::level::error, fmt::format("parse response failed: {}", e.what()), "extension/agent"});
             return {};
         }
         if (events.on_delta && !resp.content.empty())
@@ -289,7 +289,7 @@ chat_response chat_client::send_stream(const chat_events& events) {
 
     CURL* curl = curl_easy_init();
     if (!curl) {
-        application::instance()->logger()->log({ .level = logging::level::error, .message = "curl_easy_init failed", .tag = "extension/agent" });
+        application::instance()->logger()->log({logging::level::error, "curl_easy_init failed", "extension/agent"});
         return {};
     }
 
@@ -319,7 +319,7 @@ chat_response chat_client::send_stream(const chat_events& events) {
     CURLcode res = curl_easy_perform(curl);
     if (res != CURLE_OK) {
         if (!(events.should_stop && events.should_stop())) {
-            application::instance()->logger()->log({ .level = logging::level::error, .message = std::format("curl stream request failed: {}", curl_easy_strerror(res)), .tag = "extension/agent" });
+            application::instance()->logger()->log({logging::level::error, fmt::format("curl stream request failed: {}", curl_easy_strerror(res)), "extension/agent"});
         }
     }
 
@@ -333,8 +333,8 @@ chat_response chat_client::send_stream(const chat_events& events) {
     total_input_.fetch_add(ctx.prompt_tokens, std::memory_order_relaxed);
     total_output_.fetch_add(ctx.completion_tokens, std::memory_order_relaxed);
     if (on_tokens_updated) on_tokens_updated();
-    for (auto& [idx, tc] : ctx.tc_map)
-        resp.tool_calls.push_back(std::move(tc));
+    for (auto& tc_entry : ctx.tc_map)
+        resp.tool_calls.push_back(std::move(tc_entry.second));
 
     append_assistant(resp);
     return resp;
@@ -351,16 +351,16 @@ bool chat_client::switch_provider(const std::string& name) {
     if (name.empty()) return true;
     if (provider_ && provider_->name() == name) return true;
     if (running_.load(std::memory_order_acquire)) {
-        application::instance()->logger()->log({ .level = logging::level::warning, .message = "switch provider ignored: a run is in progress", .tag = "extension/agent" });
+        application::instance()->logger()->log({logging::level::warning, "switch provider ignored: a run is in progress", "extension/agent"});
         return false;
     }
     auto p = agent_registry::instance().create_provider(name);
     if (!p) {
-        application::instance()->logger()->log({ .level = logging::level::warning, .message = std::format("switch provider failed: {}", name), .tag = "extension/agent" });
+        application::instance()->logger()->log({logging::level::warning, fmt::format("switch provider failed: {}", name), "extension/agent"});
         return false;
     }
     provider_ = std::move(p);
-    application::instance()->logger()->log({ .level = logging::level::info, .message = std::format("switched provider to {}", name), .tag = "extension/agent" });
+    application::instance()->logger()->log({logging::level::info, fmt::format("switched provider to {}", name), "extension/agent"});
     return true;
 }
 
@@ -368,14 +368,14 @@ std::future<std::string> chat_client::launch_tool(const tool_call& tc,
                                                   const std::function<bool()>& should_stop) {
     tool* t = find_tool(tc.function_name);
     if (!t) {
-        application::instance()->logger()->log({ .level = logging::level::warning, .message = std::format("tool not found: {}", tc.function_name), .tag = "extension/agent" });
+        application::instance()->logger()->log({logging::level::warning, fmt::format("tool not found: {}", tc.function_name), "extension/agent"});
         std::promise<std::string> p;
         p.set_value("[error] tool not found: " + tc.function_name);
         return p.get_future();
     }
 
     if (!t->should_stop) t->should_stop = should_stop;
-    application::instance()->logger()->log({ .level = logging::level::info, .message = std::format("executing tool: {}", tc.function_name), .tag = "extension/agent" });
+    application::instance()->logger()->log({logging::level::info, fmt::format("executing tool: {}", tc.function_name), "extension/agent"});
 
     active_tool_count_.fetch_add(1, std::memory_order_release);
     auto task = std::make_shared<std::packaged_task<std::string()>>(
@@ -399,14 +399,14 @@ std::string chat_client::execute_tool(const tool_call& tc,
 
     std::future<std::string> fut = launch_tool(tc, should_stop);
     if (timeout > 0 && fut.wait_for(std::chrono::seconds(timeout)) == std::future_status::timeout) {
-        application::instance()->logger()->log({ .level = logging::level::warning, .message = std::format("tool '{}' timed out after {}s", tc.function_name, timeout), .tag = "extension/agent" });
+        application::instance()->logger()->log({logging::level::warning, fmt::format("tool '{}' timed out after {}s", tc.function_name, timeout), "extension/agent"});
         return "[error] tool '" + tc.function_name + "' timed out after " +
                std::to_string(timeout) + "s";
     }
     try {
         return fut.get();
     } catch (const std::exception& e) {
-        application::instance()->logger()->log({ .level = logging::level::error, .message = std::format("tool '{}' threw: {}", tc.function_name, e.what()), .tag = "extension/agent" });
+        application::instance()->logger()->log({logging::level::error, fmt::format("tool '{}' threw: {}", tc.function_name, e.what()), "extension/agent"});
         return "[error] tool execution failed: " + std::string(e.what());
     }
 }

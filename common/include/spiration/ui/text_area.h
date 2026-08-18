@@ -11,7 +11,7 @@
 #include <spiration/utils/animation.h>
 #include <functional>
 #include <string>
-#include <string_view>
+#include <nonstd/string_view.hpp>
 #include <vector>
 
 namespace spiration {
@@ -109,7 +109,7 @@ private:
     bool line_starts_dirty_ = true;
     void rebuild_line_starts();
     size_t line_count() const;
-    std::string_view line_text(size_t n) const;
+    nonstd::string_view line_text(size_t n) const;
 
     bool focused_ = false;
     size_t cursor_line_ = 0;
@@ -197,7 +197,7 @@ private:
     void cursor_end();
     void cursor_word_left();
     void cursor_word_right();
-    void select_word_at(size_t line, size_t col, std::string_view sv);
+    void select_word_at(size_t line, size_t col, nonstd::string_view sv);
     void resolve_position(float px, float py, size_t& out_line, size_t& out_col,
                           std::shared_ptr<renderer> r) const;
     void resolve_click(std::shared_ptr<renderer> r);

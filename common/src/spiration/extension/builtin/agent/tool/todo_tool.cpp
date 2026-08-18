@@ -11,7 +11,7 @@
 
 #include <algorithm>
 #include <exception>
-#include <format>
+#include <fmt/format.h>
 
 namespace spiration {
 namespace agent {
@@ -148,7 +148,7 @@ std::string todo_tool::execute(const std::string& args_json) {
             case todo_status::completed:   ++completed;   break;
         }
     }
-    application::instance()->logger()->log({ .level = logging::level::info, .message = std::format("todo updated: {} items ({} pending, {} in progress, {} completed)", items.size(), pending, in_progress, completed), .tag = "extension/agent/todo" });
+    application::instance()->logger()->log({logging::level::info, fmt::format("todo updated: {} items ({} pending, {} in progress, {} completed)", items.size(), pending, in_progress, completed), "extension/agent/todo"});
     return "ok (" + std::to_string(items.size()) + " items, " +
            std::to_string(pending) + " pending, " +
            std::to_string(in_progress) + " in progress, " +

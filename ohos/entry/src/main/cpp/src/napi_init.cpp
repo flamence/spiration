@@ -14,7 +14,7 @@
 #include <spiration/ui/theme_manager.h>
 #include <spiration/utils/platform.h>
 #include <spiration/utils/crash_log.h>
-#include <format>
+#include <fmt/format.h>
 
 #include <native_window/external_window.h>
 #include <rawfile/raw_file_manager.h>
@@ -161,7 +161,7 @@ static napi_value Init(napi_env env, napi_value exports) {
     napi_define_properties(env, exports, sizeof(desc) / sizeof(desc[0]), desc);
     napi_define_properties(env, exports, sizeof(native_funcs) / sizeof(native_funcs[0]), native_funcs);
 
-    spiration::application::instance()->logger()->log({ .level = spiration::logging::level::info, .message = "Spiration NAPI module initialized", .tag = "napi" });
+    spiration::application::instance()->logger()->log({spiration::logging::level::info, "Spiration NAPI module initialized", "napi"});
     return exports;
 }
 EXTERN_C_END
@@ -174,7 +174,7 @@ static bool copy_lang_from_rawfile(const std::string& filename) {
     if (!g_resourceMgr) return false;
     RawFile* raw = OH_ResourceManager_OpenRawFile(g_resourceMgr, ("lang/" + filename).c_str());
     if (!raw) {
-        spiration::application::instance()->logger()->log({ .level = spiration::logging::level::warning, .message = std::format("rawfile not found: lang/{}", filename), .tag = "napi" });
+        spiration::application::instance()->logger()->log({spiration::logging::level::warning, fmt::format("rawfile not found: lang/{}", filename), "napi"});
         return false;
     }
     long size = OH_ResourceManager_GetRawFileSize(raw);
@@ -206,7 +206,7 @@ static void copy_all_lang_from_rawfile() {
     if (!g_resourceMgr) return;
     RawDir* rawDir = OH_ResourceManager_OpenRawDir(g_resourceMgr, "lang");
     if (!rawDir) {
-        spiration::application::instance()->logger()->log({ .level = spiration::logging::level::warning, .message = "rawfile lang dir not found", .tag = "napi" });
+        spiration::application::instance()->logger()->log({spiration::logging::level::warning, "rawfile lang dir not found", "napi"});
         return;
     }
     int count = OH_ResourceManager_GetRawFileCount(rawDir);
@@ -235,7 +235,7 @@ static napi_value NapiInitResourceManager(napi_env env, napi_callback_info info)
 
     g_resourceMgr = OH_ResourceManager_InitNativeResourceManager(env, args[0]);
     if (!g_resourceMgr) {
-        spiration::application::instance()->logger()->log({ .level = spiration::logging::level::error, .message = "Failed to init native resource manager", .tag = "napi" });
+        spiration::application::instance()->logger()->log({spiration::logging::level::error, "Failed to init native resource manager", "napi"});
         napi_value ret;
         napi_get_boolean(env, false, &ret);
         return ret;
@@ -248,7 +248,7 @@ static napi_value NapiInitResourceManager(napi_env env, napi_callback_info info)
     spiration::application::instance()->initialize(spiration::init_phase::early);
 
     std::string sysLocale = spiration::platform::system_locale();
-    spiration::application::instance()->logger()->log({ .level = spiration::logging::level::info, .message = std::format("ResourceManager initialized, locale={}", sysLocale), .tag = "napi" });
+    spiration::application::instance()->logger()->log({spiration::logging::level::info, fmt::format("ResourceManager initialized, locale={}", sysLocale), "napi"});
     napi_value ret;
     napi_get_boolean(env, true, &ret);
     return ret;
@@ -273,7 +273,7 @@ static napi_value NapiInitNativeWindow(napi_env env, napi_callback_info info) {
     try {
         surface_id = std::stoull(surface_id_str);
     } catch (const std::exception& e) {
-        spiration::application::instance()->logger()->log({ .level = spiration::logging::level::error, .message = std::format("Invalid surface ID: {}", surface_id_str), .tag = "napi" });
+        spiration::application::instance()->logger()->log({spiration::logging::level::error, fmt::format("Invalid surface ID: {}", surface_id_str), "napi"});
         napi_value ret;
         napi_get_boolean(env, false, &ret);
         return ret;
@@ -287,7 +287,7 @@ static napi_value NapiInitNativeWindow(napi_env env, napi_callback_info info) {
     OHNativeWindow* native_window = nullptr;
     OH_NativeWindow_CreateNativeWindowFromSurfaceId(surface_id, &native_window);
     if (!native_window) {
-        spiration::application::instance()->logger()->log({ .level = spiration::logging::level::error, .message = "Failed to get native window from surface id", .tag = "napi" });
+        spiration::application::instance()->logger()->log({spiration::logging::level::error, "Failed to get native window from surface id", "napi"});
         napi_value ret;
         napi_get_boolean(env, false, &ret);
         return ret;
@@ -295,7 +295,7 @@ static napi_value NapiInitNativeWindow(napi_env env, napi_callback_info info) {
 
     g_renderer = std::make_shared<spiration::opengl_renderer>();
     if (!g_renderer->initialize(native_window)) {
-        spiration::application::instance()->logger()->log({ .level = spiration::logging::level::error, .message = "Failed to initialize OHOS renderer", .tag = "napi" });
+        spiration::application::instance()->logger()->log({spiration::logging::level::error, "Failed to initialize OHOS renderer", "napi"});
         napi_value ret;
         napi_get_boolean(env, false, &ret);
         return ret;
@@ -312,7 +312,7 @@ static napi_value NapiInitNativeWindow(napi_env env, napi_callback_info info) {
     uint32_t logical_w = static_cast<uint32_t>(actual_w / dpi);
     uint32_t logical_h = static_cast<uint32_t>(actual_h / dpi);
 
-    spiration::application::instance()->logger()->log({ .level = spiration::logging::level::info, .message = std::format("DPI={:.1f}, physical={}x{}, logical={}x{}", dpi, actual_w, actual_h, logical_w, logical_h), .tag = "napi" });
+    spiration::application::instance()->logger()->log({spiration::logging::level::info, fmt::format("DPI={:.1f}, physical={}x{}, logical={}x{}", dpi, actual_w, actual_h, logical_w, logical_h), "napi"});
 
     g_renderer->set_logical_size(logical_w, logical_h);
 
@@ -348,7 +348,7 @@ static napi_value NapiInitNativeWindow(napi_env env, napi_callback_info info) {
         g_window->render(g_renderer);
     }
 
-    spiration::application::instance()->logger()->log({ .level = spiration::logging::level::info, .message = "Spiration native window initialized", .tag = "napi" });
+    spiration::application::instance()->logger()->log({spiration::logging::level::info, "Spiration native window initialized", "napi"});
     spiration::application::instance()->initialize(spiration::init_phase::after);
 
     napi_value ret;
@@ -535,13 +535,14 @@ static napi_value NapiOnFilePicked(napi_env env, napi_callback_info info) {
 }
 
 static napi_module spirationModule = {
-    .nm_version = 1,
-    .nm_flags = 0,
-    .nm_filename = nullptr,
-    .nm_register_func = Init,
-    .nm_modname = "entry",
-    .nm_priv = ((void*)0),
-    .reserved = { 0 },
+    1,          /* nm_version */
+    0,          /* nm_flags */
+    nullptr,    /* nm_filename */
+    Init,       /* nm_register_func */
+    nullptr,    /* nm_get_register_func */
+    "entry",    /* nm_modname */
+    ((void*)0), /* nm_priv */
+    { 0 },      /* reserved */
 };
 
 extern "C" __attribute__((constructor)) void RegisterEntryModule(void)

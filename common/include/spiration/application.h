@@ -8,10 +8,10 @@
 
 #include <spiration/logging/logger.hpp>
 #include <spiration/extension/extension_manager.h>
-#include <filesystem>
+#include <ghc/filesystem.hpp>
 #include <spiration/init_phase.h>
 #include <memory>
-#include <optional>
+#include <tl/optional.hpp>
 #include <string>
 #include <spiration/window/window.h>
 
@@ -22,9 +22,9 @@ namespace spiration {
  */
 class application {
 public:
-    static inline std::string APPLICATION_NAME = "Spiration"; ///< 应用名称。
-    static inline std::string APPLICATION_LOWER_NAME = "spiration"; ///< 应用小写名。
-    static inline std::string APPLICATION_PACKAGE = "com.flamence.spiration"; ///< 应用包名。
+    static const std::string APPLICATION_NAME; ///< 应用名称。
+    static const std::string APPLICATION_LOWER_NAME; ///< 应用小写名。
+    static const std::string APPLICATION_PACKAGE; ///< 应用包名。
 
 #ifdef __OHOS__
     /**
@@ -37,7 +37,7 @@ public:
     /**
      * @return 数据目录。
      */
-    std::filesystem::path data_directory(std::optional<std::string> sub = std::nullopt);
+    ghc::filesystem::path data_directory(tl::optional<std::string> sub = tl::nullopt);
 
     /**
      * @return 该应用附加的拓展管理器实例。
@@ -49,7 +49,7 @@ public:
      * @param phase 指定所执行应用初始化阶段。
      * @note 对于鸿蒙平台，默认禁止了对窗口的创建，原因是其窗口伴随鸿蒙应用的生命周期。
      */
-    bool initialize(std::optional<init_phase> phase = std::nullopt);
+    bool initialize(tl::optional<init_phase> phase = tl::nullopt);
     
     /**
      * @return 应用实例。

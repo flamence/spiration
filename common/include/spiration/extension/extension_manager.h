@@ -7,7 +7,7 @@
 #pragma once
 
 #include <spiration/extension/extension_loader.h>
-#include <filesystem>
+#include <ghc/filesystem.hpp>
 #include <spiration/init_phase.h>
 
 #include <string>
@@ -48,7 +48,7 @@ public:
      * @param directory 拓展搜索目录。
      * @return 成功加载的拓展数量。
      */
-    static size_t load_extensions_from(const std::filesystem::path& directory);
+    static size_t load_extensions_from(const ghc::filesystem::path& directory);
 
     /**
      * @brief 卸载指定拓展。
@@ -97,7 +97,7 @@ public:
      * @param id 扩展 ID。
      * @return 目录路径，未找到返回空串。
      */
-    static std::filesystem::path extension_directory(const std::string& id);
+    static ghc::filesystem::path extension_directory(const std::string& id);
 
     /**
      * @brief 订阅事件。
@@ -160,7 +160,7 @@ private:
         /** @brief 是否已调用 initialize()。 */
         bool initialized = false;
         /** @brief 扩展所在目录路径。 */
-        std::filesystem::path dir_path;
+        ghc::filesystem::path dir_path;
     };
 
     /** @brief 所有已加载的扩展列表。 */

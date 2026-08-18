@@ -281,7 +281,8 @@ std::vector<markdown::block> markdown::parse(const std::string& src) const {
     size_t i = 0;
 
     std::map<std::string, std::string> refs;
-    for (const auto& [line, loff] : src_lines) {
+    for (const auto& src_line : src_lines) {
+        const std::string& line = src_line.first;
         std::string t = trim(line);
         if (t.size() >= 4 && t[0] == '[') {
             size_t close = t.find(']');
@@ -952,7 +953,7 @@ float markdown::draw_image_run(std::shared_ptr<renderer> r, const run& img, floa
     std::string path = img.href;
     if (path.rfind("file://", 0) == 0) path = path.substr(7);
     uint32_t iw = 0, ih = 0;
-    bool has_img = !path.empty() && std::filesystem::exists(path) &&
+    bool has_img = !path.empty() && ghc::filesystem::exists(path) &&
                    r && r->query_image_size(path, iw, ih) && iw > 0 && ih > 0;
     if (has_img) {
         float dh = line_height;

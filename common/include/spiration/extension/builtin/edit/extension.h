@@ -28,7 +28,7 @@ public:
     bool initialize() override;
     void shutdown() override;
 
-    static inline std::string ID = "com.flamence.spiration.edit";
+    static const std::string ID;
 
 private:
     /** @brief 所有打开的编辑器标签页指针列表。 */

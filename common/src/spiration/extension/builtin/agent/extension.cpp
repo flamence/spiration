@@ -9,8 +9,8 @@
 #include <spiration/extension/extension_api.h>
 #include <spiration/extension/extension_loader.h>
 #include <spiration/extension/extension_manager.h>
-#include <filesystem>
-#include <format>
+#include <ghc/filesystem.hpp>
+#include <fmt/format.h>
 #include <spiration/utils/platform.h>
 #include <spiration/utils/io.h>
 
@@ -18,6 +18,8 @@
 
 namespace spiration {
 namespace agent {
+
+const std::string agent::extension::ID = "com.flamence.spiration.agent";
 
 namespace {
 
@@ -44,18 +46,20 @@ bool extension::initialize() {
     if (!api) return false;
 
     data_dir_ = api->extension_directory();
-    std::filesystem::path models_path = data_dir_ / "cnf/models.json";
+    ghc::filesystem::path models_path = data_dir_ / "cnf/models.json";
 
     chat_client::config cfg;
     bool has_config = false;
 
-    if (std::filesystem::exists(models_path)) {
+    if (ghc::filesystem::exists(models_path)) {
         std::string json = io::read_file_content(models_path);
         if (!json.empty()) {
             try {
                 nlohmann::json j = nlohmann::json::parse(json);
                 if (j.is_object()) {
-                    for (auto& [key, m] : j.items()) {
+                    for (auto& item : j.items()) {
+                        const auto& key = item.key();
+                        auto& m = item.value();
                         if (m.is_object()) models_.push_back(parse_model_json(m, key));
                     }
                 } else if (j.is_array()) {
@@ -64,7 +68,7 @@ bool extension::initialize() {
                     }
                 }
             } catch (const std::exception& e) {
-                api->log_error(std::format("parse cnf/models.json failed: {}", e.what()));
+                api->log_error(fmt::format("parse cnf/models.json failed: {}", e.what()));
             }
         }
         has_config = !models_.empty();
@@ -99,8 +103,8 @@ bool extension::initialize() {
         edit_file_ = std::make_unique<edit_file_tool>();
         rename_ = std::make_unique<rename_tool>();
         delete_ = std::make_unique<delete_tool>();
-        auto workdir = [this]() -> std::filesystem::path {
-            return store_ ? store_->conversation_dir(store_->current_uuid()) : std::filesystem::path();
+        auto workdir = [this]() -> ghc::filesystem::path {
+            return store_ ? store_->conversation_dir(store_->current_uuid()) : ghc::filesystem::path();
         };
         create_file_->set_workdir(workdir);
         create_directory_->set_workdir(workdir);
@@ -128,9 +132,9 @@ bool extension::initialize() {
         memory_ = std::make_unique<memory_tool>();
         client_->register_tool(memory_.get());
 
-        api->log_info(std::format("agent extension initialized ({} model(s))", models_.size()));
+        api->log_info(fmt::format("agent extension initialized ({} model(s))", models_.size()));
     } else {
-        api->log_info(std::format("agent extension initialized (no config at {})", models_path.string()));
+        api->log_info(fmt::format("agent extension initialized (no config at {})", models_path.string()));
     }
 
     store_ = std::make_shared<chat_store>(data_dir_);

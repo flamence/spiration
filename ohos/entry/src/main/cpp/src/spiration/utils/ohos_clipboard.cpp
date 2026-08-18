@@ -14,14 +14,14 @@ namespace spiration {
 // 复制文本到剪贴板
 void clipboard::copy(const std::string& text) {
     if (text.empty()) {
-        application::instance()->logger()->log({ .level = logging::level::warning, .message = "Attempted to copy empty text", .tag = "clipboard" });
+        application::instance()->logger()->log({logging::level::warning, "Attempted to copy empty text", "clipboard"});
         return;
     }
 
     if (clipboard_copy_to_arkts(text)) {
-        application::instance()->logger()->log({ .level = logging::level::info, .message = "Text copied to clipboard", .tag = "clipboard" });
+        application::instance()->logger()->log({logging::level::info, "Text copied to clipboard", "clipboard"});
     } else {
-        application::instance()->logger()->log({ .level = logging::level::warning, .message = "clipboard callback not registered", .tag = "clipboard" });
+        application::instance()->logger()->log({logging::level::warning, "clipboard callback not registered", "clipboard"});
     }
 }
 
@@ -29,7 +29,7 @@ void clipboard::copy(const std::string& text) {
 std::string clipboard::paste() {
     std::string text = clipboard_paste_from_arkts();
     if (!text.empty()) {
-        application::instance()->logger()->log({ .level = logging::level::info, .message = "Text pasted from clipboard", .tag = "clipboard" });
+        application::instance()->logger()->log({logging::level::info, "Text pasted from clipboard", "clipboard"});
     }
     return text;
 }

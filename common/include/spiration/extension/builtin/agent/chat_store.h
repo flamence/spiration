@@ -10,7 +10,7 @@
 #include <spiration/extension/builtin/agent/tool/terminal_tool.h>
 #include <spiration/extension/builtin/agent/tool/todo_tool.h>
 
-#include <filesystem>
+#include <ghc/filesystem.hpp>
 #include <mutex>
 #include <string>
 #include <vector>
@@ -55,7 +55,7 @@ public:
      * @brief 构造存储。
      * @param base_dir 数据目录。
      */
-    explicit chat_store(std::filesystem::path base_dir);
+    explicit chat_store(ghc::filesystem::path base_dir);
 
     /**
      * @brief 创建新会话。
@@ -87,16 +87,16 @@ public:
     void set_current_uuid(const std::string& uuid);
 
     /// @brief 数据目录。
-    const std::filesystem::path& base_dir() const { return base_dir_; }
+    const ghc::filesystem::path& base_dir() const { return base_dir_; }
 
     /// @brief chat/ 子目录路径。
-    std::filesystem::path chat_dir() const;
+    ghc::filesystem::path chat_dir() const;
 
     /// @brief 会话目录路径。
-    std::filesystem::path conversation_dir(const std::string& uuid) const;
+    ghc::filesystem::path conversation_dir(const std::string& uuid) const;
 
 private:
-    std::filesystem::path base_dir_;
+    ghc::filesystem::path base_dir_;
     mutable std::mutex uuid_mtx_;
     std::string current_uuid_;
 

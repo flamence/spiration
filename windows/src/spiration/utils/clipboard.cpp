@@ -45,7 +45,7 @@ std::string clipboard::paste() {
                                          nullptr, nullptr);
             if (len > 1) {
                 result.resize(static_cast<size_t>(len) - 1);
-                WideCharToMultiByte(CP_UTF8, 0, src, -1, result.data(), len,
+                WideCharToMultiByte(CP_UTF8, 0, src, -1, &result[0], len,
                                     nullptr, nullptr);
             }
             GlobalUnlock(h);

@@ -4,8 +4,8 @@
  * @author clk
  */
 
-#include <filesystem>
-#include <format>
+#include <ghc/filesystem.hpp>
+#include <fmt/format.h>
 #include <spiration/application.h>
 #include <spiration/utils/platform.h>
 
@@ -54,7 +54,7 @@ std::string platform::architecture() {
     return uts.machine;
 }
 
-std::filesystem::path platform::data_directory() {
+ghc::filesystem::path platform::data_directory() {
     if (!g_app_dir.empty()) {
         return g_app_dir;
     }
@@ -129,7 +129,7 @@ std::string platform::system_locale() {
 }
 
 void platform::open_url(const std::string& url) {
-    application::instance()->logger()->log({ .level = logging::level::warning, .message = std::format("open_url not supported on this platform: {}", url), .tag = "platform" });
+    application::instance()->logger()->log({logging::level::warning, fmt::format("open_url not supported on this platform: {}", url), "platform"});
 }
 
 } // namespace spiration

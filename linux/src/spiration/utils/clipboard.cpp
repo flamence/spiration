@@ -36,7 +36,7 @@ void clipboard::copy(const std::string& text) {
         return;
     }
     if (!tool_available("xclip")) {
-        application::instance()->logger()->log({ .level = logging::level::warning, .message = "xclip not found; install with: sudo apt install xclip", .tag = "clipboard" });
+        application::instance()->logger()->log({logging::level::warning, "xclip not found; install with: sudo apt install xclip", "clipboard"});
         return;
     }
     FILE* pipe = popen("xclip -selection clipboard -i >/dev/null 2>&1", "w");
@@ -49,7 +49,7 @@ void clipboard::copy(const std::string& text) {
 std::string clipboard::paste() {
     if (g_paste_fn) return g_paste_fn();
     if (!tool_available("xclip")) {
-        application::instance()->logger()->log({ .level = logging::level::warning, .message = "xclip not found; install with: sudo apt install xclip", .tag = "clipboard" });
+        application::instance()->logger()->log({logging::level::warning, "xclip not found; install with: sudo apt install xclip", "clipboard"});
         return {};
     }
     FILE* pipe = popen("xclip -selection clipboard -o 2>/dev/null", "r");
