@@ -9,11 +9,35 @@ import { resourceManager } from '@kit.LocalizationKit';
 import { inputMethod } from '@kit.IMEKit';
 import { inputDevice } from '@kit.InputKit';
 import { pasteboard } from '@kit.BasicServicesKit';
+import { http } from '@kit.NetworkKit';
 import { abilityAccessCtrl, common, Permissions } from '@kit.AbilityKit';
 import { fileIo, picker } from '@kit.CoreFileKit';
 import { util } from '@kit.ArkTS';
 import nativeEntry from 'libentry.so';
 import { GlobalContext, AbilityContext } from '../utils/GlobalContext';
+
+/**
+ * C++ 侧经 NAPI 投递的 HTTP 任务头字段（字段由 ohos_http.cpp 组装）。
+ */
+interface HttpHeader {
+  name: string;
+  value: string;
+}
+
+/**
+ * C++ 侧经 NAPI 投递的 HTTP 任务（字段由 ohos_http.cpp 组装）。
+ */
+interface HttpTask {
+  id: number;
+  kind: string; // 'request' | 'cancel'
+  method: string;
+  url: string;
+  headers: HttpHeader[];
+  body: string;
+  timeout: number;
+  userAgent: string;
+  stream: boolean;
+}
 
 @Entry
 @Component
@@ -44,6 +68,8 @@ struct Index {
   private lastKeyCode: number = -1;
   private lastKeyDown: boolean = false;
   private lastKeyTime: number = 0;
+  // 进行中的 HTTP 请求（按任务 id 索引，供取消/清理）
+  private httpRequests: Map<number, http.HttpRequest> = new Map();
 
   aboutToAppear(): void {
     this.initDataDir();
@@ -52,6 +78,7 @@ struct Index {
     this.registerWindowActions();
     this.setupClipboardGlobal();
     this.registerFilePicker();
+    this.registerHttpBridge();
     this.initLangResources();
     this.initInputMethod();
   }
@@ -552,6 +579,130 @@ struct Index {
         }
       );
     } catch (err) {
+    }
+  }
+
+  /**
+   * 注册 HTTP 桥接：C++ 侧（net::ohos_http）经 napi_threadsafe_function
+   * 将请求投递到本页面，使用 Remote Communication Kit（@ohos.net.http）执行，
+   * 结果经 httpRequestDone / httpStreamData / httpStreamEnd 回传 C++。
+   */
+  private registerHttpBridge(): void {
+    try {
+      nativeEntry.registerHttpHandler((task: HttpTask): void => {
+        this.handleHttpTask(task);
+      });
+    } catch (err) {
+      console.error('Spiration: registerHttpHandler failed ' + JSON.stringify(err));
+    }
+  }
+
+  private toRequestMethod(method: string): http.RequestMethod {
+    switch ((method || 'GET').toUpperCase()) {
+      case 'POST': return http.RequestMethod.POST;
+      case 'PUT': return http.RequestMethod.PUT;
+      // RemoteCommunicationKit 的 RequestMethod 无 PATCH，退化为 PUT
+      case 'PATCH': return http.RequestMethod.PUT;
+      case 'DELETE': return http.RequestMethod.DELETE;
+      case 'HEAD': return http.RequestMethod.HEAD;
+      case 'OPTIONS': return http.RequestMethod.OPTIONS;
+      default: return http.RequestMethod.GET;
+    }
+  }
+
+  private handleHttpTask(task: HttpTask): void {
+    if (task.kind === 'cancel') {
+      const r: http.HttpRequest | undefined = this.httpRequests.get(task.id);
+      if (r) {
+        try {
+          r.destroy();
+        } catch (err) {
+        }
+        this.httpRequests.delete(task.id);
+      }
+      return;
+    }
+
+    let req: http.HttpRequest;
+    try {
+      req = http.createHttp();
+    } catch (err) {
+      nativeEntry.httpRequestDone(task.id, 0, '', JSON.stringify(err));
+      return;
+    }
+    this.httpRequests.set(task.id, req);
+
+    const header: Record<string, string> = {};
+    for (const h of task.headers) {
+      header[h.name] = h.value;
+    }
+    const timeoutMs: number = (task.timeout > 0 ? task.timeout : 30) * 1000;
+    const options: http.HttpRequestOptions = {
+      method: this.toRequestMethod(task.method),
+      header: header,
+      connectTimeout: timeoutMs,
+      readTimeout: timeoutMs,
+      expectDataType: http.HttpDataType.STRING,
+      usingProtocol: http.HttpProtocol.HTTP1_1
+    };
+    if (task.body) {
+      options.extraData = task.body;
+    }
+
+    if (task.stream) {
+      // 流式（SSE）：数据块实时回传 C++，事件监听须先于 request() 注册
+      let statusCode: number = 0;
+      const decoder = util.TextDecoder.create('utf-8');
+      req.on('headersReceive', (headerObj: Object) => {
+        try {
+          const h = headerObj as Record<string, string>;
+          const sc = h[':status'] || h['status'];
+          if (sc) {
+            statusCode = parseInt(sc, 10) || 0;
+          }
+        } catch (err) {
+        }
+      });
+      req.on('dataReceive', (data: ArrayBuffer): void => {
+        try {
+          const text = decoder.decodeToString(new Uint8Array(data));
+          nativeEntry.httpStreamData(task.id, statusCode, text);
+        } catch (err) {
+          nativeEntry.httpStreamEnd(task.id, statusCode, JSON.stringify(err));
+        }
+      });
+      req.on('dataEnd', (): void => {
+        nativeEntry.httpStreamEnd(task.id, statusCode, '');
+        this.httpRequests.delete(task.id);
+      });
+      req.request(task.url, options).then((response: http.HttpResponse): void => {
+        if (response.responseCode > 0) {
+          statusCode = response.responseCode;
+        }
+        nativeEntry.httpStreamEnd(task.id, statusCode, '');
+        this.httpRequests.delete(task.id);
+      }).catch((err: Error): void => {
+        nativeEntry.httpStreamEnd(task.id, statusCode, JSON.stringify(err));
+        this.httpRequests.delete(task.id);
+      });
+    } else {
+      req.request(task.url, options).then((response: http.HttpResponse): void => {
+        let body: string = '';
+        if (typeof response.result === 'string') {
+          body = response.result;
+        } else if (response.result !== undefined && response.result !== null) {
+          try {
+            body = JSON.stringify(response.result);
+          } catch (err) {
+            body = String(response.result);
+          }
+        }
+        nativeEntry.httpRequestDone(task.id, response.responseCode, body, '');
+        this.httpRequests.delete(task.id);
+      }).catch((err: Error): void => {
+        nativeEntry.httpRequestDone(task.id, 0, '', JSON.stringify(err));
+        this.httpRequests.delete(task.id);
+      });
     }
   }
 

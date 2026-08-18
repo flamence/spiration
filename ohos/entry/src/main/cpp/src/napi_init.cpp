@@ -5,15 +5,15 @@
 #include <memory>
 #include <spiration/application.h>
 #include <spiration/renderer/opengl_renderer.h>
-#include <window/ohos_window.h>
-#include <utils/ohos_clipboard.h>
+#include <spiration/window/ohos_window.h>
+#include <spiration/utils/ohos_clipboard.h>
 #include <spiration/io/file_dialog.h>
-#include <io/ohos_file_dialog.h>
+#include <spiration/io/ohos_file_dialog.h>
 #include <spiration/logging/ohos_sink.h>
 #include <spiration/ui/root.h>
 #include <spiration/ui/theme_manager.h>
 #include <spiration/utils/platform.h>
-#include <spiration/utils/crash_log.h>
+#include <spiration/net/ohos_http.h>
 #include <fmt/format.h>
 
 #include <native_window/external_window.h>
@@ -125,14 +125,14 @@ EXTERN_C_START
 static napi_value Init(napi_env env, napi_value exports) {
     spiration::application::instance()->logger()->add_sink(std::make_unique<spiration::logging::ohos_sink>());
 
+    // 网络抽象：注册 Remote Communication Kit（NAPI 桥接）后端
+    spiration::net::register_ohos_http();
+
     napi_value spirationNs;
     napi_create_object(env, &spirationNs);
 
     napi_property_descriptor namespaces[] = {
         {"platform", nullptr, nullptr, nullptr, nullptr, spiration::bridge::CreatePlatformNamespace(env), napi_static, nullptr},
-        {"i18n", nullptr, nullptr, nullptr, nullptr, spiration::bridge::CreateI18nNamespace(env), napi_static, nullptr},
-        {"fs", nullptr, nullptr, nullptr, nullptr, spiration::bridge::CreateFsNamespace(env), napi_static, nullptr},
-        {"extension", nullptr, nullptr, nullptr, nullptr, spiration::bridge::CreateExtensionNamespace(env), napi_static, nullptr},
     };
 
     napi_define_properties(env, spirationNs, sizeof(namespaces) / sizeof(namespaces[0]), namespaces);
@@ -156,6 +156,10 @@ static napi_value Init(napi_env env, napi_value exports) {
         {"registerFilePickerCallback", nullptr, NapiRegisterFilePickerCallback, nullptr, nullptr, nullptr, napi_default, nullptr},
         {"onFilePicked", nullptr, NapiOnFilePicked, nullptr, nullptr, nullptr, napi_default, nullptr},
         {"registerClipboardCallback", nullptr, NapiRegisterClipboardCallback, nullptr, nullptr, nullptr, napi_default, nullptr},
+        {"registerHttpHandler", nullptr, spiration::bridge::NapiRegisterHttpHandler, nullptr, nullptr, nullptr, napi_default, nullptr},
+        {"httpStreamData", nullptr, spiration::bridge::NapiHttpStreamData, nullptr, nullptr, nullptr, napi_default, nullptr},
+        {"httpStreamEnd", nullptr, spiration::bridge::NapiHttpStreamEnd, nullptr, nullptr, nullptr, napi_default, nullptr},
+        {"httpRequestDone", nullptr, spiration::bridge::NapiHttpRequestDone, nullptr, nullptr, nullptr, napi_default, nullptr},
     };
 
     napi_define_properties(env, exports, sizeof(desc) / sizeof(desc[0]), desc);
@@ -187,9 +191,9 @@ static bool copy_lang_from_rawfile(const std::string& filename) {
     OH_ResourceManager_CloseRawFile(raw);
     if (read <= 0) return false;
 
-    std::string tmpDir = spiration::platform::executable_directory() + "/lang";
-    spiration::platform::create_directory(tmpDir);
-    std::string tmpFile = tmpDir + "/" + filename;
+    ghc::filesystem::path tmpDir = spiration::platform::resources_directory() / "lang";
+    ghc::filesystem::create_directories(tmpDir);
+    ghc::filesystem::path tmpFile = tmpDir / filename;
     std::ofstream out(tmpFile, std::ios::binary);
     if (!out.is_open()) return false;
     out.write(content.data(), content.size());
@@ -349,7 +353,7 @@ static napi_value NapiInitNativeWindow(napi_env env, napi_callback_info info) {
     }
 
     spiration::application::instance()->logger()->log({spiration::logging::level::info, "Spiration native window initialized", "napi"});
-    spiration::application::instance()->initialize(spiration::init_phase::after);
+    spiration::application::instance()->initialize(spiration::init_phase::late);
 
     napi_value ret;
     napi_get_boolean(env, true, &ret);
@@ -540,9 +544,9 @@ static napi_module spirationModule = {
     nullptr,    /* nm_filename */
     Init,       /* nm_register_func */
     nullptr,    /* nm_get_register_func */
-    "entry",    /* nm_modname */
-    ((void*)0), /* nm_priv */
-    { 0 },      /* reserved */
+    (void*) "entry",    /* nm_modname */
+    (void*) 0, /* nm_priv */
+    nullptr,      /* reserved */
 };
 
 extern "C" __attribute__((constructor)) void RegisterEntryModule(void)

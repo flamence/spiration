@@ -4,6 +4,7 @@
  * @author clk
  */
 
+#if defined(UNIX) && !defined(APPLE)
 #include <spiration/application.h>
 #include <spiration/renderer/opengl_renderer.h>
 #include <algorithm>
@@ -960,4 +961,4 @@ std::shared_ptr<renderer> renderer::create_opengl_renderer() {
 }
 
 } // namespace spiration
-
+#endif

@@ -50,10 +50,12 @@ private:
     /// 当前打开的智能体标签页。
     agent_tab* agent_tab_ = nullptr;
 
+#if !defined(__OHOS__)
     std::unique_ptr<create_terminal_tool> create_terminal_;
     std::unique_ptr<write_terminal_tool> write_terminal_;
     std::unique_ptr<read_terminal_tool> read_terminal_;
     std::unique_ptr<kill_terminal_tool> kill_terminal_;
+#endif
     std::unique_ptr<create_file_tool> create_file_;
     std::unique_ptr<read_file_tool> read_file_;
     std::unique_ptr<create_directory_tool> create_directory_;

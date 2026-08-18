@@ -285,14 +285,7 @@ size_t extension_manager::count() {
 }
 
 ghc::filesystem::path extension_manager::extension_directory(const std::string& id) {
-    for (const auto& le : extensions_) {
-        if (le.instance && le.instance->id() == id) {
-            if (!le.dir_path.empty() && ghc::filesystem::exists(le.dir_path))
-                return le.dir_path;
-            return id;
-        }
-    }
-    return {};
+    return platform::data_directory() / id;
 }
 
 void extension_manager::register_builtin(std::unique_ptr<extension> ext) {

@@ -1,3 +1,5 @@
+include(../cmake/ConfigureDependencies.cmake)
+
 set(SPIRATION_CORE_SOURCES
     src/spiration/application.cpp
     src/spiration/extension/extension.cpp
@@ -26,6 +28,8 @@ set(SPIRATION_CORE_SOURCES
     src/spiration/logging/sink/console.cpp
     src/spiration/logging/sink/file.cpp
     src/spiration/logging/logger.cpp
+    src/spiration/net/http.cpp
+    src/spiration/renderer/opengl_renderer.cpp
     src/spiration/ui/about_tab.cpp
     src/spiration/ui/appbar.cpp
     src/spiration/ui/button.cpp
@@ -66,8 +70,15 @@ set(SPIRATION_CORE_SOURCES
     src/spiration/utils/properties.cpp
 )
 
-if(UNIX AND NOT APPLE)
-    list(APPEND SPIRATION_CORE_SOURCES src/spiration/renderer/opengl_renderer.cpp)
+if (NOT OHOS)
+    list(APPEND SPIRATION_CORE_SOURCES
+        src/spiration/net/curl_http.cpp
+    )
+else()
+    list(FILTER SPIRATION_CORE_SOURCES EXCLUDE REGEX
+        ".*/extension/builtin/agent/tool/terminal_tool\\.cpp$")
+    list(FILTER SPIRATION_CORE_SOURCES EXCLUDE REGEX
+        ".*/utils/platform\\.cpp$")
 endif()
 
 file(GLOB_RECURSE SPIRATION_CORE_HEADERS CONFIGURE_DEPENDS
@@ -86,15 +97,20 @@ target_link_libraries(spiration.core PUBLIC
 
 target_link_libraries(spiration.core PRIVATE
     nlohmann_json::nlohmann_json
-    CURL::libcurl
-    stb::stb
+    nothings::stb_image
 )
+
+if (NOT OHOS)
+    target_link_libraries(spiration.core PRIVATE
+        CURL::libcurl
+    )
+endif()
 
 if(WIN32)
     target_link_libraries(spiration.core PRIVATE dbghelp)
 endif()
 
-if(UNIX AND NOT APPLE)
+if(UNIX AND NOT APPLE AND NOT OHOS)
     find_package(OpenGL REQUIRED)
     find_package(Freetype REQUIRED)
     target_include_directories(spiration.core PRIVATE

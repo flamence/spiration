@@ -72,55 +72,66 @@ export function onFilePicked(uri: string, content: string): void;
  */
 export function registerClipboardCallback(copy: (text: string) => void, paste: () => string): void;
 
+/**
+ * 注册 HTTP 桥接回调。C++ 侧 net::ohos_http 发起请求时调用，
+ * ArkTS 侧使用 @ohos.net.http（Remote Communication Kit）执行。
+ * @param callback 回调（任务描述对象）
+ */
+export function registerHttpHandler(callback: (task: HttpTask) => void): void;
+
+/**
+ * 流式请求：数据块回传 C++。
+ * @param id    任务 id
+ * @param status HTTP 状态码（可能为 0）
+ * @param chunk 数据块文本
+ */
+export function httpStreamData(id: number, status: number, chunk: string): void;
+
+/**
+ * 流式请求：完成/出错。
+ * @param id     任务 id
+ * @param status HTTP 状态码
+ * @param error  错误信息（空串表示成功）
+ */
+export function httpStreamEnd(id: number, status: number, error: string): void;
+
+/**
+ * 非流式请求完成。
+ * @param id     任务 id
+ * @param status HTTP 状态码
+ * @param body   响应体文本
+ * @param error  错误信息（空串表示成功）
+ */
+export function httpRequestDone(id: number, status: number, body: string, error: string): void;
+
+/**
+ * HTTP 请求头字段（由 C++ NAPI 桥接组装）。
+ */
+export interface HttpHeader {
+  name: string;
+  value: string;
+}
+
+/**
+ * HTTP 任务描述（由 C++ NAPI 桥接组装，字段与 ohos_http.cpp 保持一致）。
+ */
+export interface HttpTask {
+  id: number;
+  kind: string;
+  method: string;
+  url: string;
+  headers: HttpHeader[];
+  body: string;
+  timeout: number;
+  userAgent: string;
+  stream: boolean;
+}
+
 export const spiration: {
   /** 系统信息与平台 API */
   readonly platform: {
-    /** 获取操作系统名称 */
-    getOsName(): string;
-    /** 获取操作系统版本号 */
-    getOsVersion(): string;
-    /** 获取 CPU 架构 */
-    getArchitecture(): string;
-    /** 获取系统语言代码 */
-    getSystemLocale(): string;
-    /** 获取应用数据目录 */
-    getAppDataDir(): string;
-    /** 获取可执行文件目录 */
-    getExecutableDir(): string;
     /** 通过 Context API 注入沙箱数据目录 */
     setDataDir(appDir: string, moduleDir: string): void;
-  };
-
-  /** 国际化翻译 API */
-  readonly i18n: {
-    /** 根据键获取翻译文本 */
-    tr(key: string): string;
-    /** 设置当前语言 */
-    setLocale(locale: string): string;
-    /** 获取当前语言 */
-    getCurrentLocale(): string;
-    /** 从文件加载翻译 */
-    loadTranslation(locale: string, filepath: string): boolean;
-  };
-
-  /** 文件系统操作 API */
-  readonly fs: {
-    /** 检查文件或目录是否存在 */
-    fileExists(path: string): boolean;
-    /** 创建目录 */
-    createDirectory(path: string): boolean;
-    /** 列出目录内容 */
-    listDirectory(path: string): string[];
-    /** 拼接路径 */
-    joinPath(a: string, b: string): string;
-  };
-
-  /** 扩展管理 API */
-  readonly extension: {
-    /** 从指定目录加载所有扩展 */
-    loadFromDir(dir: string): number;
-    /** 获取扩展搜索目录 */
-    getExtensionDir(): string;
   };
 
 };

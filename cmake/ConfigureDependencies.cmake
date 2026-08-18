@@ -57,7 +57,7 @@ endif()
 
 FetchContent_Declare(
     nonstd_string_view
-    URL https://codeload.github.com/martinmoene/string-view-lite/tar.gz/refs/tags/v1.7.0
+    URL https://codeload.github.com/nonstd-lite/string-view-lite/tar.gz/refs/tags/v1.7.0
 )
 FetchContent_GetProperties(nonstd_string_view)
 if(NOT nonstd_string_view_POPULATED)
@@ -76,43 +76,45 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(nlohmann_json)
 
-find_package(CURL QUIET)
-if(NOT CURL_FOUND)
-    FetchContent_Declare(
-        curl
-        URL https://curl.se/download/curl-8.21.0.tar.xz
-        OVERRIDE_FIND_PACKAGE
-    )
-    set(CURL_USE_LIBPSL       OFF CACHE BOOL "" FORCE)
-    set(CURL_USE_LIBSSH2      OFF CACHE BOOL "" FORCE)
-    set(CURL_ZLIB             OFF CACHE BOOL "" FORCE)
-    set(CURL_ENABLE_SSL        ON CACHE BOOL "" FORCE)
-    if(WIN32)
-        set(CURL_USE_SCHANNEL      ON CACHE BOOL "" FORCE)
-        set(CURL_WINDOWS_SSPI      ON CACHE BOOL "" FORCE)
+if (NOT OHOS)
+    find_package(CURL QUIET)
+    if(NOT CURL_FOUND)
+        FetchContent_Declare(
+            curl
+            URL https://curl.se/download/curl-8.21.0.tar.xz
+            OVERRIDE_FIND_PACKAGE
+        )
+        set(CURL_USE_LIBPSL       OFF CACHE BOOL "" FORCE)
+        set(CURL_USE_LIBSSH2      OFF CACHE BOOL "" FORCE)
+        set(CURL_ZLIB             OFF CACHE BOOL "" FORCE)
+        set(CURL_ENABLE_SSL        ON CACHE BOOL "" FORCE)
+        if(WIN32)
+            set(CURL_USE_SCHANNEL      ON CACHE BOOL "" FORCE)
+            set(CURL_WINDOWS_SSPI      ON CACHE BOOL "" FORCE)
+        endif()
+        if(UNIX AND NOT APPLE)
+            set(OPENSSL_USE_STATIC_LIBS TRUE CACHE BOOL "" FORCE)
+            set(CURL_USE_OPENSSL    ON CACHE BOOL "" FORCE)
+        endif()
+        set(BUILD_CURL_EXE        OFF CACHE BOOL "" FORCE)
+        set(BUILD_SHARED_LIBS     OFF CACHE BOOL "" FORCE)
+        set(BUILD_TESTING         OFF CACHE BOOL "" FORCE)
+        set(CURL_DISABLE_INSTALL ON CACHE BOOL "" FORCE)
+        FetchContent_MakeAvailable(curl)
     endif()
-    if(UNIX AND NOT APPLE)
-        set(OPENSSL_USE_STATIC_LIBS TRUE CACHE BOOL "" FORCE)
-        set(CURL_USE_OPENSSL    ON CACHE BOOL "" FORCE)
-    endif()
-    set(BUILD_CURL_EXE        OFF CACHE BOOL "" FORCE)
-    set(BUILD_SHARED_LIBS     OFF CACHE BOOL "" FORCE)
-    set(BUILD_TESTING         OFF CACHE BOOL "" FORCE)
-    set(CURL_DISABLE_INSTALL ON CACHE BOOL "" FORCE)
-    FetchContent_MakeAvailable(curl)
 endif()
 
 FetchContent_Declare(
-    nothings_stb
+    nothings_stb_image
     URL https://raw.githubusercontent.com/nothings/stb/master/stb_image.h
     DOWNLOAD_NO_EXTRACT TRUE
     DOWNLOAD_NAME stb_image.h
 )
-FetchContent_MakeAvailable(nothings_stb)
+FetchContent_MakeAvailable(nothings_stb_image)
 
-if(NOT TARGET stb::stb)
-    add_library(stb::stb INTERFACE IMPORTED)
-    set_target_properties(stb::stb PROPERTIES
-        INTERFACE_INCLUDE_DIRECTORIES "${stb_SOURCE_DIR}"
+if(NOT TARGET nothings::stb_image)
+    add_library(nothings::stb_image INTERFACE IMPORTED)
+    set_target_properties(nothings::stb_image PROPERTIES
+        INTERFACE_INCLUDE_DIRECTORIES "${nothings_stb_image_SOURCE_DIR}"
     )
 endif()

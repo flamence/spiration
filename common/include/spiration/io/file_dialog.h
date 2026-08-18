@@ -16,7 +16,7 @@
 namespace spiration {
 namespace io {
 
-#if defined(OHOS_PLATFORM)
+#if defined(__OHOS__)
 
 /**
  * @brief 鸿蒙系统异步打开文件对话框。

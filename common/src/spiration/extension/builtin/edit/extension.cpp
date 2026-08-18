@@ -62,7 +62,7 @@ void extension::new_editor_tab() {
 }
 
 void extension::open_editor_tab() {
-#if defined(OHOS_PLATFORM)
+#if __OHOS__
     spiration::io::open_file_async(api->tr("file_dialog.open_title"),
                                    api->tr("file_dialog.all_files"), {"*"},
                                    [this](const std::string& path, const std::string& content) {
@@ -137,7 +137,7 @@ void extension::save_current_as() {
         api->log_info("no active editor to save");
         return;
     }
-#if defined(OHOS_PLATFORM)
+#if __OHOS__
     spiration::io::save_file_async(api->tr("file_dialog.save_title"),
                                    api->tr("file_dialog.all_files"), {"*"},
                                    editor->text(),

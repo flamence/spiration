@@ -4,17 +4,12 @@
  * @author clk
  */
 
+#include <dlfcn.h>
 #include <spiration/application.h>
 #include <spiration/extension/extension_loader.h>
 #include <spiration/extension/extension.h>
-
-#include <dlfcn.h>
-
-#include <fmt/format.h>
-#include <fstream>
-#include <sstream>
+#include <spiration/utils/io.h>
 #include <string>
-#include <vector>
 
 namespace spiration {
 
@@ -25,7 +20,7 @@ void extension_loader::library_deleter::operator()(
     delete handle;
 }
 
-extension_loader::lib_handle extension_loader::load_library(const std::string& path) {
+extension_loader::lib_handle extension_loader::load_library(const ghc::filesystem::path& path) {
     auto* handle = new library_handle();
     lib_handle result(handle);
 
@@ -35,7 +30,7 @@ extension_loader::lib_handle extension_loader::load_library(const std::string& p
         return lib_handle(nullptr);
     }
 
-    application::instance()->logger()->log({logging::level::info, fmt::format("loaded library \"{}\"", path), "extension/loader"});
+    application::instance()->logger()->log({logging::level::info, fmt::format("loaded library \"{}\"", path.string()), "extension/loader"});
     return result;
 }
 
@@ -53,7 +48,7 @@ void* extension_loader::find_symbol(library_handle* handle, const std::string& s
     return ptr;
 }
 
-extension_loader::load_result extension_loader::load_extension_from(const std::string& path) {
+extension_loader::load_result extension_loader::load_extension_from(const ghc::filesystem::path& path) {
     load_result result;
 
     auto handle = load_library(path);
@@ -62,71 +57,46 @@ extension_loader::load_result extension_loader::load_extension_from(const std::s
     auto create_fn = reinterpret_cast<extension_create_func>(
         find_symbol(handle.get(), "create_extension"));
     if (!create_fn) {
-        application::instance()->logger()->log({logging::level::error, fmt::format("no \"create_extension\" symbol in \"{}\"", path), "extension/loader"});
+        application::instance()->logger()->log({logging::level::error, fmt::format("no \"create_extension\" symbol in \"{}\"", path.string()), "extension/loader"});
         return result;
     }
 
     extension* ext = create_fn();
     if (!ext) {
-        application::instance()->logger()->log({logging::level::error, fmt::format("create_extension() returned null from \"{}\"", path), "extension/loader"});
+        application::instance()->logger()->log({logging::level::error, fmt::format("create_extension() returned null from \"{}\"", path.string()), "extension/loader"});
         return result;
     }
 
     result.handle = std::move(handle);
     result.instance = ext;
 
-    application::instance()->logger()->log({logging::level::info, fmt::format("loaded extension \"{}\" v{} from \"{}\"", ext->name(), ext->version(), path), "extension/loader"});
+    application::instance()->logger()->log({logging::level::info, fmt::format("loaded extension \"{}\" v{} from \"{}\"", ext->name(), ext->version(), path.string()), "extension/loader"});
     return result;
 }
 
-std::string extension_loader::read_file_text(const std::string& path) {
-    std::ifstream file(path);
-    if (!file.is_open()) return {};
-    std::stringstream buf;
-    buf << file.rdbuf();
-    return buf.str();
-}
-
 extension_loader::load_result extension_loader::load_extension_from_dir(
-    const std::string& dir_path, manifest_data* out_manifest) {
+    const ghc::filesystem::path& dir_path, manifest_data* out_manifest) {
     load_result result;
 
-    std::string manifest_path = platform::join_path(dir_path, "extension.json");
-    std::string manifest_json = read_file_text(manifest_path);
+    ghc::filesystem::path manifest_path = dir_path / "extension.json";
+    std::string manifest_json = io::read_file_content(manifest_path);
 
     if (manifest_json.empty()) {
-        auto entries = platform::list_directory(dir_path);
-        for (const auto& entry : entries) {
-            if (entry.size() >= 3 && entry.substr(entry.size() - 3) == ".so") {
-                std::string dll_path = platform::join_path(dir_path, entry);
-                result = load_extension_from(dll_path);
-                if (result.instance) return result;
-            }
-        }
-        application::instance()->logger()->log({logging::level::error, fmt::format("no extension.json or .so found in '{}'", dir_path), "extension/loader"});
+        application::instance()->logger()->log({logging::level::error, fmt::format("no extension.json found in '{}'", dir_path.string()), "extension/loader"});
         return result;
     }
 
     auto manifest = parse_extension_manifest(manifest_json);
     if (!manifest) {
-        application::instance()->logger()->log({logging::level::error, fmt::format("failed to parse extension.json in '{}'", dir_path), "extension/loader"});
+        application::instance()->logger()->log({logging::level::error, fmt::format("failed to parse extension.json in '{}'", dir_path.string()), "extension/loader"});
         return result;
     }
 
     if (out_manifest) *out_manifest = *manifest;
 
-    std::string platform_str = "linux-x64";
-    std::string dll_name = "lib" + manifest->main + ".so";
-
-    std::string dll_path = platform::join_path(
-        platform::join_path(dir_path, "dist"),
-        platform::join_path(platform_str, dll_name));
+    ghc::filesystem::path dll_path = dir_path / manifest->main;
 
     result = load_extension_from(dll_path);
-    if (!result.instance) {
-        dll_path = platform::join_path(dir_path, dll_name);
-        result = load_extension_from(dll_path);
-    }
 
     return result;
 }

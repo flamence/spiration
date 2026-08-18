@@ -88,6 +88,7 @@ bool extension::initialize() {
             "注意：write_terminal 发送命令前需要用户确认，被拒绝时结果会提示 user denied。"
             "回复请用中文。");
 
+#if !defined(__OHOS__)
         create_terminal_ = std::make_unique<create_terminal_tool>();
         write_terminal_ = std::make_unique<write_terminal_tool>();
         read_terminal_ = std::make_unique<read_terminal_tool>();
@@ -96,6 +97,7 @@ bool extension::initialize() {
         client_->register_tool(write_terminal_.get());
         client_->register_tool(read_terminal_.get());
         client_->register_tool(kill_terminal_.get());
+#endif
 
         create_file_ = std::make_unique<create_file_tool>();
         create_directory_ = std::make_unique<create_directory_tool>();
@@ -112,7 +114,9 @@ bool extension::initialize() {
         edit_file_->set_workdir(workdir);
         rename_->set_workdir(workdir);
         delete_->set_workdir(workdir);
+#if !defined(__OHOS__)
         create_terminal_->set_workdir(workdir);
+#endif
         client_->register_tool(create_file_.get());
         client_->register_tool(create_directory_.get());
         client_->register_tool(read_file_.get());
@@ -168,12 +172,16 @@ void extension::shutdown() {
         agent_tab_->wait_initial_load();
         agent_tab_ = nullptr;
     }
+#if !defined(__OHOS__)
     terminal_manager::instance().close_all();
+#endif
     if (client_) client_->wait_all_tools();
+#if !defined(__OHOS__)
     create_terminal_.reset();
     write_terminal_.reset();
     read_terminal_.reset();
     kill_terminal_.reset();
+#endif
     create_file_.reset();
     create_directory_.reset();
     edit_file_.reset();
@@ -217,7 +225,9 @@ void extension::save_conversation(agent_tab* tab) {
     archive.provider  = client_->provider_name();
     archive.model     = client_->get_config().model;
     archive.messages  = client_->history();
+#if !defined(__OHOS__)
     archive.terminals = terminal_manager::instance().snapshots();
+#endif
     archive.todos     = todo_store::instance().items();
     archive.tokens_in  = client_->input_tokens();
     archive.tokens_out = client_->output_tokens();

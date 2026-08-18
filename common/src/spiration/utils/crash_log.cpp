@@ -107,12 +107,7 @@ LONG WINAPI crash_handler(EXCEPTION_POINTERS* ep) {
 
 void install(const ghc::filesystem::path& path) {
     if (path.empty()) return;
-#if defined(_WIN32)
     strncpy_s(g_path, sizeof(g_path), path.string().c_str(), _TRUNCATE);
-#else
-    std::strncpy(g_path, path.string().c_str(), sizeof(g_path) - 1);
-    g_path[sizeof(g_path) - 1] = '\0';
-#endif
     SetUnhandledExceptionFilter(crash_handler);
 }
 
@@ -138,7 +133,7 @@ namespace crash_log {
 
 namespace {
 
-char g_path[2048] = {0};
+ghc::filesystem::path log_path;
 
 void write_str(int fd, const char* s) {
     if (!s || *s == '\0') return;
@@ -162,7 +157,7 @@ void crash_handler(int sig) {
     len += std::snprintf(buf + len, sizeof(buf) - static_cast<size_t>(len),
                          "stack trace    :\n");
 
-    int fd = ::open(g_path, O_WRONLY | O_CREAT | O_APPEND, 0644);
+    int fd = ::open(log_path.string().c_str(), O_WRONLY | O_CREAT | O_APPEND, 0644);
     if (fd < 0) return;
     ::write(fd, buf, static_cast<size_t>(len));
 
@@ -181,14 +176,8 @@ void crash_handler(int sig) {
 
 void install(const ghc::filesystem::path& path) {
     if (path.empty()) return;
-    std::strncpy(g_path, path.c_str(), sizeof(g_path) - 1);
-    g_path[sizeof(g_path) - 1] = '\0';
-
-    auto pos = path.find_last_of('/');
-    if (pos != std::string::npos && pos > 0) {
-        ::mkdir(path.substr(0, pos).c_str(), 0755);
-    }
-
+    log_path = path;
+    ghc::filesystem::create_directories(path.parent_path());
     struct sigaction sa;
     std::memset(&sa, 0, sizeof(sa));
     sa.sa_handler = crash_handler;

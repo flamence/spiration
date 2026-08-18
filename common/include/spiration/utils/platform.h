@@ -80,10 +80,12 @@ public:
 private:
     platform() = delete;
 
+#ifndef __OHOS__
     /**
      * @brief 获取可执行文件所在目录。
      */
     static ghc::filesystem::path executable_directory();
+#endif
 };
 
 } // namespace spiration

@@ -6,6 +6,7 @@
 
 #include <spiration/application.h>
 #include <spiration/extension/builtin/agent/tool/web_tool.h>
+#include <spiration/net/http.h>
 
 #include <nlohmann/json.hpp>
 
@@ -16,19 +17,10 @@
 #include <utility>
 #include <vector>
 
-#include <curl/curl.h>
-
 namespace spiration {
 namespace agent {
 
 namespace {
-
-size_t fetch_write_cb(void* contents, size_t size, size_t nmemb, void* userp) {
-    size_t total = size * nmemb;
-    auto* out = static_cast<std::string*>(userp);
-    out->append(static_cast<char*>(contents), total);
-    return total;
-}
 
 std::string urlencode(const std::string& s) {
     std::string out;
@@ -43,11 +35,6 @@ std::string urlencode(const std::string& s) {
         }
     }
     return out;
-}
-
-std::string upper_copy(std::string s) {
-    for (auto& c : s) c = static_cast<char>(std::toupper(static_cast<unsigned char>(c)));
-    return s;
 }
 
 } // namespace
@@ -144,56 +131,26 @@ std::string fetch_tool::execute(const std::string& args_json) {
         full_url += qs;
     }
 
-    CURL* curl = curl_easy_init();
-    if (!curl) return "[error] curl_easy_init failed";
-
-    std::string response;
-    curl_slist* hdr_list = nullptr;
+    net::http_request req;
+    req.method = method;
+    req.url = full_url;
+    req.body = body;
+    req.timeout_seconds = timeout;
+    req.user_agent = "spiration/1.0";
     for (const auto& h : headers) {
-        if (h.first.empty()) continue;
-        hdr_list = curl_slist_append(hdr_list, (h.first + ": " + h.second).c_str());
+        if (!h.first.empty()) req.headers.push_back(h);
     }
 
-    curl_easy_setopt(curl, CURLOPT_URL, full_url.c_str());
-    curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
-    curl_easy_setopt(curl, CURLOPT_TIMEOUT, timeout);
-    curl_easy_setopt(curl, CURLOPT_USERAGENT, "spiration/1.0");
-    if (hdr_list) curl_easy_setopt(curl, CURLOPT_HTTPHEADER, hdr_list);
-    curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, fetch_write_cb);
-    curl_easy_setopt(curl, CURLOPT_WRITEDATA, &response);
+    net::http_response resp = net::http().request(req);
 
-    std::string m = upper_copy(method);
-    if (m == "GET") {
-        curl_easy_setopt(curl, CURLOPT_HTTPGET, 1L);
-    } else if (m == "POST") {
-        curl_easy_setopt(curl, CURLOPT_POST, 1L);
-        curl_easy_setopt(curl, CURLOPT_POSTFIELDS, body.c_str());
-        curl_easy_setopt(curl, CURLOPT_POSTFIELDSIZE, static_cast<long>(body.size()));
-    } else if (m == "PUT" || m == "PATCH" || m == "DELETE" || m == "HEAD") {
-        curl_easy_setopt(curl, CURLOPT_CUSTOMREQUEST, method.c_str());
-        if (!body.empty()) {
-            curl_easy_setopt(curl, CURLOPT_POSTFIELDS, body.c_str());
-            curl_easy_setopt(curl, CURLOPT_POSTFIELDSIZE, static_cast<long>(body.size()));
-        }
-    } else {
-        curl_easy_setopt(curl, CURLOPT_CUSTOMREQUEST, method.c_str());
+    std::string out = "[status " + std::to_string(resp.status) + "]";
+    if (!resp.error.empty()) {
+        out += " [error] " + resp.error;
     }
-
-    CURLcode res = curl_easy_perform(curl);
-    long status = 0;
-    curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &status);
-
-    if (hdr_list) curl_slist_free_all(hdr_list);
-    curl_easy_cleanup(curl);
-
-    std::string out = "[status " + std::to_string(status) + "]";
-    if (res != CURLE_OK) {
-        out += " [error] " + std::string(curl_easy_strerror(res));
+    if (!resp.body.empty()) {
+        out += "\n" + resp.body;
     }
-    if (!response.empty()) {
-        out += "\n" + response;
-    }
-    application::instance()->logger()->log({logging::level::info, fmt::format("fetch {} -> status {}, {} bytes", full_url, status, response.size()), "extension/agent/web"});
+    application::instance()->logger()->log({logging::level::info, fmt::format("fetch {} -> status {}, {} bytes", full_url, resp.status, resp.body.size()), "extension/agent/web"});
     return out;
 }
 

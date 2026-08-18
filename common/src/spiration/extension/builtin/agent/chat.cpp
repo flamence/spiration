@@ -7,6 +7,7 @@
 #include <spiration/application.h>
 #include <spiration/extension/builtin/agent/chat.h>
 #include <spiration/extension/builtin/agent/registry.h>
+#include <spiration/net/http.h>
 
 #include <nlohmann/json.hpp>
 
@@ -24,10 +25,27 @@
 #include <thread>
 #include <utility>
 
-#include <curl/curl.h>
-
 namespace spiration {
 namespace agent {
+
+namespace {
+
+/// @brief 将收到的数据块按行切分并交给 provider 处理（SSE）。
+void process_stream_chunk(stream_context& ctx, const char* data, size_t size) {
+    if (!data || size == 0) return;
+    if (ctx.should_stop && ctx.should_stop()) return;
+
+    ctx.line_buf.append(data, size);
+    size_t pos;
+    while ((pos = ctx.line_buf.find('\n')) != std::string::npos) {
+        std::string line = ctx.line_buf.substr(0, pos);
+        ctx.line_buf.erase(0, pos + 1);
+        if (!line.empty() && line.back() == '\r') line.pop_back();
+        if (ctx.provider) ctx.provider->handle_stream_line(line, ctx);
+    }
+}
+
+} // namespace
 
 chat_client::chat_client(const config& cfg) : cfg_(cfg) {
     provider_ = agent_registry::instance().create_provider(cfg_.provider);
@@ -93,66 +111,23 @@ void chat_client::clear_tools() {
     tools_.clear();
 }
 
-static size_t stream_write_callback(void* contents, size_t size, size_t nmemb, void* userp) {
-    auto* ctx = static_cast<stream_context*>(userp);
-    size_t total = size * nmemb;
-    if (!ctx) return total;
-
-    if (ctx->should_stop && ctx->should_stop()) return 0;
-
-    ctx->line_buf.append(static_cast<char*>(contents), total);
-    size_t pos;
-    while ((pos = ctx->line_buf.find('\n')) != std::string::npos) {
-        std::string line = ctx->line_buf.substr(0, pos);
-        ctx->line_buf.erase(0, pos + 1);
-        if (!line.empty() && line.back() == '\r') line.pop_back();
-        if (ctx->provider) ctx->provider->handle_stream_line(line, *ctx);
-    }
-    return total;
-}
-
-static size_t write_callback(void* contents, size_t size, size_t nmemb, void* userp) {
-    size_t total = size * nmemb;
-    static_cast<std::string*>(userp)->append(static_cast<char*>(contents), total);
-    return total;
-}
-
 std::string chat_client::http_post(const std::string& url, const std::string& body,
                                    const std::vector<std::pair<std::string, std::string>>& headers) const {
-    CURL* curl = curl_easy_init();
-    if (!curl) {
-        application::instance()->logger()->log({logging::level::error, "curl_easy_init failed", "extension/agent"});
+    net::http_request req;
+    req.method = "POST";
+    req.url = url;
+    req.body = body;
+    req.timeout_seconds = cfg_.timeout_seconds;
+    req.user_agent = "spiration/1.0";
+    req.headers = headers;
+    req.headers.push_back({"Content-Type", "application/json"});
+
+    net::http_response resp = net::http().request(req);
+    if (!resp.error.empty()) {
+        application::instance()->logger()->log({logging::level::error, fmt::format("http request failed: {}", resp.error), "extension/agent"});
         return {};
     }
-
-    std::string response;
-    struct curl_slist* hdr_list = nullptr;
-
-    curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
-    curl_easy_setopt(curl, CURLOPT_POST, 1L);
-    curl_easy_setopt(curl, CURLOPT_POSTFIELDS, body.c_str());
-    curl_easy_setopt(curl, CURLOPT_POSTFIELDSIZE, static_cast<long>(body.size()));
-    curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_callback);
-    curl_easy_setopt(curl, CURLOPT_WRITEDATA, &response);
-    curl_easy_setopt(curl, CURLOPT_TIMEOUT, cfg_.timeout_seconds);
-    curl_easy_setopt(curl, CURLOPT_USERAGENT, "spiration/1.0");
-
-    hdr_list = curl_slist_append(hdr_list, "Content-Type: application/json");
-    for (const auto& h : headers) {
-        if (h.first.empty()) continue;
-        hdr_list = curl_slist_append(hdr_list, (h.first + ": " + h.second).c_str());
-    }
-    curl_easy_setopt(curl, CURLOPT_HTTPHEADER, hdr_list);
-
-    CURLcode res = curl_easy_perform(curl);
-    if (res != CURLE_OK) {
-        application::instance()->logger()->log({logging::level::error, fmt::format("curl request failed: {}", curl_easy_strerror(res)), "extension/agent"});
-        response.clear();
-    }
-
-    curl_slist_free_all(hdr_list);
-    curl_easy_cleanup(curl);
-    return response;
+    return resp.body;
 }
 
 chat_response chat_client::send() {
@@ -287,44 +262,31 @@ chat_response chat_client::send_stream(const chat_events& events) {
         return resp;
     }
 
-    CURL* curl = curl_easy_init();
-    if (!curl) {
-        application::instance()->logger()->log({logging::level::error, "curl_easy_init failed", "extension/agent"});
-        return {};
-    }
-
     stream_context ctx;
     ctx.provider = provider_.get();
     ctx.on_delta = events.on_delta;
     ctx.on_reasoning_delta = events.on_reasoning_delta;
     ctx.should_stop = events.should_stop;
 
-    curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
-    curl_easy_setopt(curl, CURLOPT_POST, 1L);
-    curl_easy_setopt(curl, CURLOPT_POSTFIELDS, body.c_str());
-    curl_easy_setopt(curl, CURLOPT_POSTFIELDSIZE, static_cast<long>(body.size()));
-    curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, stream_write_callback);
-    curl_easy_setopt(curl, CURLOPT_WRITEDATA, &ctx);
-    curl_easy_setopt(curl, CURLOPT_TIMEOUT, cfg_.timeout_seconds);
-    curl_easy_setopt(curl, CURLOPT_USERAGENT, "spiration/1.0");
+    net::http_request http_req;
+    http_req.method = "POST";
+    http_req.url = url;
+    http_req.body = body;
+    http_req.timeout_seconds = cfg_.timeout_seconds;
+    http_req.user_agent = "spiration/1.0";
+    http_req.headers = headers;
+    http_req.headers.push_back({"Content-Type", "application/json"});
 
-    struct curl_slist* hdr_list = nullptr;
-    hdr_list = curl_slist_append(hdr_list, "Content-Type: application/json");
-    for (const auto& h : headers) {
-        if (h.first.empty()) continue;
-        hdr_list = curl_slist_append(hdr_list, (h.first + ": " + h.second).c_str());
-    }
-    curl_easy_setopt(curl, CURLOPT_HTTPHEADER, hdr_list);
+    net::http_response http_resp = net::http().request_stream(
+        http_req,
+        [&ctx](const char* data, size_t size) { process_stream_chunk(ctx, data, size); },
+        events.should_stop);
 
-    CURLcode res = curl_easy_perform(curl);
-    if (res != CURLE_OK) {
+    if (!http_resp.error.empty()) {
         if (!(events.should_stop && events.should_stop())) {
-            application::instance()->logger()->log({logging::level::error, fmt::format("curl stream request failed: {}", curl_easy_strerror(res)), "extension/agent"});
+            application::instance()->logger()->log({logging::level::error, fmt::format("http stream request failed: {}", http_resp.error), "extension/agent"});
         }
     }
-
-    curl_slist_free_all(hdr_list);
-    curl_easy_cleanup(curl);
 
     chat_response resp;
     resp.content           = ctx.content;

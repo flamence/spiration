@@ -1,5 +1,3 @@
-set(STB_IMAGE_DIR "${stb_SOURCE_DIR}")
-
 find_package(PkgConfig REQUIRED)
 find_package(X11 REQUIRED)
 find_package(OpenGL REQUIRED)
@@ -31,7 +29,6 @@ target_include_directories(${PROJECT_NAME} PRIVATE
     ${FREETYPE_INCLUDE_DIRS}
     ${XCB_INCLUDE_DIRS}
     ${XCB_RANDR_INCLUDE_DIRS}
-    ${STB_IMAGE_DIR}
 )
 
 target_link_libraries(${PROJECT_NAME} PRIVATE

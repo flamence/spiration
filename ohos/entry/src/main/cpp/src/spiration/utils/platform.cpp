@@ -54,6 +54,13 @@ std::string platform::architecture() {
     return uts.machine;
 }
 
+ghc::filesystem::path platform::temp_directory() {
+    if (!g_app_dir.empty()) {
+        return ghc::filesystem::path(g_app_dir) / "cache";
+    }
+    return "/data/storage/el2/base/cache";
+}
+
 ghc::filesystem::path platform::data_directory() {
     if (!g_app_dir.empty()) {
         return g_app_dir;
@@ -61,52 +68,11 @@ ghc::filesystem::path platform::data_directory() {
     return temp_directory() / "data";
 }
 
-std::string platform::executable_directory() {
+ghc::filesystem::path platform::resources_directory() {
     if (!g_module_dir.empty()) {
         return g_module_dir;
     }
-    return "/data/storage/el2/base/haps/entry/files";
-}
-
-std::string platform::join_path(const std::string& a, const std::string& b) {
-    if (a.empty()) return b;
-    if (b.empty()) return a;
-    char last = a.back();
-    if (last == '/') return a + b;
-    return a + "/" + b;
-}
-
-bool platform::file_exists(const std::string& path) {
-    struct stat st;
-    return stat(path.c_str(), &st) == 0;
-}
-
-bool platform::create_directory(const std::string& path) {
-    auto pos = path.rfind('/');
-    if (pos != std::string::npos && pos > 0) {
-        std::string parent = path.substr(0, pos);
-        struct stat st;
-        if (stat(parent.c_str(), &st) != 0) {
-            create_directory(parent);
-        }
-    }
-    if (mkdir(path.c_str(), 0755) == 0) return true;
-    return errno == EEXIST;
-}
-
-std::vector<std::string> platform::list_directory(const std::string& path) {
-    std::vector<std::string> entries;
-    DIR* dir = opendir(path.c_str());
-    if (!dir) return entries;
-    struct dirent* ent;
-    while ((ent = readdir(dir)) != nullptr) {
-        if (strcmp(ent->d_name, ".") == 0 ||
-            strcmp(ent->d_name, "..") == 0) continue;
-        entries.push_back(ent->d_name);
-    }
-    closedir(dir);
-    std::sort(entries.begin(), entries.end());
-    return entries;
+    return temp_directory() / "share";
 }
 
 std::string platform::system_locale() {

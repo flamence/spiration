@@ -12,14 +12,14 @@ namespace logging {
 
 void ohos_sink::write(const log& message, log_formatter _) {
     LogLevel ohos_level;
-    switch (level) {
+    switch (message.level) {
         case level::trace:   return;
         case level::debug:   ohos_level = LOG_DEBUG; break;
         case level::info:    ohos_level = LOG_INFO;  break;
         case level::warning: ohos_level = LOG_WARN;  break;
         case level::error:   ohos_level = LOG_ERROR; break;
     }
-    OH_LOG_VPrint(LOG_APP, ohos_level, 0x0000, message.tag, ,message.message..c_str());
+    OH_LOG_VPrint(LOG_APP, ohos_level, 0x0000, message.tag.c_str(), message.message.c_str(), {});
 }
 
 }
