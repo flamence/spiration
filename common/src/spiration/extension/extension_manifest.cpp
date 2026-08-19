@@ -113,12 +113,14 @@ tl::optional<manifest_data> parse_extension_manifest(const std::string& json) {
 
         manifest_data m;
         m.id          = root.value("id", std::string());
-        m.name        = root.value("name", std::string());
         m.version     = root.value("version", std::string());
-        m.description = root.value("description", std::string());
-        m.author      = root.value("author", std::string());
-        m.main        = root.value("main", std::string());
         m.api_version = root.value("api_version", 0);
+
+        std::string author = root.value("author", std::string());
+        if (!author.empty()) m.author = author;
+
+        std::string main = root.value("main", std::string());
+        if (!main.empty()) m.main = main;
 
         auto dep_it = root.find("depends");
         if (dep_it != root.end() && dep_it->is_object()) {
@@ -131,14 +133,15 @@ tl::optional<manifest_data> parse_extension_manifest(const std::string& json) {
             }
         }
 
-        if (m.id.empty() || m.name.empty() || m.version.empty() || m.main.empty()) {
-            application::instance()->logger()->log({logging::level::error, "missing required fields (id/name/version/main)", "extension_manifest"});
+        if (m.id.empty() || m.version.empty() ||
+            !m.main.has_value() || m.main->empty()) {
+            application::instance()->logger()->log({logging::level::error, "missing required fields (id/version/main)", "extension_manifest"});
             return {};
         }
 
         return m;
     } catch (const nlohmann::json::exception& e) {
-        application::instance()->logger()->log({logging::level::error, fmt::format("invalid extension.json: {}", e.what()), "extension_manifest"});
+        application::instance()->logger()->log({logging::level::debug, fmt::format("invalid extension.json: {}", e.what()), "extension_manifest"});
         return {};
     }
 }

@@ -2,11 +2,9 @@ include(../cmake/ConfigureDependencies.cmake)
 
 set(SPIRATION_CORE_SOURCES
     src/spiration/application.cpp
-    src/spiration/extension/extension.cpp
     src/spiration/extension/extension_api.cpp
     src/spiration/extension/extension_manager.cpp
     src/spiration/extension/extension_manifest.cpp
-    src/spiration/extension/manifest_extension.cpp
     src/spiration/extension/builtin/agent/agent_tab.cpp
     src/spiration/extension/builtin/agent/chat.cpp
     src/spiration/extension/builtin/agent/chat_store.cpp

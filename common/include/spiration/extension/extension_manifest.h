@@ -6,8 +6,9 @@
 
 #pragma once
 
-#include <string>
 #include <map>
+#include <spiration/export.h>
+#include <string>
 #include <tl/optional.hpp>
 
 namespace spiration {
@@ -15,14 +16,12 @@ namespace spiration {
 /**
  * @brief extension.json 解析后的结构化数据。
  */
-struct manifest_data {
+struct SPIRATION_EXPORT manifest_data {
     std::string id;
-    std::string name;
     std::string version;
-    std::string description;
-    std::string author;
+    tl::optional<std::string> author;
     int api_version = 0;
-    std::string main;
+    tl::optional<std::string> main;
     std::map<std::string, std::string> depends;
 };
 

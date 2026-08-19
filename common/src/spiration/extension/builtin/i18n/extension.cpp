@@ -8,8 +8,6 @@
 namespace spiration {
 namespace i18n {
 
-const std::string i18n::extension::ID = "com.flamence.spiration.i18n";
-
 bool extension::initialize() {
     ghc::filesystem::path langDir = spiration::platform::resources_directory() / "lang";
     auto& i18n = i18n_manager::get();
@@ -19,7 +17,7 @@ bool extension::initialize() {
     i18n.load(sysLocale, langPath);
     i18n.set_locale(sysLocale);
 
-    register_service("i18n", &i18n);
+    application::instance()->extension()->register_service(id(), "i18n", &i18n);
 
     return true;
 }

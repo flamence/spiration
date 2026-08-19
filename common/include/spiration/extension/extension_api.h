@@ -173,7 +173,7 @@ public:
     T* get_service(const std::string& extension_id,
                    const std::string& name) const {
         return static_cast<T*>(
-            extension_manager::get_service(extension_id, name));
+            application::instance()->extension()->get_service(extension_id, name));
     }
 
     /** @brief 扩展被加载事件名 */

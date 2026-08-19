@@ -17,7 +17,7 @@
 #include <spiration/extension/builtin/agent/tool/sleep_tool.h>
 #include <spiration/extension/builtin/agent/tool/memory_tool.h>
 #include <spiration/extension/builtin/i18n/i18n.h>
-#include <spiration/extension/extension.h>
+#include <spiration/extension/extension.hpp>
 
 #include <ghc/filesystem.hpp>
 #include <memory>
@@ -27,15 +27,15 @@ namespace agent {
 
 class extension : public spiration::extension {
 public:
-    std::string id() const override          { return ID; }
-    std::string name() const override        { return api->tr("extension.agent.name"); }
-    std::string version() const override     { return "0.7"; }
-    std::string description() const override { return api->tr("extension.agent.description"); }
+    extension() : spiration::extension(manifest_data({
+        "com.flamence.spiration.agent",
+        "0.7"
+    })) {}
 
+    tl::optional<std::string> name() const override { return api->tr("extension.agent.name"); }
+    tl::optional<std::string> description() const override { return api->tr("extension.agent.description"); }
     bool initialize() override;
     void shutdown() override;
-
-    static const std::string ID;
 
 private:
     void open_agent_tab();

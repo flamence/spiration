@@ -10,8 +10,6 @@
 namespace spiration {
 namespace edit {
 
-const std::string edit::extension::ID = "com.flamence.spiration.edit";
-
 bool extension::initialize() {
     if (!api) return false;
 

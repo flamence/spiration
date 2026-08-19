@@ -7,7 +7,7 @@
 #include <spiration/ui/extension_tab.h>
 #include <spiration/ui/theme_manager.h>
 #include <spiration/application.h>
-#include <spiration/extension/extension.h>
+#include <spiration/extension/extension.hpp>
 #include <spiration/extension/extension_manager.h>
 #include <spiration/extension/builtin/i18n/i18n.h>
 #include <cmath>
@@ -29,10 +29,14 @@ void extension_tab::on_activate() {
 void extension_tab::collect_extensions() {
     extensions_.clear();
 
-    auto exts = extension_manager::extensions();
+    auto exts = application::instance()->extension()->extensions();
     for (const auto* ext : exts) {
         if (ext) {
-            extensions_.push_back({ext->name(), ext->version(), ext->description()});
+            extensions_.push_back({
+                ext->name().value_or(ext->id()),
+                ext->version(),
+                ext->description().value_or("")
+            });
         }
     }
 }

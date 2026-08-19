@@ -5,7 +5,7 @@
  */
 
 #include <spiration/extension/extension_api.h>
-#include <spiration/extension/extension.h>
+#include <spiration/extension/extension.hpp>
 #include <spiration/extension/extension_manager.h>
 #include <ghc/filesystem.hpp>
 #include <spiration/ui/root.h>
@@ -70,7 +70,7 @@ void extension_api::log_error(const std::string& message, tl::optional<std::stri
 }
 
 ghc::filesystem::path extension_api::extension_directory() const {
-    return extension_manager::extension_directory(id_);
+    return application::instance()->extension()->extension_directory(id_);
 }
 
 void extension_api::request_repaint() const {
@@ -120,24 +120,24 @@ void extension_api::set_theme_param(const std::string& profile,
 }
 
 extension* extension_api::get_extension(const std::string& id) const {
-    return extension_manager::find_extension(id);
+    return application::instance()->extension()->find_extension(id);
 }
 
 std::vector<extension*> extension_api::get_extensions() const {
-    return extension_manager::extensions();
+    return application::instance()->extension()->extensions();
 }
 
 int extension_api::on_event(const std::string& event,
                              std::function<void(const std::string& data)> callback) const {
-    return extension_manager::on_event(event, std::move(callback));
+    return application::instance()->extension()->on_event(event, std::move(callback));
 }
 
 void extension_api::off_event(int subscription_id) const {
-    extension_manager::off_event(subscription_id);
+    application::instance()->extension()->off_event(subscription_id);
 }
 
 void extension_api::emit_event(const std::string& event, const std::string& data) const {
-    extension_manager::emit_event(event, data);
+    application::instance()->extension()->emit_event(event, data);
 }
 
 } // namespace spiration

@@ -4,19 +4,12 @@
  * @author clk
  */
 
-#include <memory>
-#include <spiration/logging/file_sink.h>
-#include <spiration/logging/console_sink.h>
-#include <spiration/init_phase.h>
 #include <spiration/application.h>
-#include <spiration/extension/builtin/i18n/i18n.h>
-#include <ghc/filesystem.hpp>
-#include <tl/optional.hpp>
-#include <string>
-#include <spiration/ui/root.h>
-#include <utility>
+#include <spiration/logging/console_sink.h>
+#include <spiration/logging/file_sink.h>
 #include <spiration/utils/crash_log.h>
 #include <spiration/utils/platform.h>
+#include <spiration/ui/root.h>
 
 namespace spiration {
 
@@ -36,8 +29,8 @@ namespace {
 std::shared_ptr<spiration::window> create_window() {
     spiration::window_parameters params;
     params.title = application::APPLICATION_NAME;
-    params.width = 800;
-    params.height = 600;
+    params.width = 1080;
+    params.height = 768;
     params.decorated = false;
     params.visible = false;
     return spiration::window::create(params);
@@ -47,7 +40,7 @@ std::shared_ptr<spiration::window> create_window() {
 ghc::filesystem::path make_log_path() {
     std::time_t now = std::time(nullptr);
     struct tm tmv;
-#ifdef _WIN32
+#if defined(_WIN32)
     localtime_s(&tmv, &now);
 #else
     localtime_r(&now, &tmv);
@@ -68,20 +61,25 @@ ghc::filesystem::path application::data_directory(tl::optional<std::string> sub)
     return base;
 }
 
-spiration::extension_manager* application::extension() const {
-    return &spiration::extension_manager::instance();
+std::shared_ptr<spiration::extension_manager> application::extension() const {
+    return extension_manager_;
 }
 
 bool application::initialize(tl::optional<init_phase> phase) {
     if (phase == tl::nullopt) {
         return initialize(init_phase::early) && initialize(init_phase::normal) && initialize(init_phase::late);
     } else if (phase == init_phase::early) {
-        spiration::extension_manager::instance();
-        spiration::extension_manager::load_extensions_from(platform::data_directory());
-        spiration::extension_manager::initialize_phase(init_phase::early);
+        auto file = make_log_path();
+        spiration::crash_log::install(file);
+        logger_ = std::make_shared<logging::logger>();
+        logger_->add_sink(std::make_unique<logging::console_sink>());
+        logger_->add_sink(std::make_unique<logging::file_sink>(file));
+        extension_manager_ = std::make_shared<extension_manager>(*this);
+        extension_manager_->load_from(platform::data_directory());
+        extension_manager_->initialize(init_phase::early);
         return true;
     } else if (phase == init_phase::normal) {
-#ifndef __OHOS__
+#if !defined(__OHOS__)
         window_ = std::move(create_window());
         if (!window_) {
             logger()->log({logging::level::error, "failed to create window", "main"});
@@ -91,13 +89,13 @@ bool application::initialize(tl::optional<init_phase> phase) {
         auto widget = std::make_unique<spiration::root>(window_);
         widget_ = widget.get();
         window_->set_widget(std::move(widget));
-        spiration::extension_manager::initialize_phase(init_phase::normal);
-#ifndef __OHOS__
+        extension_manager_->initialize(init_phase::normal);
+#if !defined(__OHOS__)
         window_->show();
 #endif
         return true;
     } else if (phase == init_phase::late) {
-        spiration::extension_manager::initialize_phase(init_phase::late);
+        extension_manager_->initialize(init_phase::late);
         return true;
     }
     return false;
@@ -112,14 +110,7 @@ application* application::instance() {
     return instance_.get();
 }
 
-std::shared_ptr<logging::logger> application::logger() {
-    if (logger_ == nullptr) {
-        auto file = make_log_path();
-        spiration::crash_log::install(file);
-        logger_ = std::make_shared<logging::logger>();
-        logger_->add_sink(std::make_unique<logging::console_sink>());
-        logger_->add_sink(std::make_unique<logging::file_sink>(file));
-    }
+std::shared_ptr<logging::logger> application::logger() const {
     return logger_;
 }
 
@@ -128,7 +119,7 @@ void application::loop() {
 }
 
 void application::shutdown() {
-    spiration::extension_manager::shutdown();
+    extension_manager_->shutdown();
 }
 
 void application::tick(float deltatime) {

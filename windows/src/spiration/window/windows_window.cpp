@@ -22,12 +22,10 @@
 #define DWMWA_USE_IMMERSIVE_DARK_MODE 20
 #endif
 
-
 namespace spiration {
 
 namespace {
 
-/// cursor_type → Win32 系统光标。
 HCURSOR load_cursor(cursor_style c) {
     switch (c) {
     case cursor_style::text:        return LoadCursorW(nullptr, IDC_IBEAM);

@@ -7,7 +7,6 @@
 #include <spiration/extension/builtin/agent/extension.h>
 #include <spiration/extension/builtin/i18n/i18n.h>
 #include <spiration/extension/extension_api.h>
-#include <spiration/extension/extension_loader.h>
 #include <spiration/extension/extension_manager.h>
 #include <ghc/filesystem.hpp>
 #include <fmt/format.h>
@@ -153,7 +152,7 @@ bool extension::initialize() {
         }
     }
 
-    extension_manager::register_service(id(), agent_registry::SERVICE_NAME,
+    application::instance()->extension()->register_service(id(), agent_registry::SERVICE_NAME,
                                         &agent_registry::instance());
 
     api->add_menu_item("menu.help", i18n_manager::get().tr("menu.help.agent"), [this]() {

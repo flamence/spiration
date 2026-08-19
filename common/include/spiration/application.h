@@ -6,16 +6,18 @@
 
 #pragma once
 
+#include <ghc/filesystem.hpp>
+#include <memory>
 #include <spiration/logging/logger.hpp>
 #include <spiration/extension/extension_manager.h>
-#include <ghc/filesystem.hpp>
 #include <spiration/init_phase.h>
-#include <memory>
-#include <tl/optional.hpp>
-#include <string>
 #include <spiration/window/window.h>
+#include <string>
+#include <tl/optional.hpp>
 
 namespace spiration {
+
+class extension_manager;
 
 /**
  * @brief 应用类。
@@ -42,7 +44,7 @@ public:
     /**
      * @return 该应用附加的拓展管理器实例。
      */
-    spiration::extension_manager* extension() const;
+    std::shared_ptr<spiration::extension_manager> extension() const;
     
     /**
      * @brief 初始化应用。
@@ -58,9 +60,8 @@ public:
     
     /**
      * @return 日志器。
-     * @note 懒加载实例。
      */
-    std::shared_ptr<logging::logger> logger();
+    std::shared_ptr<logging::logger> logger() const;
 
     /**
      * @brief 执行应用循环。
@@ -89,6 +90,7 @@ public:
     spiration::window* window() const;
     
 private:
+    std::shared_ptr<extension_manager> extension_manager_;
     static std::unique_ptr<application> instance_;
     std::shared_ptr<logging::logger> logger_;
     spiration::widget* widget_;

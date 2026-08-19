@@ -6,8 +6,7 @@
 
 #pragma once
 
-#include <spiration/extension/extension.h>
-#include <spiration/ui/theme_manager.h>
+#include <spiration/extension/extension.hpp>
 
 namespace spiration {
 namespace theme {
@@ -17,15 +16,15 @@ namespace theme {
  */
 class extension : public spiration::extension {
 public:
-    std::string id() const override          { return ID; }
-    std::string name() const override        { return api->tr("extension.theme.name"); }
-    std::string version() const override     { return "0.2"; }
-    std::string description() const override { return api->tr("extension.theme.description"); }
+    extension() : spiration::extension({
+        "com.flamence.spiration.theme",
+        "0.2"
+    }) {}
 
+    tl::optional<std::string> name() const override { return api->tr("extension.theme.name"); }
+    tl::optional<std::string> description() const override { return api->tr("extension.theme.description"); }
     bool initialize() override;
     void shutdown() override;
-
-    static const std::string ID;
 };
 
 } // namespace theme

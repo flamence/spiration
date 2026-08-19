@@ -9,7 +9,7 @@
 #include <spiration/application.h>
 #include <spiration/extension/builtin/edit/edit_tab.h>
 #include <spiration/extension/builtin/i18n/i18n.h>
-#include <spiration/extension/extension.h>
+#include <spiration/extension/extension.hpp>
 #include <string>
 
 namespace spiration {
@@ -20,15 +20,16 @@ namespace edit {
  */
 class extension : public spiration::extension {
 public:
-    std::string id() const override          { return ID; }
-    std::string name() const override        { return api->tr("extension.edit.name"); }
-    std::string version() const override     { return "0.4"; }
-    std::string description() const override { return api->tr("extension.edit.description"); }
+    extension() : spiration::extension({
+        "com.flamence.spiration.edit",
+        "0.4"
+    }) {}
+
+    tl::optional<std::string> name() const override { return api->tr("extension.edit.name"); }
+    tl::optional<std::string> description() const override { return api->tr("extension.edit.description"); }
 
     bool initialize() override;
     void shutdown() override;
-
-    static const std::string ID;
 
 private:
     /** @brief 所有打开的编辑器标签页指针列表。 */
