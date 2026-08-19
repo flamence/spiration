@@ -9,7 +9,6 @@
 #include <spiration/extension/builtin/agent/tool/tool.h>
 
 #include <functional>
-#include <map>
 #include <memory>
 #include <string>
 #include <vector>
@@ -17,7 +16,8 @@
 namespace spiration {
 namespace agent {
 
-class provider;  // 前向声明
+class provider;           // 前向声明
+class provider_context;   // 前向声明
 
 /// @brief 一次工具调用。
 struct tool_call {
@@ -91,6 +91,9 @@ struct chat_message {
 /// @brief 发送给 provider 的补全请求。
 struct provider_request {
     std::string model;
+    std::string endpoint;          ///< 传输端点（网络 provider 使用）。
+    std::string api_key;           ///< 鉴权密钥（网络 provider 使用）。
+    long timeout_seconds = 120;    ///< 传输超时。
     int max_tokens = 0;
     float temperature = 0.7f;
     bool stream = false;
@@ -109,23 +112,37 @@ struct provider_response {
     int completion_tokens = 0;
 };
 
-/// @brief 流式解析的共享累积状态。
-struct stream_context {
-    std::string line_buf;
-    std::string content;
-    std::string reasoning;
-    std::string finish_reason;
-    int prompt_tokens = 0;
-    int completion_tokens = 0;
-    std::map<int, tool_call> tc_map;
+/**
+ * @brief 一次补全的执行上下文。
+ *        由 provider::build_context() 构造，交由 provider::execute() 处理/发送。
+ *        封装请求规格与流式输出回调；provider 可派生子类持有传输/累积状态。
+ */
+class provider_context {
+public:
+    explicit provider_context(const provider_request& req) : request_(req) {}
+    virtual ~provider_context() = default;
+
+    /// @brief 请求规格。
+    const provider_request& request() const { return request_; }
+
+    /// @brief 内容增量回调（流式输出）。
     std::function<void(const std::string&)> on_delta;
+    /// @brief 思考过程增量回调（流式输出）。
     std::function<void(const std::string&)> on_reasoning_delta;
+    /// @brief 中止检查（返回 true 时停止生成/传输）。
     std::function<bool()> should_stop;
-    const provider* provider = nullptr;
+
+private:
+    provider_request request_;
 };
 
 /**
- * @brief 对话补全 provider 抽象。
+ * @brief 对话补全 provider 抽象接口。
+ *        面向“对话补全”领域建模，不耦合任何传输实现（HTTP / 进程内本地推理）：
+ *          - build_context()：由请求规格构造一次补全的上下文（含思考挡位、工具装配）；
+ *          - execute()：处理/发送上下文，产出补全响应，流式输出经上下文回调增量下发；
+ *        思考过程与工具调用以结构化字段（provider_response::reasoning_content /
+ *        tool_calls）与上下文回调形式显式暴露。
  */
 class provider {
 public:
@@ -143,29 +160,25 @@ public:
                 reasoning_level::high, reasoning_level::xhigh, reasoning_level::max};
     }
 
-    /// @brief 基于配置的 endpoint 生成补全请求 URL。
-    virtual std::string chat_url(const std::string& endpoint) const = 0;
-
-    /// @brief 构建请求头。
-    virtual std::vector<std::pair<std::string, std::string>>
-    request_headers(const std::string& api_key) const = 0;
-
-    /// @brief 构建请求体 JSON 字符串。
-    virtual std::string build_request_body(const provider_request& req) const = 0;
-
-    /// @brief 解析非流式响应。
-    virtual provider_response parse_response(const std::string& body) const = 0;
+    /**
+     * @brief 构造一次补全的上下文。
+     *        子类将请求规格转换为自身所需的内部状态：
+     *          - 网络 provider：端点/鉴权/请求体等；
+     *          - 本地 provider：模型参数、提示词等。
+     * @param req 补全请求
+     * @return 上下文；失败返回 nullptr。
+     */
+    virtual std::unique_ptr<provider_context> build_context(const provider_request& req) const = 0;
 
     /**
-     * @brief 处理一条流式行。
-     * @param line 原始 SSE 行
-     * @param ctx  流式累积状态
+     * @brief 处理/发送上下文，产出补全响应。
+     *        流式输出通过 ctx.on_delta / ctx.on_reasoning_delta 回调增量下发，
+     *        最终响应统一由返回的 provider_response 承载（思考过程、工具调用均在结构化字段中）。
+     * @param ctx 由 build_context() 构造的上下文
+     * @return 补全响应；失败返回空响应。
      */
-    virtual void handle_stream_line(const std::string& line, stream_context& ctx) const = 0;
+    virtual provider_response execute(provider_context& ctx) const = 0;
 };
-
-/// @brief 根据名称创建 provider 实例。
-std::unique_ptr<provider> create_provider(const std::string& name);
 
 } // namespace agent
 } // namespace spiration

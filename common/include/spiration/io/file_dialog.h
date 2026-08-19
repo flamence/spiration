@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <spiration/export.h>
 #include <string>
 #include <vector>
 
@@ -25,7 +26,7 @@ namespace io {
  * @param on_result 回调 (uri, content)：uri 为选择文件 URI，
  *        content 为 ArkTS 侧经 fileIo 读取的文件内容。
  */
-void open_file_async(const std::string& title, const std::string& filter,
+void SPIRATION_EXPORT open_file_async(const std::string& title, const std::string& filter,
                      const std::vector<std::string>& patterns,
                      std::function<void(const std::string&, const std::string&)> on_result);
 
@@ -34,7 +35,7 @@ void open_file_async(const std::string& title, const std::string& filter,
  * @param content 待写入文件的内容。
  * @param on_result 回调 (uri)：写入成功后返回目标 URI，取消为空串。
  */
-void save_file_async(const std::string& title, const std::string& filter,
+void SPIRATION_EXPORT save_file_async(const std::string& title, const std::string& filter,
                      const std::vector<std::string>& patterns,
                      const std::string& content,
                      std::function<void(const std::string&)> on_result);
@@ -44,7 +45,7 @@ void save_file_async(const std::string& title, const std::string& filter,
  * @param uri     选择的文件 URI；取消为空串。
  * @param content 打开时读取的文件内容。
  */
-void deliver_file_dialog_result(const std::string& uri, const std::string& content);
+void SPIRATION_EXPORT deliver_file_dialog_result(const std::string& uri, const std::string& content);
 
 #else
 
@@ -55,7 +56,7 @@ void deliver_file_dialog_result(const std::string& uri, const std::string& conte
  * @param patterns  匹配模式列表
  * @return 选择的文件完整路径；如果用户取消则返回空字符串
  */
-std::string open_file(const std::string& title = "Open File",
+SPIRATION_EXPORT std::string open_file(const std::string& title = "Open File",
                       const std::string& filter = "All Files (*.*)",
                       const std::vector<std::string>& patterns = {"*"});
 
@@ -66,7 +67,7 @@ std::string open_file(const std::string& title = "Open File",
  * @param patterns  匹配模式列表
  * @return 选择的文件完整路径；如果用户取消则返回空字符串
  */
-std::string save_file(const std::string& title = "Save File",
+SPIRATION_EXPORT std::string save_file(const std::string& title = "Save File",
                       const std::string& filter = "All Files (*.*)",
                       const std::vector<std::string>& patterns = {"*"});
 

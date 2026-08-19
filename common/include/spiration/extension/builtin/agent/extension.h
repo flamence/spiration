@@ -41,6 +41,12 @@ private:
     void open_agent_tab();
     /// @brief 将当前对话保存到当前会话的 UUID 目录。
     void save_conversation(agent_tab* tab);
+    /// @brief 在编辑器中打开 cnf/models.json 以配置模型。
+    void configure_models();
+    /// @brief 将外部模型来源（注册表）提供的模型合并进模型选项。
+    void merge_external_models(std::vector<model_option>& models) const;
+    /// @brief 模型来源变更回调：刷新已打开的智能体标签页下拉框。
+    void on_models_changed();
 
     std::shared_ptr<chat_client> client_;
     std::shared_ptr<chat_store> store_;

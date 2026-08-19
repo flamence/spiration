@@ -6,6 +6,7 @@
 #include <spiration/ui/tab_bar.h>
 #include <spiration/ui/theme_manager.h>
 #include <spiration/application.h>
+#include <spiration/utils/io.h>
 
 namespace spiration {
 namespace edit {
@@ -29,7 +30,25 @@ bool extension::initialize() {
         save_current_as();
     });
 
+    // 注册编辑服务，供其它拓展（如智能体）将文件打开到编辑器。
+    application::instance()->extension()->register_service(
+        id(), edit_service::SERVICE_NAME, static_cast<edit_service*>(this));
+
     return true;
+}
+
+void extension::open_file(const ghc::filesystem::path& path) {
+#if defined(OHOS_PLATFORM)
+    std::string content = spiration::io::read_file_content(path);
+    complete_open_editor_tab(path.string(), content);
+#else
+    complete_open_editor_tab(path.string());
+#endif
+}
+
+void extension::open_file_with_content(const ghc::filesystem::path& path,
+                                       const std::string& content) {
+    complete_open_editor_tab(path.string(), content);
 }
 
 void extension::shutdown() {

@@ -66,10 +66,10 @@ bool extension_manager::load(const ghc::filesystem::path& path) {
     });
 
     library_ptr handle = load_library(path / manifest->main.value());
-    if (handle->mod == nullptr) {
+    if (!handle || handle->mod == nullptr) {
         logger_.log({
             logging::level::trace,
-            fmt::format("skipped extension by undiscovered symbol: {}", path.string()),
+            fmt::format("failed to load library: {}", path.string()),
             "extension/manager"
         });
         return false;
@@ -117,12 +117,12 @@ bool extension_manager::load(const ghc::filesystem::path& path) {
         });
         return false;
     }
-    
+
     extensions_[entry.instance->id()] = std::move(entry);
 
     logger_.log({
         logging::level::trace,
-        fmt::format("loaded {} v{} ({}) in {}", entry.instance->name().value_or(entry.instance->id()), entry.instance->version(), entry.instance->id(), path.string()),
+        fmt::format("loaded {} v{} ({}) in {}", extension->name().value_or(extension->id()), extension->version(), extension->id(), path.string()),
         "extension/manager"
     });
 

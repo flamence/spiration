@@ -7,6 +7,7 @@
 #pragma once
 
 #include "widget.h"
+#include <spiration/export.h>
 #include <spiration/ui/layout.h>
 #include <spiration/utils/animation.h>
 #include <memory>
@@ -16,8 +17,14 @@ namespace spiration {
 /**
  * @brief 容器控件。
  */
-class container : public widget {
+class SPIRATION_EXPORT container : public widget {
 public:
+    container() = default;
+
+    // 不可拷贝（基类 widget 已删除拷贝）。
+    container(const container&) = delete;
+    container& operator=(const container&) = delete;
+
     void layout() override;
 
     void paint(std::shared_ptr<renderer> renderer) override;

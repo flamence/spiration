@@ -6,11 +6,13 @@ set(SPIRATION_CORE_SOURCES
     src/spiration/extension/extension_manager.cpp
     src/spiration/extension/extension_manifest.cpp
     src/spiration/extension/builtin/agent/agent_tab.cpp
+    src/spiration/extension/builtin/agent/anthropic_provider.cpp
     src/spiration/extension/builtin/agent/chat.cpp
     src/spiration/extension/builtin/agent/chat_store.cpp
     src/spiration/extension/builtin/agent/extension.cpp
-    src/spiration/extension/builtin/agent/provider.cpp
+    src/spiration/extension/builtin/agent/openai_provider.cpp
     src/spiration/extension/builtin/agent/registry.cpp
+    src/spiration/extension/builtin/agent/web_provider.cpp
     src/spiration/extension/builtin/agent/tool/edit_tool.cpp
     src/spiration/extension/builtin/agent/tool/memory_tool.cpp
     src/spiration/extension/builtin/agent/tool/sleep_tool.cpp

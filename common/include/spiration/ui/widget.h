@@ -9,6 +9,7 @@
 #include <algorithm>
 #include <functional>
 #include <memory>
+#include <spiration/export.h>
 #include <spiration/renderer/renderer.h>
 #include <spiration/ui/style.h>
 #include <spiration/window/event.h>
@@ -22,7 +23,7 @@ class root;
 /**
  * @brief 所有 UI 控件的抽象基类。
  */
-class widget {
+class SPIRATION_EXPORT widget {
 private:
     widget* parent_ = nullptr;
     std::vector<std::unique_ptr<widget>> children_;
@@ -44,6 +45,11 @@ public:
     widget() {
         init();
     }
+
+    // UI 控件不可拷贝（children_ 为 unique_ptr）。
+    // 显式删除避免 dllexport 强制实例化隐式（已删除）拷贝导致编译错误。
+    widget(const widget&) = delete;
+    widget& operator=(const widget&) = delete;
 
     virtual ~widget() {
         dispose();

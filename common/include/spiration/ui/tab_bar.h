@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <spiration/export.h>
 #include <spiration/ui/container.h>
 #include <spiration/ui/scroll_row.h>
 #include <spiration/utils/animation.h>
@@ -21,9 +22,15 @@ class tab_bar;
 /**
  * @brief 单个标签页。
  */
-class tab : public container {
+class SPIRATION_EXPORT tab : public container {
     friend class tab_bar;
 public:
+    tab() = default;
+
+    // 不可拷贝（基类已删除拷贝）。
+    tab(const tab&) = delete;
+    tab& operator=(const tab&) = delete;
+
     void set_title(const std::string& t) { 
         title_ = t; 
         if (on_title_change_) on_title_change_(title_);

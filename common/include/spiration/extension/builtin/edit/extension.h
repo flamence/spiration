@@ -8,6 +8,7 @@
 
 #include <spiration/application.h>
 #include <spiration/extension/builtin/edit/edit_tab.h>
+#include <spiration/extension/builtin/edit/edit_service.h>
 #include <spiration/extension/builtin/i18n/i18n.h>
 #include <spiration/extension/extension.hpp>
 #include <string>
@@ -17,8 +18,9 @@ namespace edit {
 
 /**
  * @brief 内置拓展编辑。
+ *        同时实现 edit_service，供其它拓展将文件打开到编辑器。
  */
-class extension : public spiration::extension {
+class extension : public spiration::extension, public edit_service {
 public:
     extension() : spiration::extension({
         "com.flamence.spiration.edit",
@@ -30,6 +32,10 @@ public:
 
     bool initialize() override;
     void shutdown() override;
+
+    void open_file(const ghc::filesystem::path& path) override;
+    void open_file_with_content(const ghc::filesystem::path& path,
+                                const std::string& content) override;
 
 private:
     /** @brief 所有打开的编辑器标签页指针列表。 */

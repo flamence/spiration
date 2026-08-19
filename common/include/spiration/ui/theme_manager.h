@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <spiration/export.h>
 #include <spiration/ui/color.h>
 #include <string>
 #include <vector>
@@ -16,7 +17,7 @@ namespace spiration {
 /**
  * @brief 主题管理器。
  */
-class theme_manager {
+class SPIRATION_EXPORT theme_manager {
 public:
     static constexpr const char* WINDOW_BG          = "window_bg";
     static constexpr const char* APPBAR_BG          = "appbar_bg";

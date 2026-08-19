@@ -179,8 +179,6 @@ private:
 
     /// @brief 清理不合规的历史消息。
     void sanitize_history();
-    std::string http_post(const std::string& url, const std::string& body,
-                          const std::vector<std::pair<std::string, std::string>>& headers) const;
     /// @brief 按名称查找工具。
     tool* find_tool(const std::string& name) const;
     /// @brief 在独立线程启动工具执行并返回 future。
@@ -191,6 +189,8 @@ private:
                              const std::function<bool()>& should_stop);
     chat_response send_stream(const chat_events& events);
     void append_assistant(const chat_response& resp);
+    /// @brief 将 provider 响应汇总为 chat_response 并更新 token 计数。
+    chat_response finalize_response(provider_response pr, const chat_events& events);
 };
 
 } // namespace agent

@@ -8,6 +8,7 @@
 
 #include <spiration/extension/builtin/agent/chat.h>
 #include <spiration/extension/builtin/agent/chat_store.h>
+#include <spiration/extension/builtin/agent/registry.h>
 #include <spiration/extension/builtin/agent/ui/todo_view.h>
 
 #include <spiration/ui/button.h>
@@ -42,12 +43,6 @@ namespace agent {
 struct display_message {
     std::string role;
     std::string content;
-};
-
-/// @brief 模型选项。
-struct model_option {
-    std::string display_name;
-    chat_client::config cfg;
 };
 
 /// @brief 后台初始加载结果。

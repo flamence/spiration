@@ -9,6 +9,7 @@
 #include <cstdint>
 #include <memory>
 #include <string>
+#include <spiration/export.h>
 #include <spiration/ui/color.h>
 #include <spiration/ui/rectangle.h>
 
@@ -32,7 +33,7 @@ enum class vertical_alignment {
 /**
  * @brief 2D 渲染器抽象基类。
  */
-class renderer {
+class SPIRATION_EXPORT renderer {
 public:
     virtual ~renderer() = default;
     

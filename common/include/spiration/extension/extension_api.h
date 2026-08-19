@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <spiration/export.h>
 #include <spiration/extension/extension_manager.h>
 
 #include <ghc/filesystem.hpp>
@@ -26,7 +27,7 @@ class extension;
 /**
  * @brief 拓展 API 上下文。
  */
-class extension_api {
+class SPIRATION_EXPORT extension_api {
 public:
     explicit extension_api(std::string id);
 
@@ -81,6 +82,12 @@ public:
      * @brief 获取本扩展所在的目录路径。
      */
     ghc::filesystem::path extension_directory() const;
+
+    /**
+     * @brief 加载本扩展的翻译文件到当前语言（供 tr() 使用）。
+     * @param filepath 语言文件路径（properties 格式）
+     */
+    void load_translations(const ghc::filesystem::path& filepath) const;
 
     /**
      * @brief 请求重绘窗口。
@@ -163,6 +170,22 @@ public:
     // ---- 拓展间服务查询 ----
 
     /**
+     * @brief 注册本扩展提供的命名服务，供其他扩展查询。
+     * @param name 服务名称
+     * @param svc  服务实例指针
+     */
+    void register_service(const std::string& name, void* svc) const;
+
+    /**
+     * @brief 查询其他拓展暴露的命名服务（返回原始指针，供模板包装调用）。
+     * @param extension_id 目标拓展 ID
+     * @param name         服务名称
+     * @return 服务指针，不存在返回 nullptr
+     */
+    void* get_service(const std::string& extension_id,
+                      const std::string& name) const;
+
+    /**
      * @brief 查询其他拓展暴露的命名服务。
      * @tparam T 期望的服务类型
      * @param extension_id 目标拓展 ID
@@ -172,8 +195,7 @@ public:
     template<typename T>
     T* get_service(const std::string& extension_id,
                    const std::string& name) const {
-        return static_cast<T*>(
-            application::instance()->extension()->get_service(extension_id, name));
+        return static_cast<T*>(get_service(extension_id, name));
     }
 
     /** @brief 扩展被加载事件名 */

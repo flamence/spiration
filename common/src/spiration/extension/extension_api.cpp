@@ -73,6 +73,27 @@ ghc::filesystem::path extension_api::extension_directory() const {
     return application::instance()->extension()->extension_directory(id_);
 }
 
+void extension_api::register_service(const std::string& name, void* svc) const {
+    application::instance()->extension()->register_service(id_, name, svc);
+}
+
+void* extension_api::get_service(const std::string& extension_id,
+                                 const std::string& name) const {
+    return application::instance()->extension()->get_service(extension_id, name);
+}
+
+void extension_api::load_translations(const ghc::filesystem::path& filepath) const {
+    auto& i18n = i18n_manager::get();
+    std::string locale = i18n.get_locale();
+    if (locale.empty()) locale = "zh-CN";
+    if (i18n.load(locale, filepath)) {
+        application::instance()->logger()->log(
+            {logging::level::info,
+             fmt::format("loaded translations from {}", filepath.string()),
+             fmt::format("extension/{}/i18n", simple_id())});
+    }
+}
+
 void extension_api::request_repaint() const {
     auto window = spiration::application::instance()->window();
     if (window) {

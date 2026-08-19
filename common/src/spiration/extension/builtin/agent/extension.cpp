@@ -5,6 +5,7 @@
  */
 
 #include <spiration/extension/builtin/agent/extension.h>
+#include <spiration/extension/builtin/edit/edit_service.h>
 #include <spiration/extension/builtin/i18n/i18n.h>
 #include <spiration/extension/extension_api.h>
 #include <spiration/extension/extension_manager.h>
@@ -17,8 +18,6 @@
 
 namespace spiration {
 namespace agent {
-
-const std::string agent::extension::ID = "com.flamence.spiration.agent";
 
 namespace {
 
@@ -159,6 +158,13 @@ bool extension::initialize() {
         open_agent_tab();
     });
 
+    api->add_menu_item("menu.help", i18n_manager::get().tr("menu.help.configure_models"), [this]() {
+        configure_models();
+    });
+
+    // 订阅模型来源变更（外部拓展增减模型后刷新已打开的智能体标签页下拉框）。
+    agent_registry::instance().on_models_changed([this]() { on_models_changed(); });
+
     return true;
 }
 
@@ -196,16 +202,60 @@ void extension::shutdown() {
 
 void extension::open_agent_tab() {
     if (agent_tab_) {
-        if (api->activate_tab(agent_tab_)) return;
+        if (api->activate_tab(agent_tab_)) {
+            // 已打开的标签页也重新合并外部模型，保证下拉框最新。
+            auto merged = models_;
+            merge_external_models(merged);
+            agent_tab_->set_models(std::move(merged));
+            return;
+        }
         agent_tab_ = nullptr;
     }
     auto tab = std::make_unique<agent_tab>(client_, store_);
     tab->set_repaint_callback([this]() { if (api) api->request_repaint(); });
     tab->on_conversation_done = [this](agent_tab* t) { save_conversation(t); };
     tab->on_destroyed = [this]() { agent_tab_ = nullptr; };  // 标签页关闭时清引用
-    tab->set_models(models_);
+    auto merged = models_;
+    merge_external_models(merged);
+    tab->set_models(std::move(merged));
     agent_tab_ = tab.get();
     api->open_tab(std::move(tab));
+}
+
+void extension::on_models_changed() {
+    // 外部模型来源变更后刷新已打开标签页的下拉框（未打开则下次 open 时合并）。
+    if (!agent_tab_) return;
+    auto merged = models_;
+    merge_external_models(merged);
+    agent_tab_->set_models(std::move(merged));
+}
+
+void extension::merge_external_models(std::vector<model_option>& models) const {
+    // 外部拓展通过注册表注册模型来源，向智能体提供可选模型；按 cfg.model 去重后并入下拉框。
+    for (auto& m : agent_registry::instance().collect_models()) {
+        bool dup = false;
+        for (const auto& mm : models) {
+            if (mm.cfg.model == m.cfg.model) { dup = true; break; }
+        }
+        if (dup) continue;
+        models.push_back(std::move(m));
+    }
+}
+
+void extension::configure_models() {
+    if (!api) return;
+    ghc::filesystem::path models_path = data_dir_ / "cnf/models.json";
+    if (!ghc::filesystem::exists(models_path)) {
+        api->log_warning(fmt::format("models.json not found: {}", models_path.string()));
+    }
+
+    edit::edit_service* svc = api->get_service<edit::edit_service>(
+        edit::edit_service::EXTENSION_ID, edit::edit_service::SERVICE_NAME);
+    if (!svc) {
+        api->log_warning("edit service unavailable");
+        return;
+    }
+    svc->open_file(models_path);
 }
 
 void extension::save_conversation(agent_tab* tab) {

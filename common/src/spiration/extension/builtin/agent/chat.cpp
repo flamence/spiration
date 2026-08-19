@@ -28,25 +28,6 @@
 namespace spiration {
 namespace agent {
 
-namespace {
-
-/// @brief 将收到的数据块按行切分并交给 provider 处理（SSE）。
-void process_stream_chunk(stream_context& ctx, const char* data, size_t size) {
-    if (!data || size == 0) return;
-    if (ctx.should_stop && ctx.should_stop()) return;
-
-    ctx.line_buf.append(data, size);
-    size_t pos;
-    while ((pos = ctx.line_buf.find('\n')) != std::string::npos) {
-        std::string line = ctx.line_buf.substr(0, pos);
-        ctx.line_buf.erase(0, pos + 1);
-        if (!line.empty() && line.back() == '\r') line.pop_back();
-        if (ctx.provider) ctx.provider->handle_stream_line(line, ctx);
-    }
-}
-
-} // namespace
-
 chat_client::chat_client(const config& cfg) : cfg_(cfg) {
     provider_ = agent_registry::instance().create_provider(cfg_.provider);
 }
@@ -109,25 +90,6 @@ void chat_client::wait_all_tools() {
 
 void chat_client::clear_tools() {
     tools_.clear();
-}
-
-std::string chat_client::http_post(const std::string& url, const std::string& body,
-                                   const std::vector<std::pair<std::string, std::string>>& headers) const {
-    net::http_request req;
-    req.method = "POST";
-    req.url = url;
-    req.body = body;
-    req.timeout_seconds = cfg_.timeout_seconds;
-    req.user_agent = "spiration/1.0";
-    req.headers = headers;
-    req.headers.push_back({"Content-Type", "application/json"});
-
-    net::http_response resp = net::http().request(req);
-    if (!resp.error.empty()) {
-        application::instance()->logger()->log({logging::level::error, fmt::format("http request failed: {}", resp.error), "extension/agent"});
-        return {};
-    }
-    return resp.body;
 }
 
 chat_response chat_client::send() {
@@ -212,92 +174,60 @@ chat_response chat_client::send_stream(const chat_events& events) {
     }
 
     provider_request req;
-    req.model       = cfg_.model;
-    req.max_tokens  = cfg_.max_tokens;
-    req.temperature = cfg_.temperature;
-    req.stream      = cfg_.stream;
-    req.reasoning   = cfg_.reasoning;
-    req.messages    = msgs;
+    req.model           = cfg_.model;
+    req.endpoint        = cfg_.endpoint;
+    req.api_key         = cfg_.api_key;
+    req.timeout_seconds = cfg_.timeout_seconds;
+    req.max_tokens      = cfg_.max_tokens;
+    req.temperature     = cfg_.temperature;
+    req.stream          = cfg_.stream;
+    req.reasoning       = cfg_.reasoning;
+    req.messages        = msgs;
     for (const auto* t : tools_) {
         if (t) req.tools.push_back(t->to_definition());
     }
 
-    std::string url = provider_->chat_url(cfg_.endpoint);
-    auto headers = provider_->request_headers(cfg_.api_key);
-    std::string body;
+    // 由 provider 构造上下文（含思考过程与工具装配），再统一处理/发送。
+    std::unique_ptr<provider_context> ctx;
     try {
-        body = provider_->build_request_body(req);
+        ctx = provider_->build_context(req);
     } catch (const std::exception& e) {
-        application::instance()->logger()->log({logging::level::error, fmt::format("build request body failed: {}", e.what()), "extension/agent"});
+        application::instance()->logger()->log({logging::level::error, fmt::format("build context failed: {}", e.what()), "extension/agent"});
+        return {};
+    }
+    if (!ctx) {
+        application::instance()->logger()->log({logging::level::error, "provider failed to build context", "extension/agent"});
         return {};
     }
 
-    application::instance()->logger()->log({logging::level::info, fmt::format("POST {} (provider={}, stream={})", url, provider_->name(), cfg_.stream ? 1 : 0), "extension/agent"});
+    ctx->on_delta = events.on_delta;
+    ctx->on_reasoning_delta = events.on_reasoning_delta;
+    ctx->should_stop = events.should_stop;
 
-    if (!cfg_.stream) {
-        std::string response = http_post(url, body, headers);
-        if (response.empty()) {
-            application::instance()->logger()->log({logging::level::warning, "empty response", "extension/agent"});
-            return {};
-        }
-        chat_response resp;
-        try {
-            provider_response pr = provider_->parse_response(response);
-            resp.content           = pr.content;
-            resp.reasoning_content = pr.reasoning_content;
-            resp.tool_calls        = std::move(pr.tool_calls);
-            resp.finish_reason     = pr.finish_reason;
-            total_input_.fetch_add(pr.prompt_tokens, std::memory_order_relaxed);
-            total_output_.fetch_add(pr.completion_tokens, std::memory_order_relaxed);
-            if (on_tokens_updated) on_tokens_updated();
-        } catch (const std::exception& e) {
-            application::instance()->logger()->log({logging::level::error, fmt::format("parse response failed: {}", e.what()), "extension/agent"});
-            return {};
-        }
-        if (events.on_delta && !resp.content.empty())
-            events.on_delta(resp.content);
-        if (events.on_reasoning_delta && !resp.reasoning_content.empty())
-            events.on_reasoning_delta(resp.reasoning_content);
-        append_assistant(resp);
-        return resp;
+    provider_response pr;
+    try {
+        pr = provider_->execute(*ctx);
+    } catch (const std::exception& e) {
+        application::instance()->logger()->log({logging::level::error, fmt::format("provider execute failed: {}", e.what()), "extension/agent"});
+        return {};
     }
 
-    stream_context ctx;
-    ctx.provider = provider_.get();
-    ctx.on_delta = events.on_delta;
-    ctx.on_reasoning_delta = events.on_reasoning_delta;
-    ctx.should_stop = events.should_stop;
+    return finalize_response(std::move(pr), events);
+}
 
-    net::http_request http_req;
-    http_req.method = "POST";
-    http_req.url = url;
-    http_req.body = body;
-    http_req.timeout_seconds = cfg_.timeout_seconds;
-    http_req.user_agent = "spiration/1.0";
-    http_req.headers = headers;
-    http_req.headers.push_back({"Content-Type", "application/json"});
-
-    net::http_response http_resp = net::http().request_stream(
-        http_req,
-        [&ctx](const char* data, size_t size) { process_stream_chunk(ctx, data, size); },
-        events.should_stop);
-
-    if (!http_resp.error.empty()) {
-        if (!(events.should_stop && events.should_stop())) {
-            application::instance()->logger()->log({logging::level::error, fmt::format("http stream request failed: {}", http_resp.error), "extension/agent"});
-        }
-    }
-
+chat_response chat_client::finalize_response(provider_response pr, const chat_events& events) {
     chat_response resp;
-    resp.content           = ctx.content;
-    resp.reasoning_content = ctx.reasoning;
-    resp.finish_reason     = ctx.finish_reason;
-    total_input_.fetch_add(ctx.prompt_tokens, std::memory_order_relaxed);
-    total_output_.fetch_add(ctx.completion_tokens, std::memory_order_relaxed);
+    resp.content           = pr.content;
+    resp.reasoning_content = pr.reasoning_content;
+    resp.tool_calls        = std::move(pr.tool_calls);
+    resp.finish_reason     = pr.finish_reason;
+    total_input_.fetch_add(pr.prompt_tokens, std::memory_order_relaxed);
+    total_output_.fetch_add(pr.completion_tokens, std::memory_order_relaxed);
     if (on_tokens_updated) on_tokens_updated();
-    for (auto& tc_entry : ctx.tc_map)
-        resp.tool_calls.push_back(std::move(tc_entry.second));
-
+    if (events.on_delta && !resp.content.empty())
+        events.on_delta(resp.content);
+    if (events.on_reasoning_delta && !resp.reasoning_content.empty())
+        events.on_reasoning_delta(resp.reasoning_content);
     append_assistant(resp);
     return resp;
 }

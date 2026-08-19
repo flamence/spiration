@@ -94,7 +94,6 @@ void popup_menu::tick(float dt_ms) {
 }
 
 void popup_menu::paint(std::shared_ptr<renderer> renderer) {
-    // root 已通过 push_transform 处理 (x,y)，此处用 (0,0) 基准
     renderer->draw_rectangle({0, 0, width, height}, theme_manager::get(theme_manager::POPUP_BG));
 
     float iy = 0;

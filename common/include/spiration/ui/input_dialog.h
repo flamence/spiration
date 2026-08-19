@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <spiration/export.h>
 #include <spiration/ui/container.h>
 #include <spiration/ui/button.h>
 #include <spiration/ui/text_field.h>
@@ -19,9 +20,12 @@ namespace spiration {
 /**
  * @brief 模态输入对话框。
  */
-class input_dialog : public container {
+class SPIRATION_EXPORT input_dialog : public container {
 public:
     input_dialog();
+
+    input_dialog(const input_dialog&) = delete;
+    input_dialog& operator=(const input_dialog&) = delete;
 
     void paint(std::shared_ptr<renderer> renderer) override;
     void handle_event(const event_type& type, void* data) override;

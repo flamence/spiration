@@ -6,6 +6,8 @@
 
 #include <spiration/application.h>
 #include <spiration/extension/builtin/agent/registry.h>
+#include <spiration/extension/builtin/agent/anthropic_provider.h>
+#include <spiration/extension/builtin/agent/openai_provider.h>
 
 #include <exception>
 #include <fmt/format.h>
@@ -16,6 +18,12 @@ namespace agent {
 agent_registry& agent_registry::instance() {
     static agent_registry inst;
     return inst;
+}
+
+agent_registry::agent_registry() {
+    // 内置基于 HTTP/SSE 的 provider，与其它拓展通过服务注册的自定义 provider 统一管理。
+    register_provider("openai", []() { return std::make_unique<openai_provider>(); });
+    register_provider("anthropic", []() { return std::make_unique<anthropic_provider>(); });
 }
 
 void agent_registry::register_provider(
@@ -32,15 +40,14 @@ std::unique_ptr<provider> agent_registry::create_provider(const std::string& nam
         auto it = providers_.find(name);
         if (it != providers_.end()) factory = it->second;
     }
-    if (factory) {
-        try {
-            std::unique_ptr<provider> p = factory();
-            if (p) return p;
-        } catch (const std::exception& e) {
-            application::instance()->logger()->log({logging::level::error, fmt::format("provider \"{}\" factory threw: {}", name, e.what()), "extension/agent/registry"});
-        }
+    if (!factory) return nullptr;
+    try {
+        std::unique_ptr<provider> p = factory();
+        if (p) return p;
+    } catch (const std::exception& e) {
+        application::instance()->logger()->log({logging::level::error, fmt::format("provider \"{}\" factory threw: {}", name, e.what()), "extension/agent/registry"});
     }
-    return spiration::agent::create_provider(name);
+    return nullptr;
 }
 
 std::vector<std::string> agent_registry::provider_names() const {
@@ -63,6 +70,59 @@ std::vector<tool*> agent_registry::tools() const {
     out.reserve(tools_.size());
     for (const auto& t : tools_) out.push_back(t.get());
     return out;
+}
+
+void agent_registry::register_model_source(model_source source) {
+    if (!source) return;
+    std::lock_guard<std::mutex> lk(mtx_);
+    model_sources_.push_back(std::move(source));
+}
+
+std::vector<model_option> agent_registry::collect_models() const {
+    std::vector<model_source> sources;
+    {
+        std::lock_guard<std::mutex> lk(mtx_);
+        sources = model_sources_;
+    }
+    std::vector<model_option> out;
+    for (auto& src : sources) {
+        try {
+            auto models = src();
+            for (auto& m : models) out.push_back(std::move(m));
+        } catch (const std::exception& e) {
+            application::instance()->logger()->log(
+                {logging::level::error,
+                 fmt::format("model source threw: {}", e.what()),
+                 "extension/agent/registry"});
+        }
+    }
+    return out;
+}
+
+int agent_registry::on_models_changed(std::function<void()> cb) {
+    if (!cb) return 0;
+    std::lock_guard<std::mutex> lk(mtx_);
+    int id = next_cb_id_++;
+    models_changed_cbs_[id] = std::move(cb);
+    return id;
+}
+
+void agent_registry::notify_models_changed() {
+    std::vector<std::function<void()>> cbs;
+    {
+        std::lock_guard<std::mutex> lk(mtx_);
+        for (const auto& kv : models_changed_cbs_) cbs.push_back(kv.second);
+    }
+    for (auto& cb : cbs) {
+        try {
+            cb();
+        } catch (const std::exception& e) {
+            application::instance()->logger()->log(
+                {logging::level::error,
+                 fmt::format("models_changed callback threw: {}", e.what()),
+                 "extension/agent/registry"});
+        }
+    }
 }
 
 } // namespace agent
