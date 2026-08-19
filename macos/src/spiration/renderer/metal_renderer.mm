@@ -5,9 +5,9 @@
  */
 
 #import <spiration/renderer/metal_renderer.h>
-#import <ui/color.h>
-#import <ui/point.h>
-#import <ui/rectangle.h>
+#import <spiration/ui/color.h>
+#import <spiration/ui/point.h>
+#import <spiration/ui/rectangle.h>
 #import <Metal/Metal.h>
 #import <QuartzCore/QuartzCore.h>
 #import <CoreText/CoreText.h>
