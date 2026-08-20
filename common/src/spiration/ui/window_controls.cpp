@@ -40,13 +40,32 @@ void window_controls::handle_event(const event_type& type, void* data) {
         float my = md->position.y;
 
         hit_part part = hit_test_btn(mx, my);
-        bool oldHover = hover_min_ || hover_max_ || hover_close_;
+        bool changed = false;
+        bool old_min = hover_min_;
+        bool old_max = hover_max_;
+        bool old_close = hover_close_;
         hover_min_ = (part == hit_part::min);
         hover_max_ = (part == hit_part::max);
         hover_close_ = (part == hit_part::close);
-        if (oldHover != (hover_min_ || hover_max_ || hover_close_)) {
-            if (request_repaint_) request_repaint_();
+        if (hover_min_ != old_min) {
+            hover_min_bg_.animate_to(hover_min_
+                ? theme_manager::get(theme_manager::CONTROL_HOVER_BG)
+                : color::transparent(), 100.0f);
+            changed = true;
         }
+        if (hover_max_ != old_max) {
+            hover_max_bg_.animate_to(hover_max_
+                ? theme_manager::get(theme_manager::CONTROL_HOVER_BG)
+                : color::transparent(), 100.0f);
+            changed = true;
+        }
+        if (hover_close_ != old_close) {
+            close_bg_.animate_to(hover_close_
+                ? theme_manager::get(theme_manager::CLOSE_HOVER)
+                : color::transparent(), 100.0f);
+            changed = true;
+        }
+        if (changed && request_repaint_) request_repaint_();
 
         if (md->action == mouse_action::down && part != hit_part::none) {
             md->consumed = true;
@@ -61,6 +80,14 @@ void window_controls::handle_event(const event_type& type, void* data) {
         }
     }
     container::handle_event(type, data);
+}
+
+void window_controls::tick(float dt_ms) {
+    if (hover_min_bg_.update(dt_ms) || hover_max_bg_.update(dt_ms) ||
+        close_bg_.update(dt_ms)) {
+        if (request_repaint_) request_repaint_();
+    }
+    container::tick(dt_ms);
 }
 
 void window_controls::paint(std::shared_ptr<renderer> renderer) {
@@ -88,16 +115,14 @@ void window_controls::paint(std::shared_ptr<renderer> renderer) {
     float cx[3] = { startX + btn_size_ * 0.5f,
                     startX + btn_size_ * 1.5f,
                     startX + btn_size_ * 2.5f };
-    bool hovers[3] = { hover_min_, hover_max_, hover_close_ };
 
     for (int i = 0; i < 3; ++i) {
         float bx = startX + static_cast<float>(i) * btn_size_;
-        if (i == 2) {
-            color bg = hovers[i] ? theme_manager::get(theme_manager::CLOSE_HOVER) : color::transparent();
-            renderer->draw_rectangle({bx, 0, btn_size_, h}, bg);
-        } else if (hovers[i]) {
-            renderer->draw_rectangle({bx, 0, btn_size_, h}, theme_manager::get(theme_manager::CONTROL_HOVER_BG));
-        }
+        color bg = color::transparent();
+        if (i == 0) bg = hover_min_bg_.current();
+        else if (i == 1) bg = hover_max_bg_.current();
+        else bg = close_bg_.current();
+        renderer->draw_rectangle({bx, 0, btn_size_, h}, bg);
     }
 
     float cy = y + h * 0.5f;

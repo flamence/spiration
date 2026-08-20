@@ -29,6 +29,8 @@ public:
     std::function<void(const std::string&)> on_changed;
     ///< 保存回调。
     std::function<void()> on_save;
+    ///< 提交回调（submit_on_enter 时 Enter 触发）。
+    std::function<void(const std::string&)> on_submit;
 
     ///< 行高。
     float line_height = 22.0f;
@@ -46,12 +48,21 @@ public:
     float text_pad_top = 8.0f;
     ///< 滚动条宽度。
     float scroll_bar_width = 14.0f;
+    ///< 空文本且未聚焦时显示的占位文本。
+    std::string placeholder;
+    ///< 是否 Enter 提交（Shift+Enter 仍插入换行）。
+    bool submit_on_enter = false;
 
     bool hit_test(float x, float y) const override;
     void tick(float dt_ms) override;
     void handle_event(const event_type& type, void* data) override;
     void paint(std::shared_ptr<renderer> renderer) override;
     size layout_preferred_size() const override;
+
+    ///< 文本总行数（不含末尾空行）。
+    size_t line_count() const;
+    ///< 内容按当前行高/内边距计算的自然高度。
+    float content_preferred_height() const;
 
     void focus();
     void blur();
@@ -99,6 +110,9 @@ public:
 protected:
     float cursor_pixel_x_ = -1.0f;
 
+    /// @brief 上报光标位置供输入法定位。
+    virtual void report_ime_caret();
+
     ///< 文本起始 X。
     float text_x() const {
         return (show_line_numbers ? gutter_width : 0.0f) + text_pad_left;
@@ -108,7 +122,6 @@ private:
     std::vector<size_t> line_starts_;
     bool line_starts_dirty_ = true;
     void rebuild_line_starts();
-    size_t line_count() const;
     nonstd::string_view line_text(size_t n) const;
 
     bool focused_ = false;

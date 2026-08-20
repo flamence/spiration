@@ -62,6 +62,20 @@ public:
      * @param message 日志消息
      * @param tag 日志标签
      */
+    void log_trace(const std::string& message, tl::optional<std::string> tag = tl::nullopt) const;
+
+    /**
+     * @brief 记录日志信息。
+     * @param message 日志消息
+     * @param tag 日志标签
+     */
+    void log_debug(const std::string& message, tl::optional<std::string> tag = tl::nullopt) const;
+
+    /**
+     * @brief 记录日志信息。
+     * @param message 日志消息
+     * @param tag 日志标签
+     */
     void log_info(const std::string& message, tl::optional<std::string> tag = tl::nullopt) const;
 
     /**

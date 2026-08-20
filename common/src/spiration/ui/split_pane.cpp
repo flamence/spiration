@@ -165,6 +165,10 @@ void split_pane::set_split_ratio(float ratio) {
     if (request_repaint_) request_repaint_();
 }
 
+void split_pane::set_split_ratio_silent(float ratio) {
+    split_ratio_ = std::max(0.0f, std::min(max_ratio, ratio));
+}
+
 widget* split_pane::first() const {
     return children().empty() ? nullptr : children()[0].get();
 }

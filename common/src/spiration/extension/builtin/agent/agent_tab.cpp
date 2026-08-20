@@ -4,12 +4,15 @@
  * @author clk
  */
 
+#include <spiration/application.h>
 #include <spiration/extension/builtin/agent/agent_tab.h>
 #include <spiration/extension/builtin/i18n/i18n.h>
+#include <spiration/utils/dispatcher.h>
 #include <spiration/ui/context_menu.h>
 
 #include <algorithm>
 #include <exception>
+#include <tl/optional.hpp>
 
 namespace spiration {
 namespace agent {
@@ -20,6 +23,39 @@ constexpr float BACKBAR_H  = 34.0f;   ///< 竖屏返回栏高度
 constexpr float SETTINGS_H = 34.0f;   ///< 底部设置栏高度
 constexpr float INPUTBAR_H = 46.0f;   ///< 输入栏高度
 constexpr float PAD        = 12.0f;   ///< 输入栏外边距
+
+/// @brief 返回字符串末尾不完整 UTF-8 序列的字节数（0 表示以完整字符结尾）。
+size_t trailing_incomplete_utf8(const std::string& s) {
+    const size_t n = s.size();
+    if (n == 0) return 0;
+    const unsigned char last = static_cast<unsigned char>(s[n - 1]);
+    if (last < 0x80) return 0;  // 以 ASCII 结尾，完整
+    if ((last & 0xC0) != 0x80) return 1;  // 结尾是引导字节，等待续字节
+    // 结尾是续字节：向前找引导字节。
+    size_t start = n;
+    while (start > 0 && (static_cast<unsigned char>(s[start - 1]) & 0xC0) == 0x80) --start;
+    if (start == n) return 0;  // 全是孤立续字节，无法修复
+    const unsigned char lead = static_cast<unsigned char>(s[start]);
+    size_t total = 0;
+    if ((lead & 0xF8) == 0xF0) total = 4;
+    else if ((lead & 0xF0) == 0xE0) total = 3;
+    else if ((lead & 0xE0) == 0xC0) total = 2;
+    else return 0;  // 非法引导字节
+    const size_t have = n - start;
+    return (have < total) ? have : 0;
+}
+
+/// @brief 把 src 追加到 dest，末尾不完整的 UTF-8 字节暂存到 hold 供下批补全。
+void utf8_append(std::string& dest, std::string& hold, const std::string& src) {
+    std::string add = hold + src;
+    hold.clear();
+    const size_t hold_bytes = trailing_incomplete_utf8(add);
+    if (hold_bytes > 0) {
+        hold = add.substr(add.size() - hold_bytes);
+        add.resize(add.size() - hold_bytes);
+    }
+    dest += add;
+}
 
 std::string tool_display_name(const std::string& name) {
     return i18n_manager::get().tr("tool." + name, name);
@@ -154,14 +190,23 @@ agent_tab::agent_tab(std::shared_ptr<chat_client> client, std::shared_ptr<chat_s
     tc->set_expanded(false);
     todo_capsule_ = tc.get();
 
-    auto tv_scroll = std::make_unique<container>();
-    tv_scroll->widget_style.overflow_y = true;
-    tv_scroll->widget_style.background_color = color::transparent();
     auto tv = std::make_unique<todo_view>();
     tv->on_content_changed = [this]() { update_todo_capsule(); };
     todo_view_ = tv.get();
-    tv_scroll->add_child(std::move(tv));
-    tc->set_content(std::move(tv_scroll));
+    todo_capsule_->show_summary_action = true;
+    todo_capsule_->on_summary_action = [this]() {
+        todo_store::instance().clear();
+        save_current();
+        update_todo_capsule();
+    };
+    tc->on_collapsed = [this]() {
+        if (todo_count_ == 0 && todo_capsule_) {
+            todo_capsule_->width = 0.0f;
+            todo_capsule_->height = 0.0f;
+            relayout_scroll_repaint();
+        }
+    };
+    tc->set_content(std::move(tv));
 
     chat_pane_->add_child(std::move(tc));
 
@@ -174,11 +219,15 @@ agent_tab::agent_tab(std::shared_ptr<chat_client> client, std::shared_ptr<chat_s
     mc->font_size = 12.0f;
     mc->item_height = 22.0f;
     mc->on_changed = [this](int idx) {
-        if (!client_ || !model_combo_) return;
-        if (idx >= 0 && idx < static_cast<int>(models_.size())) {
-            client_->configure(models_[static_cast<size_t>(idx)].cfg);
-            save_current();
-            refresh_reasoning_combo();  // 模型/provider 切换后更新可用思考挡位
+        try {
+            if (!client_ || !model_combo_) return;
+            if (idx >= 0 && idx < static_cast<int>(models_.size())) {
+                client_->configure(models_[static_cast<size_t>(idx)].cfg);
+                save_current();
+                refresh_reasoning_combo();  // 模型/provider 切换后更新可用思考挡位
+            }
+        } catch (const std::exception& e) {
+            application::instance()->logger()->log({logging::level::error, fmt::format("model switch threw: {}", e.what()), "extension/agent"});
         }
     };
     mc->popup_up = true;
@@ -220,13 +269,22 @@ agent_tab::agent_tab(std::shared_ptr<chat_client> client, std::shared_ptr<chat_s
     bar->widget_style.background_color = color::transparent();
     input_bar_ = bar.get();
 
-    auto tf = std::make_unique<text_field>();
-    tf->placeholder = i18n_manager::get().tr("tab.agent.input_placeholder");
-    tf->font_size = 13.0f;
-    tf->widget_style.margin = margin(6, 0);
-    tf->on_submit = [this](const std::string&) { send(); };
-    input_ = tf.get();
-    bar->add_child(std::move(tf));
+    auto ta = std::make_unique<text_area>();
+    ta->placeholder = i18n_manager::get().tr("tab.agent.input_placeholder");
+    ta->font_size = 13.0f;
+    ta->font_family = theme_manager::get_str(theme_manager::UI_FONT);
+    ta->line_height = 20.0f;
+    ta->text_pad_top = 7.0f;
+    ta->text_pad_left = 8.0f;
+    ta->text_pad_right = 10.0f;
+    ta->show_line_numbers = false;
+    ta->submit_on_enter = true;
+    ta->widget_style.background_color = theme_manager::get(theme_manager::INPUT_BG);
+    ta->widget_style.margin = margin(6, 0);
+    ta->on_submit = [this](const std::string&) { send(); };
+    ta->on_changed = [this](const std::string&) { update_input_height(); };
+    input_ = ta.get();
+    bar->add_child(std::move(ta));
 
     auto btn = std::make_unique<button>();
     btn->text = i18n_manager::get().tr("tab.agent.send");
@@ -237,7 +295,10 @@ agent_tab::agent_tab(std::shared_ptr<chat_client> client, std::shared_ptr<chat_s
     btn->set_base_bg(theme_manager::get(theme_manager::BUTTON_BG));
     btn->on_click = [this]() {
         if (waiting_) {
+            // 停止：置位标志并清空待发队列，避免停止后被队列中的消息自动续跑。
             stop_flag_->store(true);
+            queued_inputs_.clear();
+            supplement_requested_ = false;
         } else {
             send();
         }
@@ -345,6 +406,8 @@ void agent_tab::handle_event(const event_type& type, void* data) {
 }
 
 void agent_tab::layout() {
+    on_layout_begin();
+
     landscape_ = width >= height;
 
     if (landscape_) {
@@ -355,6 +418,11 @@ void agent_tab::layout() {
         split_pane_->dir = split_pane::direction::horizontal;
         split_pane_->show_handle = true;
         split_pane_->auto_layout = true;
+        if (list_collapsed_) {
+            // 折叠态按当前宽度重算小比例，保证缩放窗口时列表保持收起。
+            float avail = std::max(1.0f, width - split_pane_->handle_size);
+            split_pane_->set_split_ratio_silent(32.0f / avail);
+        }
         split_pane_->layout();
 
         list_collapsed_ = list_pane_->width < 40.0f;
@@ -453,7 +521,14 @@ void agent_tab::layout_chat_internal() {
         back_btn_->height = 0;
     }
 
-    float settings_y = ch - SETTINGS_H - INPUTBAR_H - PAD;
+    // 输入栏高度随内容增长，达到上限后内部滚动。
+    float input_h = INPUTBAR_H;
+    if (input_) {
+        float pref = input_->content_preferred_height();
+        input_h = std::max(INPUTBAR_H, std::min(pref, MAX_INPUT_H));
+    }
+
+    float settings_y = ch - SETTINGS_H - input_h - PAD;
     float capsule_h = 0.0f;
     if (todo_count_ > 0) {
         todo_capsule_->x = 0;
@@ -461,8 +536,15 @@ void agent_tab::layout_chat_internal() {
         todo_capsule_->layout();
         capsule_h = todo_capsule_->height;
     } else {
-        todo_capsule_->width = 0;
-        todo_capsule_->height = 0;
+        // 无待办：胶囊由自身动画平滑折叠（update_todo_capsule 已 set_expanded(false)），
+        // 折叠期间保持宽度正常布局；折叠完成由 on_collapsed 回调置 0 隐藏。
+        if (todo_capsule_->width > 0.0f) {
+            todo_capsule_->width = cw;
+            todo_capsule_->layout();
+        } else {
+            todo_capsule_->width = 0.0f;
+            todo_capsule_->height = 0.0f;
+        }
     }
     float capsule_y = settings_y - capsule_h;
     if (todo_count_ > 0) todo_capsule_->y = capsule_y;
@@ -529,9 +611,9 @@ void agent_tab::layout_chat_internal() {
     scroll_->layout();
 
     input_bar_->x = PAD;
-    input_bar_->y = ch - INPUTBAR_H - PAD;
+    input_bar_->y = ch - input_h - PAD;
     input_bar_->width = std::max(0.0f, cw - PAD * 2);
-    input_bar_->height = INPUTBAR_H;
+    input_bar_->height = input_h;
     input_bar_->layout();
 }
 
@@ -554,6 +636,25 @@ void agent_tab::relayout_scroll_repaint() {
     }
 
     if (scroll_ && at_bottom) {
+        scroll_->scroll_to_y(99999.0f);
+    }
+    if (request_repaint_) request_repaint_();
+}
+
+void agent_tab::relayout_msg_chain(bool force_bottom) {
+    if (layout_batch_) return;
+    bool at_bottom = false;
+    if (scroll_ && scroll_->scroll_max_y() > 0.0f) {
+        at_bottom = scroll_->scroll_offset_y() >= scroll_->scroll_max_y() - 1.0f;
+    }
+    widget* w = msg_list_ ? msg_list_ : this;
+    unsigned depth = 0;
+    while (w && depth <= 3) {
+        w->layout();
+        w = w->parent();
+        ++depth;
+    }
+    if (scroll_ && (force_bottom || at_bottom)) {
         scroll_->scroll_to_y(99999.0f);
     }
     if (request_repaint_) request_repaint_();
@@ -600,12 +701,15 @@ void agent_tab::process_stream_events(size_t max_events) {
                     md->selectable = true;
                     thinking_label_ = md.get();
                     thinking_scroll_->add_child(std::move(md));
+                    thinking_capsule_->set_expanded(true);  // 实时展开，随内容平滑增长
                     need_layout = true;
                 }
                 if (thinking_label_) {
                     float old_h = thinking_label_->height;
-                    thinking_label_->text += batch;
+                    utf8_append(thinking_label_->text, utf8_hold_reasoning_, batch);
                     thinking_label_->layout();
+                    // 内容增长后立即重排胶囊，使其按新内容高度平滑增长。
+                    if (thinking_capsule_) thinking_capsule_->layout();
                     if (thinking_label_->height - old_h > 0.5f) need_layout = true;
                 }
             } else {
@@ -617,7 +721,7 @@ void agent_tab::process_stream_events(size_t max_events) {
                 }
                 streamed_content_ = true;
                 float old_h = stream_label_->height;
-                stream_label_->text += batch;
+                utf8_append(stream_label_->text, utf8_hold_delta_, batch);
                 if (stream_msg_index_ < messages_.size())
                     messages_[stream_msg_index_].content = stream_label_->text;
                 stream_label_->layout();
@@ -634,6 +738,7 @@ void agent_tab::process_stream_events(size_t max_events) {
                 thinking_scroll_ = nullptr;
                 thinking_label_ = nullptr;
                 append_tool_capsule(tool_display_name(ev.name), ev.args);
+                if (tool_capsule_) tool_capsule_->set_expanded(true);  // 实时展开
                 need_layout = true;
                 break;
             case stream_event::type::tool_result:
@@ -649,7 +754,9 @@ void agent_tab::process_stream_events(size_t max_events) {
     }
 
     if (need_layout) {
-        relayout_scroll_repaint();
+        // 流式内容增长只影响消息列表：有界重排消息链，避免每帧全链布局到
+        // root/tab_bar（会拖慢胶囊动画帧率，使其不能持续平滑步进）。
+        relayout_msg_chain();
     } else if (need_repaint && request_repaint_) {
         request_repaint_();
     }
@@ -682,7 +789,7 @@ markdown* agent_tab::append_bubble(const display_message& msg) {
     markdown* raw = md.get();
     msg_list_->add_child(std::move(md));
 
-    relayout_scroll_repaint();
+    relayout_msg_chain(true);
     return raw;
 }
 
@@ -754,10 +861,17 @@ void agent_tab::update_todo_capsule() {
     todo_capsule_->set_summary(summary);
 
     bool now_has = (todo_count_ > 0);
-    if (now_has && !todo_has_) todo_capsule_->set_expanded(true);  // 首现自动展开
+    if (now_has && !todo_has_) {
+        todo_capsule_->set_expanded(true);  // 首现自动展开
+    } else if (!now_has && todo_has_) {
+        todo_capsule_->set_expanded(false);  // 清空时平滑折叠，完成后隐藏
+    }
     todo_has_ = now_has;
+    // 仅在有待办项时显示清除按钮。
+    todo_capsule_->show_summary_action = now_has;
 
-    relayout_scroll_repaint();
+    if (todo_capsule_) todo_capsule_->relayout_chain(4);
+    if (request_repaint_) request_repaint_();
 }
 
 void agent_tab::new_conversation(bool to_chat) {
@@ -790,11 +904,41 @@ void agent_tab::open_conversation(const std::string& uuid, bool to_chat) {
         return;
     }
     save_current();
+    const size_t seq = ++open_seq_;
+    if (auto* d = application::instance()->dispatcher()) {
+        auto alive = alive_;
+        d->post([store = store_, uuid, seq, alive, this, to_chat]() {
+            chat_archive archive;
+            if (!store->load(uuid, archive)) return;
+            if (auto* disp = application::instance()->dispatcher()) {
+                disp->post_to_ui([alive, this, uuid, to_chat, seq,
+                                  archive = std::move(archive)]() {
+                    if (!alive->load() || seq != open_seq_) return;
+                    apply_open_conversation(uuid, archive, to_chat);
+                });
+            }
+        });
+        return;
+    }
     chat_archive archive;
     if (!store_->load(uuid, archive)) return;
+    apply_open_conversation(uuid, archive, to_chat);
+}
+
+void agent_tab::apply_open_conversation(const std::string& uuid,
+                                        const chat_archive& archive, bool to_chat) {
     current_uuid_ = uuid;
     store_->set_current_uuid(uuid);
     if (client_) {
+        // 恢复会话保存的 provider/model，并同步下拉框选择。
+        if (!archive.model.empty() &&
+            (archive.model != client_->get_config().model ||
+             (!archive.provider.empty() && archive.provider != client_->get_config().provider))) {
+            chat_client::config c = client_->get_config();
+            c.model = archive.model;
+            if (!archive.provider.empty()) c.provider = archive.provider;
+            client_->configure(c);
+        }
         client_->clear_history();
         for (const auto& m : archive.messages) {
             if (m.role == "system") continue;
@@ -802,6 +946,20 @@ void agent_tab::open_conversation(const std::string& uuid, bool to_chat) {
         }
         client_->set_tokens(archive.tokens_in, archive.tokens_out);
     }
+    // 同步模型下拉框选中项与思考挡位（provider 可能变化）。
+    if (model_combo_ && client_) {
+        const std::string cur = client_->get_config().model;
+        model_combo_->selected_index = -1;
+        for (size_t i = 0; i < models_.size(); ++i) {
+            if (models_[i].cfg.model == cur || models_[i].display_name == cur) {
+                model_combo_->selected_index = static_cast<int>(i);
+                break;
+            }
+        }
+        if (model_combo_->selected_index < 0 && model_combo_->items.size() == 1)
+            model_combo_->selected_index = 0;
+    }
+    refresh_reasoning_combo();
     auto_approve_on_ = archive.auto_approve;
     if (auto_approve_) auto_approve_->checked = archive.auto_approve;
     todo_store::instance().set_current_uuid(uuid);
@@ -859,7 +1017,11 @@ void agent_tab::commit_rename_text(const std::string& text) {
         chat_archive archive;
         if (store_->load(rename_uuid_, archive)) {
             archive.name = new_name;
-            store_->save(archive);
+            if (auto* d = application::instance()->dispatcher()) {
+                d->post([store = store_, archive]() { store->save(archive); });
+            } else {
+                store_->save(archive);
+            }
         }
     }
     rename_uuid_.clear();
@@ -915,10 +1077,16 @@ void agent_tab::rebuild_conversation_list(const std::vector<conversation_meta>* 
     if (request_repaint_) request_repaint_();
 }
 
+void agent_tab::update_input_height() {
+    relayout_scroll_repaint();
+}
+
 void agent_tab::send() {
     if (!input_ || input_->text.empty()) return;
     std::string text = input_->text;
     input_->text.clear();
+    input_->reset_view();
+    update_input_height();
 
     if (waiting_) {
         add_message("user", text);
@@ -943,6 +1111,8 @@ void agent_tab::begin_run() {
     thinking_label_ = nullptr;
     waiting_ = true;
     stop_flag_->store(false);
+    utf8_hold_reasoning_.clear();
+    utf8_hold_delta_.clear();
     supplement_requested_ = false;
     streamed_content_ = false;
     remove_continue_button();
@@ -998,7 +1168,7 @@ void agent_tab::begin_run() {
 
     pending_ = std::async(std::launch::async, [this, events, alive]() {
         if (!alive->load()) return chat_response{};
-        return client_->run(100, events);
+        return client_->run(events, tl::nullopt);
     });
     if (request_repaint_) request_repaint_();
 }
@@ -1062,8 +1232,8 @@ void agent_tab::update_send_button() {
 
 void agent_tab::update_token_label() {
     if (!token_label_ || !client_) return;
-    token_label_->text = "\xE2\x86\x91 " + std::to_string(client_->input_tokens()) +
-                         "  \xE2\x86\x93 " + std::to_string(client_->output_tokens());
+    token_label_->set_text("\xE2\x86\x91 " + std::to_string(client_->input_tokens()) +
+                         "  \xE2\x86\x93 " + std::to_string(client_->output_tokens()));
     token_label_->width = std::max(24.0f, std::min(
         96.0f, token_text_estimate_width(token_label_) + 10.0f));
     relayout_scroll_repaint();
@@ -1078,8 +1248,14 @@ void agent_tab::set_reasoning_level(reasoning_level l) {
 
 void agent_tab::refresh_reasoning_combo() {
     if (!reasoning_combo_) return;
-    auto levels = client_ ? client_->supported_reasoning_levels()
-                          : std::vector<reasoning_level>{};
+    std::vector<reasoning_level> levels;
+    try {
+        levels = client_ ? client_->supported_reasoning_levels()
+                         : std::vector<reasoning_level>{};
+    } catch (const std::exception& e) {
+        application::instance()->logger()->log({logging::level::error, fmt::format("supported_reasoning_levels threw: {}", e.what()), "extension/agent"});
+        return;
+    }
     if (levels.empty()) return;
     reasoning_combo_->items.clear();
     for (auto l : levels) {
@@ -1111,7 +1287,7 @@ collapsible* agent_tab::create_capsule(const std::string& summary) {
 
     collapsible* raw = cap.get();
     msg_list_->add_child(std::move(cap));
-    relayout_scroll_repaint();
+    relayout_msg_chain(true);
     return raw;
 }
 
@@ -1133,11 +1309,13 @@ void agent_tab::append_tool_result(const std::string& text) {
         tool_label_->text += tool_block_markdown(
             i18n_manager::get().tr("chat.tool_output", "输出"), text);
         tool_label_->layout();
+        // 内容增长后立即重排胶囊，使其按新内容高度平滑增长。
+        if (tool_capsule_) tool_capsule_->layout();
     }
     tool_capsule_ = nullptr;
     tool_capsule_scroll_ = nullptr;
     tool_label_ = nullptr;
-    relayout_scroll_repaint();
+    relayout_msg_chain();
 }
 
 void agent_tab::restore_history_ui(const std::vector<chat_message>& msgs) {
@@ -1337,6 +1515,19 @@ void agent_tab::tick(float dt_ms) {
             }
             waiting_ = false;
             update_send_button();
+
+            // 冲刷流式暂存的末尾 UTF-8 残片（若模型流在字符边界中断）。
+            if (!utf8_hold_delta_.empty() && stream_label_) {
+                stream_label_->text += utf8_hold_delta_;
+                stream_label_->layout();
+            }
+            utf8_hold_delta_.clear();
+            if (!utf8_hold_reasoning_.empty() && thinking_label_) {
+                thinking_label_->text += utf8_hold_reasoning_;
+                thinking_label_->layout();
+                if (thinking_capsule_) thinking_capsule_->layout();
+            }
+            utf8_hold_reasoning_.clear();
 
             process_stream_events();
 

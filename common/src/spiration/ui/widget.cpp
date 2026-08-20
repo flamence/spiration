@@ -21,6 +21,26 @@ void widget::notify_destroyed() {
     }
 }
 
+void widget::set_visible(bool v) {
+    if (visible == v) return;
+    visible = v;
+    if (!v && focus_manager::instance().focused() == this) {
+        focus_manager::instance().clear_focus();
+    }
+    invalidate_layout();
+    if (request_repaint_) request_repaint_();
+}
+
+void widget::set_enabled(bool v) {
+    if (enabled == v) return;
+    enabled = v;
+    if (!v && focus_manager::instance().focused() == this) {
+        focus_manager::instance().clear_focus();
+    }
+    invalidate_layout();
+    if (request_repaint_) request_repaint_();
+}
+
 void widget::notify_destroyed_recursive() {
     notify_destroyed();
     for (auto& child : children_) {
@@ -44,11 +64,13 @@ void widget::request_context_menu(float x, float y, std::unique_ptr<context_menu
     }
 }
 
-void widget::relayout_chain() {
+void widget::relayout_chain(unsigned max_depth) {
     widget* w = this;
-    while (w) {
+    unsigned depth = 0;
+    while (w && depth <= max_depth) {
         w->layout();
         w = w->parent_;
+        ++depth;
     }
 }
 

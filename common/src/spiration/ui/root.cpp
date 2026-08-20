@@ -1,4 +1,7 @@
+#include <spiration/application.h>
 #include <spiration/ui/root.h>
+#include <spiration/ui/label.h>
+#include <spiration/utils/dispatcher.h>
 #include <spiration/ui/appbar.h>
 #include <spiration/ui/cursor.h>
 #include <spiration/ui/focus_manager.h>
@@ -60,6 +63,13 @@ void root::paint(std::shared_ptr<renderer> renderer) {
         m_context_menu->paint(renderer);
         renderer->pop_transform();
     }
+    // 覆盖层（展开的下拉框等）最后绘制，保证不被后续兄弟控件遮挡。
+    if (m_overlay) {
+        point lp = m_overlay->to_screen(0.0f, 0.0f);
+        renderer->push_transform(lp.x, lp.y);
+        m_overlay->paint(renderer);
+        renderer->pop_transform();
+    }
 }
 
 void root::set_mouse_capture(widget* w) {
@@ -74,6 +84,104 @@ void root::notify_selection_started(widget* w) {
     selecting_widget_ = w;
 }
 
+void root::begin_cross_selection(widget* w, size_t offset) {
+    clear_all_selections_except(w);
+    selecting_widget_ = w;
+    selection_cur_widget_ = w;
+    selection_anchor_ = offset;
+    selection_pos_ = offset;
+    selection_dragging_ = true;
+}
+
+void root::update_cross_selection(widget* from, float mx, float my) {
+    if (!selection_dragging_ || !selecting_widget_) return;
+    const point rp = from->to_screen(mx, my);
+
+    label* cur = nearest_selectable_label(hit_test_hover(rp.x, rp.y));
+    if (!cur) cur = dynamic_cast<label*>(selecting_widget_);
+    if (!cur) return;
+
+    const point lp = cur->to_screen(0.0f, 0.0f);
+    selection_cur_widget_ = cur;
+    selection_pos_ = cur->text_offset_at(rp.x - lp.x, rp.y - lp.y);
+    apply_cross_selection();
+}
+
+void root::end_cross_selection(widget* w) {
+    (void)w;
+    selection_dragging_ = false;
+}
+
+label* root::nearest_selectable_label(widget* w) const {
+    while (w) {
+        label* l = dynamic_cast<label*>(w);
+        if (l && l->selectable) return l;
+        w = w->parent();
+    }
+    return nullptr;
+}
+
+void root::clear_all_selections_except(widget* keep) {
+    std::vector<widget*> stack;
+    stack.push_back(this);
+    while (!stack.empty()) {
+        widget* w = stack.back();
+        stack.pop_back();
+        if (w != keep) {
+            if (auto* l = dynamic_cast<label*>(w)) l->clear_selection();
+        }
+        for (const auto& ch : w->children()) stack.push_back(ch.get());
+    }
+}
+
+void root::apply_cross_selection() {
+    if (!selecting_widget_ || !selection_cur_widget_) return;
+    label* anchor = dynamic_cast<label*>(selecting_widget_);
+    label* cur = dynamic_cast<label*>(selection_cur_widget_);
+    if (!anchor || !cur) return;
+
+    if (anchor == cur) {
+        anchor->set_selection_range(selection_anchor_, selection_pos_);
+        return;
+    }
+
+    const point a = anchor->to_screen(0.0f, 0.0f);
+    const point c = cur->to_screen(0.0f, 0.0f);
+    const bool anchor_first = (a.y < c.y) || (a.y == c.y && a.x <= c.x);
+    const float y0 = std::min(a.y, c.y);
+    const float y1 = std::max(a.y, c.y);
+
+    if (anchor_first)
+        anchor->set_selection_range(selection_anchor_, anchor->text.size());
+    else
+        anchor->set_selection_range(0, selection_anchor_);
+
+    if (anchor_first)
+        cur->set_selection_range(0, selection_pos_);
+    else
+        cur->set_selection_range(selection_pos_, cur->text.size());
+
+    // 位于两者之间的可选文本控件整体选中。
+    std::vector<widget*> stack;
+    stack.push_back(this);
+    while (!stack.empty()) {
+        widget* w = stack.back();
+        stack.pop_back();
+        for (const auto& ch : w->children()) {
+            widget* child = ch.get();
+            if (child == anchor || child == cur) continue;
+            if (auto* l = dynamic_cast<label*>(child)) {
+                if (l->selectable) {
+                    const point p = l->to_screen(0.0f, 0.0f);
+                    if (p.y > y0 && p.y < y1)
+                        l->set_selection_range(0, l->text.size());
+                }
+            }
+            stack.push_back(child);
+        }
+    }
+}
+
 void root::on_widget_destroyed(widget* w) {
     if (captured_ == w) {
         captured_ = nullptr;
@@ -81,6 +189,10 @@ void root::on_widget_destroyed(widget* w) {
     }
     if (selecting_widget_ == w) {
         selecting_widget_ = nullptr;
+        selection_dragging_ = false;
+    }
+    if (selection_cur_widget_ == w) {
+        selection_cur_widget_ = nullptr;
     }
     if (m_overlay == w) {
         m_overlay = nullptr;
@@ -110,7 +222,10 @@ widget* root::hit_test_hover(float x, float y) const {
 
 void root::handle_event(const event_type& type, void* data) {
     if (type == event_type::window_resize) {
+        // 立即布局一次，保证 resize 过程中控件（如窗口控制按钮）实时跟随；
+        // 平台不再置 needs-layout 标志，避免帧循环二次全量布局。
         layout();
+        if (m_window) m_window->request_repaint();
     }
 
     if (type == event_type::mouse) {
@@ -183,12 +298,17 @@ void root::handle_event(const event_type& type, void* data) {
 void root::tick(float dt_ms) {
     if (m_popup_pending_) m_popup_pending_.reset();
     if (m_context_menu_pending_) m_context_menu_pending_.reset();
+    if (application::instance()->dispatcher()) {
+        application::instance()->dispatcher()->drain_ui_queue();
+    }
     container::tick(dt_ms);
     if (m_popup) m_popup->tick(dt_ms);
     if (m_context_menu) m_context_menu->tick(dt_ms);
 }
 
 void root::layout() {
+    on_layout_begin();
+
     int32_t w, h;
     m_window->get_size(w, h);
     width = static_cast<float>(w);
@@ -263,10 +383,12 @@ void root::open_tab(std::unique_ptr<tab> t) {
 void root::show_popup(float x, float y, std::unique_ptr<popup_menu> popup) {
     dismiss_popup();
     m_popup_pending_.reset();
-    popup->y = y;
     popup->set_dismiss_callback([this]() { dismiss_popup(); });
     popup->init();
-    
+    if (x + popup->width > width) x = std::max(0.0f, width - popup->width);
+    if (y + popup->height > height) y = std::max(0.0f, height - popup->height);
+    popup->x = x;
+    popup->y = y;
     if (request_repaint_) popup->set_repaint_callback(request_repaint_);
     if (window_action_) popup->set_window_action_callback(window_action_);
     m_popup = std::move(popup);

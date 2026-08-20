@@ -15,6 +15,7 @@
 #include <memory>
 #include <mutex>
 #include <string>
+#include <tl/optional.hpp>
 #include <vector>
 
 namespace spiration {
@@ -117,7 +118,7 @@ public:
      * @param events 流式/执行事件回调。
      * @return 最后一轮响应。
      */
-    chat_response run(int max_rounds = 10, const chat_events& events = {});
+    chat_response run(const chat_events& events = {}, tl::optional<int> max_rounds = 10);
 
     /// @brief 获取当前配置。
     const config& get_config() const { return cfg_; }
@@ -164,6 +165,8 @@ private:
     /// @brief 保护对话历史。
     mutable std::mutex history_mtx_;
     std::vector<chat_message> history_;
+    /// @brief 保护工具注册表。
+    mutable std::mutex tools_mtx_;
     std::vector<tool*> tools_;
 
     /// @brief 正在执行的工具任务数。

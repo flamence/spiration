@@ -27,6 +27,11 @@ public:
     cursor_style effective_cursor(float lx, float ly) const override;
 
     void set_split_ratio(float ratio);
+    /**
+     * @brief 设置分割比例但不触发布局与回调（供父容器布局时强制收展状态）。
+     * @param ratio 分割比例
+     */
+    void set_split_ratio_silent(float ratio);
     float split_ratio() const { return split_ratio_; }
 
     widget* first() const;

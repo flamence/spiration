@@ -57,6 +57,7 @@ set(SPIRATION_CORE_SOURCES
     src/spiration/ui/slider.cpp
     src/spiration/ui/split_pane.cpp
     src/spiration/ui/tab_bar.cpp
+    src/spiration/ui/tab_head_item.cpp
     src/spiration/ui/text_area.cpp
     src/spiration/ui/text_field.cpp
     src/spiration/ui/theme_manager.cpp
@@ -64,7 +65,9 @@ set(SPIRATION_CORE_SOURCES
     src/spiration/ui/tooltip.cpp
     src/spiration/ui/widget.cpp
     src/spiration/ui/window_controls.cpp
+    src/spiration/window/ime.cpp
     src/spiration/utils/crash_log.cpp
+    src/spiration/utils/dispatcher.cpp
     src/spiration/utils/io.cpp
     src/spiration/utils/platform.cpp
     src/spiration/utils/properties.cpp
@@ -93,10 +96,10 @@ target_link_libraries(spiration.core PUBLIC
     ghc::filesystem
     tl::optional
     nonstd::string_view
+    nlohmann_json::nlohmann_json
 )
 
 target_link_libraries(spiration.core PRIVATE
-    nlohmann_json::nlohmann_json
     nothings::stb_image
 )
 

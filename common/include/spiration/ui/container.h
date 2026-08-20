@@ -35,6 +35,10 @@ public:
 
     void handle_event(const event_type& type, void* data) override;
 
+    widget* hit_test_hover(float x, float y) const override;
+
+    cursor_style effective_cursor(float lx, float ly) const override;
+
     /**
      * @brief 设置布局管理器。
      */
@@ -51,6 +55,11 @@ public:
      * @brief 滚动条宽度。
      */
     float scroll_bar_width = 14.0f;
+
+    /**
+     * @brief 滚动条内边距。
+     */
+    float scroll_bar_padding = 2.0f;
 
     /**
      * @brief 当前水平滚动偏移。
@@ -128,6 +137,21 @@ private:
     float v_thumb_y() const;
     float h_thumb_width() const;
     float h_thumb_x() const;
+
+    /// @brief 垂直滚动条是否可见。
+    bool has_v_scroll() const {
+        return widget_style.overflow_y && scroll_max_y_ > 0.0f;
+    }
+    /// @brief 水平滚动条是否可见。
+    bool has_h_scroll() const {
+        return widget_style.overflow_x && scroll_max_x_ > 0.0f;
+    }
+    /// @brief 垂直滚动条轨道高度。
+    float v_track_h() const;
+    /// @brief 水平滚动条轨道宽度。
+    float h_track_w() const;
+    /// @brief 点是否落在任一滚动条轨道区域内。
+    bool is_over_scrollbar(float x, float y) const;
 };
 
 }

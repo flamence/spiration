@@ -11,7 +11,6 @@
 #include <algorithm>
 #include <functional>
 #include <memory>
-#include <string>
 #include <vector>
 
 #include <spiration/ui/widget.h>

@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include <spiration/extension/builtin/agent/tool/tool.h>
+#include <spiration/extension/builtin/agent/tool/tool.hpp>
 #include <ghc/filesystem.hpp>
 #include <map>
 #include <memory>
@@ -95,7 +95,7 @@ class create_terminal_tool : public tool {
 public:
     std::string name() const override { return "create_terminal"; }
     std::string description() const override;
-    std::string parameters_json() const override;
+    nlohmann::json parameters() const override;
     std::string execute(const std::string& args_json) override;
     bool serial() const override { return true; }
 };
@@ -105,7 +105,7 @@ class write_terminal_tool : public tool {
 public:
     std::string name() const override { return "write_terminal"; }
     std::string description() const override;
-    std::string parameters_json() const override;
+    nlohmann::json parameters() const override;
     std::string execute(const std::string& args_json) override;
     bool serial() const override { return true; }
     bool requires_approval() const override { return true; }
@@ -116,7 +116,7 @@ class read_terminal_tool : public tool {
 public:
     std::string name() const override { return "read_terminal"; }
     std::string description() const override;
-    std::string parameters_json() const override;
+    nlohmann::json parameters() const override;
     std::string execute(const std::string& args_json) override;
     bool serial() const override { return true; }
 };
@@ -126,7 +126,7 @@ class kill_terminal_tool : public tool {
 public:
     std::string name() const override { return "kill_terminal"; }
     std::string description() const override;
-    std::string parameters_json() const override;
+    nlohmann::json parameters() const override;
     std::string execute(const std::string& args_json) override;
     bool serial() const override { return true; }
 };

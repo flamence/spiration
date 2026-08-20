@@ -45,6 +45,8 @@ private:
     std::function<void()> on_dismiss_ = nullptr;
     float item_height_ = 28.0f;
 
+    /// @brief 弹出淡入透明度。
+    value_transition fade_{0.0f};
     color_transition hover_bg_{color::transparent()};
 
     void layout_items();

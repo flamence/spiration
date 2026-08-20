@@ -93,7 +93,14 @@ bool menu_bar::add_sub_item(const std::string& menu_title,
     for (auto& menu : menus_) {
         if (menu.title == menu_title
             || i18n_manager::get().tr(menu.title) == menu_title) {
-            menu.sub_items.push_back({label, std::move(callback)});
+            if (menu.tail_index != menu_desc::NO_TAIL) {
+                menu.sub_items.insert(
+                    menu.sub_items.begin() + static_cast<std::ptrdiff_t>(menu.tail_index),
+                    menu_desc::item{label, std::move(callback), false});
+                ++menu.tail_index;
+            } else {
+                menu.sub_items.push_back({label, std::move(callback)});
+            }
             return true;
         }
     }

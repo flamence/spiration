@@ -12,6 +12,8 @@
 
 namespace spiration {
 
+class label;
+
 class root : public container {
 private:
     std::shared_ptr<spiration::window> m_window;
@@ -60,6 +62,13 @@ public:
      */
     void notify_selection_started(widget* w);
 
+    /// @brief 开始一次跨控件文本选择会话。
+    void begin_cross_selection(widget* w, size_t offset);
+    /// @brief 拖拽过程中更新跨控件文本选择。
+    void update_cross_selection(widget* from, float mx, float my);
+    /// @brief 结束跨控件文本选择拖拽。
+    void end_cross_selection(widget* w);
+
     /**
      * @brief 控件销毁时调用。
      */
@@ -89,6 +98,22 @@ private:
     widget* selecting_widget_ = nullptr;
     /// @brief 当前活跃浮层，事件优先路由给它。
     widget* m_overlay = nullptr;
+
+    /// @brief 跨控件选择：当前鼠标所在的可选文本控件。
+    widget* selection_cur_widget_ = nullptr;
+    /// @brief 跨控件选择：起始控件内的字节偏移。
+    size_t selection_anchor_ = 0;
+    /// @brief 跨控件选择：当前控件内的字节偏移。
+    size_t selection_pos_ = 0;
+    /// @brief 是否正在拖拽选择。
+    bool selection_dragging_ = false;
+
+    /// @brief 沿父链向上查找最近的可选文本控件。
+    label* nearest_selectable_label(widget* w) const;
+    /// @brief 清除树中除 keep 外所有可选文本控件的选择。
+    void clear_all_selections_except(widget* keep);
+    /// @brief 根据锚点与当前位置刷新各控件选择区间。
+    void apply_cross_selection();
 };
 
 } 

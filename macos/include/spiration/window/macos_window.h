@@ -110,6 +110,8 @@ public:
     int32_t m_Width = 800;
     int32_t m_Height = 600;
     float m_BackingScale = 2.0f;
+    float ime_caret_x() const { return m_ImeCaretX; }
+    float ime_caret_y() const { return m_ImeCaretY; }
 
     bool initialize(const window_params& params) override;
 
@@ -127,6 +129,8 @@ private:
     std::string m_Title;
     int32_t m_X = 0;
     int32_t m_Y = 0;
+    float m_ImeCaretX = 0.0f;
+    float m_ImeCaretY = 0.0f;
 
     bool m_ShouldClose = false;
     bool m_IsMaximized = false;

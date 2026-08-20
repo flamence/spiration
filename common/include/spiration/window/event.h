@@ -53,7 +53,6 @@ struct key_event_data {
     bool shift = false;
     bool alt = false;
     bool consumed = false;
-    tl::optional<float> ime_x = tl::nullopt, ime_y = tl::nullopt; 
 };
 
 }

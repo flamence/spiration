@@ -22,8 +22,8 @@ std::string memory_tool::description() const {
            "Use it to remember important context across turns.";
 }
 
-std::string memory_tool::parameters_json() const {
-    return R"({
+nlohmann::json memory_tool::parameters() const {
+    return nlohmann::json::parse(R"({
     "type": "object",
     "properties": {
         "action": {
@@ -37,7 +37,7 @@ std::string memory_tool::parameters_json() const {
         }
     },
     "required": ["action"]
-})";
+})");
 }
 
 std::string memory_tool::execute(const std::string& args_json) {

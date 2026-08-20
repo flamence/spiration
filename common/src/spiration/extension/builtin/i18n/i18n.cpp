@@ -19,12 +19,12 @@ bool i18n_manager::load(const std::string& locale, const ghc::filesystem::path& 
         return false;
     }
 
-    locale_data data;
-    data.strings = props.entries();
+    auto& data = translations_[locale];
+    for (const auto& kv : props.entries()) {
+        data.strings[kv.first] = kv.second;
+    }
 
-    translations_[locale] = std::move(data);
-
-    application::instance()->logger()->log({logging::level::info, fmt::format("loaded {} strings for locale '{}'", translations_[locale].strings.size(), locale), "i18n"});
+    application::instance()->logger()->log({logging::level::info, fmt::format("loaded {} strings for locale '{}'", data.strings.size(), locale), "i18n"});
     return true;
 }
 

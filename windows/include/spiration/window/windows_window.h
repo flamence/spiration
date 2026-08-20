@@ -83,8 +83,7 @@ private:
     bool CreateRenderer();
     bool CreateWindowClass();
     bool CreateActualWindow(const window_parameters& params);
-    void NotifyWidgetResize();
-
+    void NotifyWidgetResize();    void MoveImeCompositionWindow();
     HWND m_hWnd = nullptr;
     HINSTANCE m_hInstance = nullptr;
     std::wstring m_WindowClassName;
@@ -106,6 +105,8 @@ private:
     uint32_t m_WindowId = 0;
 
     float m_DPIScale = 1.0f;
+    float m_ImeCaretX = 0.0f;
+    float m_ImeCaretY = 0.0f;
 
     static constexpr float DRAG_AREA_HEIGHT = 34.0f;
 

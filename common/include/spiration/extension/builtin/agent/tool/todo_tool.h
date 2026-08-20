@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include <spiration/extension/builtin/agent/tool/tool.h>
+#include <spiration/extension/builtin/agent/tool/tool.hpp>
 
 #include <atomic>
 #include <functional>
@@ -82,7 +82,7 @@ class todo_tool : public tool {
 public:
     std::string name() const override { return "todo"; }
     std::string description() const override;
-    std::string parameters_json() const override;
+    nlohmann::json parameters() const override;
     std::string execute(const std::string& args_json) override;
 };
 

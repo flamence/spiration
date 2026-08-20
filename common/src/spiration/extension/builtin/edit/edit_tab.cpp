@@ -1,3 +1,4 @@
+#include "spiration/ui/color.h"
 #include <spiration/application.h>
 #include <spiration/extension/builtin/edit/edit_tab.h>
 #include <spiration/extension/builtin/i18n/i18n.h>
@@ -11,18 +12,7 @@
 namespace spiration {
 namespace edit {
 
-edit_tab::edit_tab() {
-    base_title_ = i18n_manager::get().tr("edit.untitled");
-    title_ = base_title_;
-    widget_style.background_color = theme_manager::get(theme_manager::WINDOW_BG);
-
-    auto ed = std::make_unique<text_area>();
-    ed->show_line_numbers = true;
-    ed->font_size = 15.0f;
-    ed->on_changed = [this](const std::string&) { mark_dirty(); };
-    ed->on_save = [this]() { if (save_cb_) save_cb_(); };
-    editor_ = ed.get();
-    add_child(std::move(ed));
+edit_tab::edit_tab() : edit_tab(i18n_manager::get().tr("edit.untitled")) {
 }
 
 edit_tab::edit_tab(const std::string& title) {
@@ -31,6 +21,7 @@ edit_tab::edit_tab(const std::string& title) {
     widget_style.background_color = theme_manager::get(theme_manager::WINDOW_BG);
 
     auto ed = std::make_unique<text_area>();
+    ed->widget_style.background_color = color::transparent();
     ed->show_line_numbers = true;
     ed->font_size = 15.0f;
     ed->on_changed = [this](const std::string&) { mark_dirty(); };
@@ -165,12 +156,13 @@ void edit_tab::paint(std::shared_ptr<renderer> r) {
 }
 
 void edit_tab::layout() {
+    on_layout_begin();
     for (auto& child : children()) {
         child->x = 0;
         child->y = 0;
         child->width = width;
         child->height = height;
-        child->layout();
+        if (child->needs_layout()) child->layout();
     }
 }
 

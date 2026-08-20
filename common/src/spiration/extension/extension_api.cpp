@@ -57,6 +57,14 @@ std::string extension_api::simple_id() const {
     return id();
 }
 
+void extension_api::log_trace(const std::string& message, tl::optional<std::string> tag) const {
+    application::instance()->logger()->log({logging::level::trace, message, fmt::format("extension/{}{}", simple_id(), tag ? fmt::format("/{}", *tag) : "")});
+}
+
+void extension_api::log_debug(const std::string& message, tl::optional<std::string> tag) const {
+    application::instance()->logger()->log({logging::level::debug, message, fmt::format("extension/{}{}", simple_id(), tag ? fmt::format("/{}", *tag) : "")});
+}
+
 void extension_api::log_info(const std::string& message, tl::optional<std::string> tag) const {
     application::instance()->logger()->log({logging::level::info, message, fmt::format("extension/{}{}", simple_id(), tag ? fmt::format("/{}", *tag) : "")});
 }

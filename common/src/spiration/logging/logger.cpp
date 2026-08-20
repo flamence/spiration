@@ -19,6 +19,7 @@ logger::logger() {
 }
 
 logger::~logger() {
+    std::lock_guard<std::mutex> lk(mtx_);
     sinks_.clear();
 }
 
@@ -26,6 +27,7 @@ void logger::log(logging::log log) {
     if (log.level < this->level) {
         return;
     }
+    std::lock_guard<std::mutex> lk(mtx_);
     for (auto& sink : sinks_) {
         sink->write(log, log_formatter_);
     }

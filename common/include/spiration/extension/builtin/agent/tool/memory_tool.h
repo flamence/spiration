@@ -7,7 +7,7 @@
 #pragma once
 
 #include <spiration/extension/builtin/agent/chat_store.h>
-#include <spiration/extension/builtin/agent/tool/tool.h>
+#include <spiration/extension/builtin/agent/tool/tool.hpp>
 
 #include <functional>
 #include <string>
@@ -22,7 +22,7 @@ class memory_tool : public tool {
 public:
     std::string name() const override { return "memory"; }
     std::string description() const override;
-    std::string parameters_json() const override;
+    nlohmann::json parameters() const override;
     std::string execute(const std::string& args_json) override;
 
     /// @brief 绑定存储与当前会话 UUID 获取器。

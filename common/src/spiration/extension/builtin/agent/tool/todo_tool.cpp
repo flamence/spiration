@@ -91,8 +91,8 @@ std::string todo_tool::description() const {
            "Use this to plan multi-step work and show progress.";
 }
 
-std::string todo_tool::parameters_json() const {
-    return R"({
+nlohmann::json todo_tool::parameters() const {
+    return nlohmann::json::parse(R"({
     "type": "object",
     "properties": {
         "todos": {
@@ -116,7 +116,7 @@ std::string todo_tool::parameters_json() const {
         }
     },
     "required": ["todos"]
-})";
+})");
 }
 
 std::string todo_tool::execute(const std::string& args_json) {

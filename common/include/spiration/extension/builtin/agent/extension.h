@@ -55,6 +55,8 @@ private:
     std::vector<model_option> models_;
     /// 当前打开的智能体标签页。
     agent_tab* agent_tab_ = nullptr;
+    /// 是否正在关闭（shutdown 时同步保存，避免任务被 dispatcher 清空丢弃）。
+    bool shutting_down_ = false;
 
 #if !defined(__OHOS__)
     std::unique_ptr<create_terminal_tool> create_terminal_;

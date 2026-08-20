@@ -4,8 +4,6 @@
  * @author clk
  */
 
-#include "spiration/ui/margin.h"
-#include "spiration/ui/style.h"
 #include <spiration/ui/widget.h>
 #include <string>
 #include <spiration/ui/text_field.h>
@@ -13,10 +11,38 @@
 #include <spiration/ui/focus_manager.h>
 #include <spiration/extension/builtin/i18n/i18n.h>
 #include <spiration/window/event.h>
+#include <spiration/window/ime.h>
 #include <spiration/utils/clipboard.h>
 #include <algorithm>
 
 namespace spiration {
+
+namespace {
+
+/// @brief 文本行数（含末尾空行，至少 1）。
+size_t tf_line_count(const std::string& t) {
+    if (t.empty()) return 1;
+    size_t n = 1;
+    for (size_t i = 0; i < t.size(); ++i)
+        if (t[i] == '\n') ++n;
+    return n;
+}
+
+/// @brief 第 line 行的首字节偏移。
+size_t tf_line_start(const std::string& t, size_t line) {
+    size_t start = 0;
+    size_t cur = 0;
+    for (size_t i = 0; i < t.size(); ++i) {
+        if (t[i] == '\n') {
+            if (cur == line) return start;
+            ++cur;
+            start = i + 1;
+        }
+    }
+    return (cur == line) ? start : t.size();
+}
+
+} // namespace
 
 bool text_field::hit_test(float x, float y) const {
     return x >= 0.0f && x <= width && y >= 0.0f && y <= height;
@@ -81,6 +107,7 @@ void text_field::tick(float dt_ms) {
 }
 
 void text_field::layout() {
+    on_layout_begin();
     if (widget_style.height > 0) {
         height = static_cast<float>(widget_style.height);
     } else {
@@ -119,6 +146,7 @@ void text_field::handle_event(const event_type& type, void* data) {
 
         if (md->action == mouse_action::down && md->button == mouse_button::right) {
             if (mx >= 0.0f && mx <= width && my >= 0.0f && my <= height) {
+                focus();
                 open_context_menu(mx, my);
                 md->consumed = true;
             }
@@ -131,7 +159,7 @@ void text_field::handle_event(const event_type& type, void* data) {
                 focus();
                 mouse_down_ = true;
                 selecting_ = false;
-                sel_anchor_ = hit_to_cursor(mx, cached_renderer_);
+                sel_anchor_ = hit_to_cursor(mx, my, cached_renderer_);
                 cursor_pos_ = sel_anchor_;
                 ensure_cursor_visible();
                 cursor_blink_ = 0.0f;
@@ -139,7 +167,7 @@ void text_field::handle_event(const event_type& type, void* data) {
                 if (request_repaint_) request_repaint_();
             }
         } else if (md->action == mouse_action::move && mouse_down_) {
-            cursor_pos_ = hit_to_cursor(mx, cached_renderer_);
+            cursor_pos_ = hit_to_cursor(mx, my, cached_renderer_);
             selecting_ = (cursor_pos_ != sel_anchor_);
             cursor_blink_ = 0.0f;
             cursor_visible_ = true;
@@ -233,6 +261,19 @@ void text_field::handle_event(const event_type& type, void* data) {
             case 86: // Ctrl+V
                 if (kd->ctrl) {
                     std::string t = clipboard::paste();
+                    if (!multiline && !t.empty()) {
+                        // 单行：多行粘贴内容合并为空格分隔的一行。
+                        for (size_t i = 0; i < t.size();) {
+                            if (t[i] == '\r' || t[i] == '\n') {
+                                size_t j = i;
+                                while (j < t.size() && (t[j] == '\r' || t[j] == '\n')) ++j;
+                                t.replace(i, j - i, " ");
+                                i += 1;
+                            } else {
+                                ++i;
+                            }
+                        }
+                    }
                     if (!t.empty()) { insert_at_cursor(t); kd->consumed = true; }
                 }
                 break;
@@ -245,23 +286,19 @@ void text_field::handle_event(const event_type& type, void* data) {
                 break;
             case 13: // Enter
                 kd->consumed = true;
-                if (on_submit) on_submit(text);
+                if (multiline && shift) {
+                    insert_at_cursor("\n");
+                } else if (on_submit) {
+                    on_submit(text);
+                }
                 break;
             default:
                 break;
             }
         }
-
-        float actual_x = text_x() - scroll_x_, actual_y = height / 2;
-        widget* pointer = this;
-        while ((pointer = pointer->parent()) != nullptr) {
-            actual_x += pointer->x;
-            actual_y += pointer->y;
-        }
-
-        kd->ime_x = actual_x;
-        kd->ime_y = actual_y;
     }
+
+    if (focused_) report_ime_caret();
 
     widget::handle_event(type, data);
 }
@@ -277,50 +314,95 @@ void text_field::paint(std::shared_ptr<renderer> renderer) {
 
     float text_area_x = padding_h_;
     float text_area_w = width - padding_h_ * 2.0f;
-    float text_y = (height - font_size * 1.2f) * 0.5f;
+    const float line_h = font_size * 1.4f;
+    const std::string fam = theme_manager::get_str(theme_manager::INPUT_FONT);
 
     renderer->push_clip({text_area_x, 0, text_area_w, height});
 
     if (text.empty() && !focused_) {
-        renderer->draw_text(placeholder, {text_area_x, text_y},
-            theme_manager::get(theme_manager::INPUT_PLACEHOLDER), font_size, theme_manager::get_str(theme_manager::INPUT_FONT), false);
+        renderer->draw_text(placeholder, {text_area_x, content_top()},
+            theme_manager::get(theme_manager::INPUT_PLACEHOLDER), font_size, fam, false);
     } else {
-        if (has_selection()) {
-            size_t start = std::min(sel_anchor_, cursor_pos_);
-            size_t end   = std::max(sel_anchor_, cursor_pos_);
-            std::string before = text.substr(0, start);
-            std::string sel    = text.substr(start, end - start);
-            float sel_x = text_area_x - scroll_x_;
-            if (!before.empty()) sel_x += renderer->measure_text_width(before, font_size, theme_manager::get_str(theme_manager::INPUT_FONT));
-            float sel_w = renderer->measure_text_width(sel, font_size, theme_manager::get_str(theme_manager::INPUT_FONT));
-            color sel_c = {0.20f, 0.40f, 0.80f, 0.35f};
-            float sel_h = font_size * 1.4f;
-            float sel_y = (height - sel_h) * 0.5f;
-            renderer->draw_rectangle({sel_x, sel_y, std::max(sel_w, 1.0f), sel_h}, sel_c);
+        const size_t n = tf_line_count(text);
+        const bool sel = has_selection();
+        const size_t sela = sel ? std::min(sel_anchor_, cursor_pos_) : 0;
+        const size_t selb = sel ? std::max(sel_anchor_, cursor_pos_) : 0;
+        const float top = content_top();
+
+        size_t cur_line = 0;
+        size_t cur_line_start = 0;
+        size_t li_start = 0;
+        for (size_t li = 0; li < n; ++li) {
+            size_t ls = li_start;
+            size_t le = ls;
+            while (le < text.size() && text[le] != '\n') ++le;
+            std::string lt = text.substr(ls, le - ls);
+            const float ly = top + static_cast<float>(li) * line_h - scroll_y_;
+            renderer->draw_text(lt, {text_area_x - scroll_x_, ly},
+                                theme_manager::get(theme_manager::INPUT_TEXT), font_size, fam, false);
+
+            if (cursor_pos_ >= ls && cursor_pos_ <= le) {
+                cur_line = li;
+                cur_line_start = ls;
+            }
+
+            if (sel && le > sela && ls < selb) {
+                const size_t ia = (sela > ls) ? sela : ls;
+                const size_t ib = (selb < le) ? selb : le;
+                float xa = text_area_x - scroll_x_;
+                float xb = text_area_x - scroll_x_;
+                if (ia > ls)
+                    xa += renderer->measure_text_width(lt.substr(0, ia - ls), font_size, fam);
+                if (ib >= ls)
+                    xb += renderer->measure_text_width(lt.substr(0, ib - ls), font_size, fam);
+                color sel_c = {0.20f, 0.40f, 0.80f, 0.35f};
+                renderer->draw_rectangle({xa, ly, std::max(xb - xa, 1.0f), line_h}, sel_c);
+            }
+
+            li_start = le + 1;
         }
 
-        renderer->draw_text(text, {text_area_x - scroll_x_, text_y},
-            theme_manager::get(theme_manager::INPUT_TEXT), font_size, theme_manager::get_str(theme_manager::INPUT_FONT), false);
-
         if (focused_ && cursor_visible_) {
-            std::string before = text.substr(0, cursor_pos_);
+            std::string before = text.substr(cur_line_start, cursor_pos_ - cur_line_start);
             float cursor_x = text_area_x - scroll_x_;
-            if (!before.empty() && renderer) {
-                cursor_x += renderer->measure_text_width(before, font_size, theme_manager::get_str(theme_manager::INPUT_FONT));
-            }
-            float cursor_h = font_size * 1.2f;
-            float cursor_y = (height - cursor_h) * 0.5f;
-            renderer->draw_rectangle(
-                {cursor_x, cursor_y, 1.5f, cursor_h},
-                theme_manager::get(theme_manager::INPUT_CURSOR));
+            if (!before.empty())
+                cursor_x += renderer->measure_text_width(before, font_size, fam);
+            float cursor_y = top + static_cast<float>(cur_line) * line_h - scroll_y_;
+            renderer->draw_rectangle({cursor_x, cursor_y, 1.5f, line_h},
+                                     theme_manager::get(theme_manager::INPUT_CURSOR));
         }
     }
 
     renderer->pop_clip();
 }
 
+float text_field::content_top() const {
+    if (!multiline) return (height - font_size * 1.2f) * 0.5f;
+    const float line_h = font_size * 1.4f;
+    const float content_h = static_cast<float>(tf_line_count(text)) * line_h;
+    float top = (height - content_h) * 0.5f;
+    if (top < padding_v_) top = padding_v_;
+    return top;
+}
+
 size text_field::layout_preferred_size() const {
+    if (multiline) {
+        const float line_h = font_size * 1.4f;
+        const float h = static_cast<float>(tf_line_count(text)) * line_h + padding_v_ * 2.0f;
+        return {width, std::max(h, font_size + padding_v_ * 2.0f + 8.0f)};
+    }
     return {width, font_size + padding_v_ * 2.0f + 8.0f};
+}
+
+void text_field::clear() {
+    text.clear();
+    cursor_pos_ = 0;
+    sel_anchor_ = 0;
+    selecting_ = false;
+    scroll_x_ = 0.0f;
+    scroll_y_ = 0.0f;
+    if (on_changed) on_changed(text);
+    if (request_repaint_) request_repaint_();
 }
 
 void text_field::insert_at_cursor(const std::string& s) {
@@ -396,7 +478,48 @@ void text_field::move_cursor(int delta) {
     if (request_repaint_) request_repaint_();
 }
 
-size_t text_field::hit_to_cursor(float mx, std::shared_ptr<renderer> r) const {
+size_t text_field::hit_to_cursor(float mx, float my, std::shared_ptr<renderer> r) const {
+    if (multiline) {
+        const float line_h = font_size * 1.4f;
+        const float top = content_top();
+        const size_t n = tf_line_count(text);
+        size_t line = n - 1;
+        for (size_t i = 0; i < n; ++i) {
+            const float y0 = top + static_cast<float>(i) * line_h - scroll_y_;
+            if (my < y0 + line_h) { line = i; break; }
+        }
+        const size_t ls = tf_line_start(text, line);
+        size_t le = ls;
+        while (le < text.size() && text[le] != '\n') ++le;
+        const std::string lt = text.substr(ls, le - ls);
+
+        const float text_x = padding_h_;
+        float rel = mx - text_x + scroll_x_;
+        if (rel <= 0.0f || lt.empty()) return ls;
+
+        if (r) {
+            for (size_t pos = 0; pos <= lt.size(); ) {
+                std::string prefix = lt.substr(0, pos);
+                float w = r->measure_text_width(prefix, font_size,
+                                                theme_manager::get_str(theme_manager::INPUT_FONT));
+                if (rel <= w) return ls + pos;
+                if (pos >= lt.size()) break;
+                unsigned char c = static_cast<unsigned char>(lt[pos]);
+                size_t char_bytes = 1;
+                if ((c & 0xF0) == 0xF0) char_bytes = 4;
+                else if ((c & 0xE0) == 0xE0) char_bytes = 3;
+                else if ((c & 0xC0) == 0xC0) char_bytes = 2;
+                pos += char_bytes;
+            }
+            return ls + lt.size();
+        }
+
+        float char_w = font_size * 0.60f;
+        size_t i = static_cast<size_t>(rel / char_w);
+        if (i > lt.size()) i = lt.size();
+        return ls + i;
+    }
+
     float text_x = padding_h_;
     mx = mx - text_x + scroll_x_;
     if (mx <= 0.0f || text.empty()) return 0;
@@ -423,13 +546,23 @@ size_t text_field::hit_to_cursor(float mx, std::shared_ptr<renderer> r) const {
 }
 
 void text_field::ensure_cursor_visible() {
+    // 光标所在行与行前缀。
+    size_t line = 0;
+    size_t line_start = 0;
+    for (size_t i = 0; i < cursor_pos_ && i < text.size(); ++i) {
+        if (text[i] == '\n') {
+            ++line;
+            line_start = i + 1;
+        }
+    }
+    std::string line_prefix = text.substr(line_start, cursor_pos_ - line_start);
     float cursor_px = 0.0f;
-    if (cached_renderer_ && cursor_pos_ > 0) {
+    if (cached_renderer_) {
         cursor_px = cached_renderer_->measure_text_width(
-            text.substr(0, cursor_pos_), font_size, theme_manager::get_str(theme_manager::INPUT_FONT));
+            line_prefix, font_size, theme_manager::get_str(theme_manager::INPUT_FONT));
     } else {
         float char_w = font_size * 0.60f;
-        cursor_px = static_cast<float>(cursor_pos_) * char_w;
+        cursor_px = static_cast<float>(line_prefix.size()) * char_w;
     }
     float avail_w = width - padding_h_ * 2.0f - scroll_margin;
     if (avail_w < 10.0f) avail_w = 10.0f;
@@ -438,16 +571,63 @@ void text_field::ensure_cursor_visible() {
     } else if (cursor_px > scroll_x_ + avail_w) {
         scroll_x_ = cursor_px - avail_w;
     }
-    float total_w = 0.0f;
-    if (cached_renderer_) {
-        total_w = cached_renderer_->measure_text_width(
-            text, font_size, theme_manager::get_str(theme_manager::INPUT_FONT));
-    } else {
-        total_w = static_cast<float>(text.size()) * font_size * 0.60f;
+    // 横向滚动上限取当前行宽度（多行时各行独立）。
+    float line_w = cursor_px;
+    {
+        size_t le = line_start;
+        while (le < text.size() && text[le] != '\n') ++le;
+        std::string lt = text.substr(line_start, le - line_start);
+        if (cached_renderer_) {
+            line_w = cached_renderer_->measure_text_width(
+                lt, font_size, theme_manager::get_str(theme_manager::INPUT_FONT));
+        } else {
+            line_w = static_cast<float>(lt.size()) * font_size * 0.60f;
+        }
     }
-    float max_scroll = std::max(0.0f, total_w - avail_w);
+    float max_scroll = std::max(0.0f, line_w - avail_w);
     if (scroll_x_ > max_scroll) scroll_x_ = max_scroll;
     if (scroll_x_ < 0) scroll_x_ = 0;
+
+    if (!multiline) return;
+
+    const float line_h = font_size * 1.4f;
+    const float top = content_top();
+    const float cy = top + static_cast<float>(line) * line_h;
+    if (cy < padding_v_) {
+        scroll_y_ = cy - padding_v_;
+    } else if (cy + line_h > height - padding_v_) {
+        scroll_y_ = cy + line_h - (height - padding_v_);
+    }
+    const float content_h = static_cast<float>(tf_line_count(text)) * line_h;
+    const float max_scroll_y = std::max(0.0f, top + content_h - height);
+    if (scroll_y_ > max_scroll_y) scroll_y_ = max_scroll_y;
+    if (scroll_y_ < 0) scroll_y_ = 0;
+}
+
+void text_field::report_ime_caret() {
+    size_t line = 0;
+    size_t line_start = 0;
+    for (size_t i = 0; i < cursor_pos_ && i < text.size(); ++i) {
+        if (text[i] == '\n') {
+            ++line;
+            line_start = i + 1;
+        }
+    }
+    std::string line_prefix = text.substr(line_start, cursor_pos_ - line_start);
+    float line_w = 0.0f;
+    if (!line_prefix.empty()) {
+        if (cached_renderer_) {
+            line_w = cached_renderer_->measure_text_width(
+                line_prefix, font_size, theme_manager::get_str(theme_manager::INPUT_FONT));
+        } else {
+            line_w = static_cast<float>(line_prefix.size()) * font_size * 0.6f;
+        }
+    }
+    float line_h = font_size * 1.4f;
+    float ime_x = text_x() - scroll_x_ + line_w;
+    float ime_y = content_top() + static_cast<float>(line) * line_h - scroll_y_;
+    point sp = to_screen(ime_x, ime_y);
+    ime::set_caret_rect(sp.x, sp.y);
 }
 
 void text_field::open_context_menu(float mx, float my) {

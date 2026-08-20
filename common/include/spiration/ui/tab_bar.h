@@ -18,6 +18,7 @@
 namespace spiration {
 
 class tab_bar;
+class tab_head_item;
 
 /**
  * @brief 单个标签页。
@@ -55,45 +56,6 @@ protected:
 };
 
 /**
- * @brief 标签头项，代表单个 tab 在标签栏中的标题按钮。
- */
-class tab_head_item : public widget {
-    friend class tab_bar;
-public:
-    explicit tab_head_item(const std::string& title);
-
-    void set_on_activate(std::function<void()> cb) { on_activate_ = std::move(cb); }
-    void set_on_close(std::function<void()> cb) { on_close_ = std::move(cb); }
-
-    void paint(std::shared_ptr<renderer> renderer) override;
-    void handle_event(const event_type& type, void* data) override;
-    void tick(float dt_ms) override;
-
-    void set_active(bool active) { active_ = active; }
-    bool is_active() const { return active_; }
-    void set_title(const std::string& t) { title_ = t; }
-    const std::string& get_title() const { return title_; }
-
-private:
-    std::string title_;
-    bool active_ = false;
-    bool hovering_ = false;
-    bool close_hovering_ = false;
-
-    color_transition bg_;
-    color_transition text_;
-    color_transition close_fg_;
-
-    std::function<void()> on_activate_;
-    std::function<void()> on_close_;
-
-    void sync_colors();
-
-    static constexpr float CLOSE_BTN_W = 20.0f;
-    static constexpr float CLOSE_ICON_SIZE = 10.0f;
-};
-
-/**
  * @brief 标签栏，管理多个 tab，显示可滚动的标签头并切换内容区域。
  */
 class tab_bar : public container {
@@ -128,6 +90,9 @@ private:
     float curr_indicator_pos_ = 0.0f;
     float curr_indicator_width_ = 0.0f;
     color_transition curr_indicator_alpha_{color::transparent()};
+
+    /// @brief 切换标签时内容区淡入。
+    value_transition content_fade_{1.0f};
 
     float prev_indicator_pos_ = 0.0f;
     float prev_indicator_width_ = 0.0f;

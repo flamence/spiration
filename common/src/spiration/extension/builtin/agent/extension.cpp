@@ -4,11 +4,13 @@
  * @author clk
  */
 
+#include <fmt/core.h>
 #include <spiration/extension/builtin/agent/extension.h>
 #include <spiration/extension/builtin/edit/edit_service.h>
 #include <spiration/extension/builtin/i18n/i18n.h>
 #include <spiration/extension/extension_api.h>
 #include <spiration/extension/extension_manager.h>
+#include <spiration/utils/dispatcher.h>
 #include <ghc/filesystem.hpp>
 #include <fmt/format.h>
 #include <spiration/utils/platform.h>
@@ -75,16 +77,13 @@ bool extension::initialize() {
 
     if (has_config) {
         client_ = std::make_shared<chat_client>(cfg);
-        client_->set_system_prompt(
-            "你是一个有用的助手，可使用以下工具集："
-            "1) 终端：create_terminal 创建交互式终端会话得到 terminal_id，write_terminal 发送命令（默认附带回车），read_terminal 按行窗口读取输出（行号自下而上，1 为最新行），会话保持存活可连续操作，kill_terminal 关闭并释放终端；"
-            "2) 文件编辑：create_file 创建文件，create_directory 创建目录，read_file 读取文件（可指定 start_line/end_line 行范围），edit_file 编辑文件（content 全量重写或 search+replace 查找替换），rename 重命名/移动，delete 删除文件或目录；文件操作请优先使用相对路径（默认保存到当前会话目录），读取/编辑程序自身文件时才用绝对路径；"
-            "3) Web：fetch 拉取网址内容（支持方法/请求头/查询参数/请求体/超时）；"
-            "4) 规划：todo 维护可追踪的任务列表（status 取 pending/in_progress/completed，每次传全量列表）；"
-            "5) 等待：sleep 休眠指定秒数，用于等待编译等后台任务完成后再读取输出；"
-            "6) 记忆：memory 读写当前会话的持久记忆（action 取 read/write/append/clear），重要上下文可存入。"
-            "注意：write_terminal 发送命令前需要用户确认，被拒绝时结果会提示 user denied。"
-            "回复请用中文。");
+        client_->set_system_prompt(fmt::format(R"(
+You're a Spiration agent in {}, with set of tools and strong ability.
+
+Your tool call will be defaultly called in this chat workspace, where feel free to store any thing.
+
+Think first, and do fast.
+)", platform::os_name()));
 
 #if !defined(__OHOS__)
         create_terminal_ = std::make_unique<create_terminal_tool>();
@@ -169,6 +168,7 @@ bool extension::initialize() {
 }
 
 void extension::shutdown() {
+    shutting_down_ = true;
     if (api) api->log_info("agent extension shutdown");
     save_conversation(nullptr);
     if (agent_tab_) {
@@ -265,26 +265,46 @@ void extension::save_conversation(agent_tab* tab) {
 
     chat_archive archive;
     chat_archive existing;
-    if (store_->load(uuid, existing)) {
-        archive.name       = existing.name;
-        archive.created_at = existing.created_at;
-        archive.memory     = existing.memory;
-    }
-    archive.uuid      = uuid;
-    archive.provider  = client_->provider_name();
-    archive.model     = client_->get_config().model;
-    archive.messages  = client_->history();
+    try {
+        if (store_->load(uuid, existing)) {
+            archive.name       = existing.name;
+            archive.created_at = existing.created_at;
+            archive.memory     = existing.memory;
+        }
+        archive.uuid      = uuid;
+        archive.provider  = client_->provider_name();
+        archive.model     = client_->get_config().model;
+        archive.messages  = client_->history();
 #if !defined(__OHOS__)
-    archive.terminals = terminal_manager::instance().snapshots();
+        archive.terminals = terminal_manager::instance().snapshots();
 #endif
-    archive.todos     = todo_store::instance().items();
-    archive.tokens_in  = client_->input_tokens();
-    archive.tokens_out = client_->output_tokens();
-    if (tab) {
-        archive.can_continue = tab->can_continue();
-        archive.auto_approve = tab->auto_approve();
+        archive.todos     = todo_store::instance().items();
+        archive.tokens_in  = client_->input_tokens();
+        archive.tokens_out = client_->output_tokens();
+        if (tab) {
+            archive.can_continue = tab->can_continue();
+            archive.auto_approve = tab->auto_approve();
+        }
+    } catch (const std::exception& e) {
+        if (api) api->log_error(fmt::format("save conversation failed: {}", e.what()));
+        return;
+    } catch (...) {
+        if (api) api->log_error("save conversation failed: unknown exception");
+        return;
     }
-    store_->save(archive);
+    if (auto* d = application::instance()->dispatcher()) {
+        if (shutting_down_) {
+            // 关闭中：dispatcher::shutdown 会清空任务队列，异步保存会被丢弃，
+            // 必须同步写盘（这是“关闭应用后对话丢失”的根因）。
+            store_->save(archive);
+        } else {
+            d->post([store = store_, archive = std::move(archive)]() {
+                store->save(archive);
+            });
+        }
+    } else {
+        store_->save(archive);
+    }
 }
 
 } // namespace agent

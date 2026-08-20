@@ -108,8 +108,8 @@ std::string create_terminal_tool::description() const {
            "so relative paths in commands refer to that directory.";
 }
 
-std::string create_terminal_tool::parameters_json() const {
-    return R"({
+nlohmann::json create_terminal_tool::parameters() const {
+    return nlohmann::json::parse(R"({
     "type": "object",
     "properties": {
         "shell": {
@@ -117,7 +117,7 @@ std::string create_terminal_tool::parameters_json() const {
             "description": "Optional shell path. Empty means the system default shell."
         }
     }
-})";
+})");
 }
 
 std::string create_terminal_tool::execute(const std::string& args_json) {
@@ -138,8 +138,8 @@ std::string write_terminal_tool::description() const {
            "A newline (Enter) is appended by default; set newline=false to send raw text.";
 }
 
-std::string write_terminal_tool::parameters_json() const {
-    return R"({
+nlohmann::json write_terminal_tool::parameters() const {
+    return nlohmann::json::parse(R"({
     "type": "object",
     "properties": {
         "terminal_id": {
@@ -156,7 +156,7 @@ std::string write_terminal_tool::parameters_json() const {
         }
     },
     "required": ["terminal_id", "input"]
-})";
+})");
 }
 
 std::string write_terminal_tool::execute(const std::string& args_json) {
@@ -181,8 +181,8 @@ std::string read_terminal_tool::description() const {
            "returned lines are in chronological order.";
 }
 
-std::string read_terminal_tool::parameters_json() const {
-    return R"({
+nlohmann::json read_terminal_tool::parameters() const {
+    return nlohmann::json::parse(R"({
     "type": "object",
     "properties": {
         "terminal_id": {
@@ -199,7 +199,7 @@ std::string read_terminal_tool::parameters_json() const {
         }
     },
     "required": ["terminal_id"]
-})";
+})");
 }
 
 std::string read_terminal_tool::execute(const std::string& args_json) {
@@ -224,8 +224,8 @@ std::string kill_terminal_tool::description() const {
            "and its resources are freed; further reads/writes will fail.";
 }
 
-std::string kill_terminal_tool::parameters_json() const {
-    return R"({
+nlohmann::json kill_terminal_tool::parameters() const {
+    return nlohmann::json::parse(R"({
     "type": "object",
     "properties": {
         "terminal_id": {
@@ -234,7 +234,7 @@ std::string kill_terminal_tool::parameters_json() const {
         }
     },
     "required": ["terminal_id"]
-})";
+})");
 }
 
 std::string kill_terminal_tool::execute(const std::string& args_json) {

@@ -16,7 +16,6 @@
 #include <spiration/ui/theme_manager.h>
 #ifdef _WIN32
 #include <windows.h>
-#include <cstring>
 #endif
 
 namespace spiration {
@@ -37,7 +36,8 @@ void appbar::init() {
       m.sub_items.push_back({i18n_manager::get().tr("menu.file.exit"),  [mbar = mbar.get()](){
           auto cb = mbar->get_window_action_callback();
           if (cb) cb(widget::action_close);
-      }}); }
+      }});
+      m.tail_index = m.sub_items.size() - 1; }
 
     { auto& m = mbar->add_menu("menu.help");
       m.sub_items.push_back({i18n_manager::get().tr("menu.help.about"), [mbar = mbar.get()](){

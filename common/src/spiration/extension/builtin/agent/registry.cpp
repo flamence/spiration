@@ -8,6 +8,7 @@
 #include <spiration/extension/builtin/agent/registry.h>
 #include <spiration/extension/builtin/agent/anthropic_provider.h>
 #include <spiration/extension/builtin/agent/openai_provider.h>
+#include <spiration/utils/dispatcher.h>
 
 #include <exception>
 #include <fmt/format.h>
@@ -113,7 +114,8 @@ void agent_registry::notify_models_changed() {
         std::lock_guard<std::mutex> lk(mtx_);
         for (const auto& kv : models_changed_cbs_) cbs.push_back(kv.second);
     }
-    for (auto& cb : cbs) {
+    // 回调会刷新 UI 控件树，统一投递到 UI 线程执行，避免后台线程（模型加载等）触碰控件。
+    auto run = [](const std::function<void()>& cb) {
         try {
             cb();
         } catch (const std::exception& e) {
@@ -121,6 +123,15 @@ void agent_registry::notify_models_changed() {
                 {logging::level::error,
                  fmt::format("models_changed callback threw: {}", e.what()),
                  "extension/agent/registry"});
+        }
+    };
+    if (auto* d = application::instance()->dispatcher()) {
+        for (auto& cb : cbs) {
+            d->post_to_ui([cb, run]() { run(cb); });
+        }
+    } else {
+        for (auto& cb : cbs) {
+            run(cb);
         }
     }
 }

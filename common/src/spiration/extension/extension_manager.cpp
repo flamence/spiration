@@ -39,7 +39,15 @@ extension_manager::extension_manager(const application& application) :
 void extension_manager::shutdown() {
     for (std::pair<const std::string, loaded_extension>& entry : extensions_) {
         if (entry.second.initialized && entry.second.instance) {
-            entry.second.instance->shutdown();
+            try {
+                entry.second.instance->shutdown();
+            } catch (...) {
+                logger_.log({
+                    logging::level::warning,
+                    fmt::format("shutdown threw for \"{}\"", entry.second.instance->id()),
+                    "extension/manager"
+                });
+            }
             entry.second.initialized = false;
         }
     }
@@ -268,13 +276,22 @@ bool extension_manager::unload_extension(const std::string& id) {
     auto it = extensions_.find(id);
     if (it != extensions_.end()) {
         if (it->second.initialized) {
-            it->second.instance->shutdown();
+            try {
+                it->second.instance->shutdown();
+            } catch (...) {
+                logger_.log({
+                    logging::level::warning,
+                    fmt::format("shutdown threw for \"{}\"", id),
+                    "extension/manager"
+                });
+            }
         }
         application::instance()->logger()->log({
             logging::level::trace,
             fmt::format("unloaded \"{}\"", id),
             "extension/manager"
         });
+        emit_event("extension:unloaded", id);
         unregister_services(id);
         extensions_.erase(it);
         return true;
@@ -292,7 +309,17 @@ size_t extension_manager::initialize(init_phase phase) {
     for (auto& le : extensions_) {
         if (!le.second.initialized && le.second.instance && le.second.instance->phase() == phase) {
             le.second.instance->set_api(std::make_unique<spiration::extension_api>(le.second.instance->id()));
-            if (le.second.instance->initialize()) {
+            bool ok = false;
+            try {
+                ok = le.second.instance->initialize();
+            } catch (...) {
+                logger_.log({
+                    logging::level::warning,
+                    fmt::format("initialize threw for \"{}\"", le.second.instance->id()),
+                    "extension/manager"
+                });
+            }
+            if (ok) {
                 le.second.initialized = true;
                 ++count;
                 application::instance()->logger()->log({
@@ -361,7 +388,7 @@ void extension_manager::register_builtin(std::unique_ptr<extension> ext) {
 
     logger_.log({
         logging::level::trace,
-        fmt::format("registered builtin \"{}\"", extensions_[ext_id].instance->name().value_or(ext_id)),
+        fmt::format("registered builtin \"{}\"", ext_id),
         "extension/manager"
     });
 }

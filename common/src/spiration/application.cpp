@@ -4,7 +4,9 @@
  * @author clk
  */
 
+#include "spiration/logging/level.h"
 #include <spiration/application.h>
+#include <spiration/utils/dispatcher.h>
 #include <spiration/logging/console_sink.h>
 #include <spiration/logging/file_sink.h>
 #include <spiration/utils/crash_log.h>
@@ -65,6 +67,12 @@ std::shared_ptr<spiration::extension_manager> application::extension() const {
     return extension_manager_;
 }
 
+task_dispatcher* application::dispatcher() const {
+    return dispatcher_.get();
+}
+
+application::~application() = default;
+
 bool application::initialize(tl::optional<init_phase> phase) {
     if (phase == tl::nullopt) {
         return initialize(init_phase::early) && initialize(init_phase::normal) && initialize(init_phase::late);
@@ -72,9 +80,11 @@ bool application::initialize(tl::optional<init_phase> phase) {
         auto file = make_log_path();
         spiration::crash_log::install(file);
         logger_ = std::make_shared<logging::logger>();
+        logger_->level = logging::level::trace;
         logger_->add_sink(std::make_unique<logging::console_sink>());
         logger_->add_sink(std::make_unique<logging::file_sink>(file));
         extension_manager_ = std::make_shared<extension_manager>(*this);
+        dispatcher_ = std::make_unique<task_dispatcher>();
         extension_manager_->load_from(platform::data_directory());
         extension_manager_->initialize(init_phase::early);
         return true;
@@ -120,6 +130,7 @@ void application::loop() {
 
 void application::shutdown() {
     extension_manager_->shutdown();
+    if (dispatcher_) dispatcher_->shutdown();
 }
 
 void application::tick(float deltatime) {

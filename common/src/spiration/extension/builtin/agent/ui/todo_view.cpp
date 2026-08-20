@@ -85,9 +85,12 @@ void todo_view::handle_event(const event_type& type, void* data) {
 
         const float cy = my + scroll_y_;
 
+        // 仅处理可见区域内的交互，避免点击/悬停穿透到列表可视区之外。
+        const bool in_view = mx >= 0.0f && mx <= width && my >= 0.0f && my <= height;
+
         if (md->action == mouse_action::move) {
             int row = -1;
-            if (mx >= 0.0f && mx <= width && cy >= PAD &&
+            if (in_view && cy >= PAD &&
                 cy < PAD + ROW_H * static_cast<float>(items_.size())) {
                 row = static_cast<int>((cy - PAD) / ROW_H);
                 if (row < 0 || row >= static_cast<int>(items_.size())) row = -1;
@@ -100,8 +103,8 @@ void todo_view::handle_event(const event_type& type, void* data) {
             return;
         }
 
-        if (md->action == mouse_action::down && md->button == mouse_button::left) {
-            if (mx >= 0.0f && mx <= width && cy >= PAD) {
+        if (md->action == mouse_action::down && md->button == mouse_button::left && in_view) {
+            if (cy >= PAD) {
                 int row = static_cast<int>((cy - PAD) / ROW_H);
                 if (row >= 0 && row < static_cast<int>(items_.size())) {
                     md->consumed = true;

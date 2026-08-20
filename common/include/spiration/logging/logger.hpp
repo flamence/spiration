@@ -7,6 +7,7 @@
 #pragma once
 
 #include <memory>
+#include <mutex>
 #include <spiration/logging/log.h>
 #include <spiration/logging/sink.h>
 #include <type_traits>
@@ -33,6 +34,7 @@ public:
     void add_sink(std::unique_ptr<T> s) {
         static_assert(std::is_base_of<sink, T>::value,
                       "T 必须是 spiration::logging::sink 的派生类型");
+        std::lock_guard<std::mutex> lk(mtx_);
         sinks_.emplace_back(std::move(s));
     }
 
@@ -44,6 +46,7 @@ public:
     void log(log message);
 
 private:
+    mutable std::mutex mtx_;
     std::vector<std::unique_ptr<sink>> sinks_;
 };
 

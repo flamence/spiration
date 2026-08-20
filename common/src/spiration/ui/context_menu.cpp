@@ -6,7 +6,6 @@
 
 #include <spiration/ui/context_menu.h>
 #include <spiration/ui/focus_manager.h>
-#include <algorithm>
 
 namespace spiration {
 
@@ -36,7 +35,8 @@ void context_menu::show_at(float px, float py) {
     visible_ = true;
     hovered_ = -1;
     hover_bg_.snap_to(color::transparent());
-    focus_manager::instance().clear_focus();
+    fade_.snap_to(0.0f);
+    fade_.animate_to(1.0f, 120.0f);
 }
 
 void context_menu::dismiss() {
@@ -49,7 +49,8 @@ bool context_menu::hit_test(float x, float y) const {
 }
 
 void context_menu::tick(float dt_ms) {
-    if (visible_ && hover_bg_.update(dt_ms) && request_repaint_) request_repaint_();
+    if (visible_ && (fade_.update(dt_ms) || hover_bg_.update(dt_ms)) && request_repaint_)
+        request_repaint_();
     widget::tick(dt_ms);
 }
 
@@ -97,6 +98,7 @@ void context_menu::handle_event(const event_type& type, void* data) {
 
 void context_menu::paint(std::shared_ptr<renderer> renderer) {
     if (!visible_) return;
+    renderer->set_alpha(fade_.current());
     renderer->draw_rounded_rectangle({0, 0, width, height}, theme_manager::get(theme_manager::POPUP_BG), 4.0f);
     renderer->draw_rounded_rectangle_outline({0, 0, width, height}, theme_manager::get(theme_manager::POPUP_BORDER), 4.0f, 1.0f);
 
@@ -116,6 +118,7 @@ void context_menu::paint(std::shared_ptr<renderer> renderer) {
         }
         iy += h;
     }
+    renderer->set_alpha(1.0f);
 }
 
 size context_menu::layout_preferred_size() const {

@@ -76,8 +76,8 @@ std::string create_file_tool::description() const {
            "Parent directories are created automatically if missing.";
 }
 
-std::string create_file_tool::parameters_json() const {
-    return R"({
+nlohmann::json create_file_tool::parameters() const {
+    return nlohmann::json::parse(R"({
     "type": "object",
     "properties": {
         "path": {
@@ -90,7 +90,7 @@ std::string create_file_tool::parameters_json() const {
         }
     },
     "required": ["path"]
-})";
+})");
 }
 
 std::string create_file_tool::execute(const std::string& args_json) {
@@ -98,7 +98,12 @@ std::string create_file_tool::execute(const std::string& args_json) {
     std::string content;
     try {
         nlohmann::json j = nlohmann::json::parse(args_json);
-        path = j.value("path", "");
+        auto path_param = j.value("path", "");
+        if (ghc::filesystem::path(path_param).is_relative()) {
+            path = workdir_getter_() / path_param;
+        } else {
+            path = path_param;
+        }
         content = j.value("content", "");
     } catch (const std::exception& e) {
         return "[error] invalid arguments: " + std::string(e.what());
@@ -117,8 +122,8 @@ std::string read_file_tool::description() const {
            "by default only the first 200 lines are returned.";
 }
 
-std::string read_file_tool::parameters_json() const {
-    return R"({
+nlohmann::json read_file_tool::parameters() const {
+    return nlohmann::json::parse(R"({
     "type": "object",
     "properties": {
         "path": {
@@ -135,7 +140,7 @@ std::string read_file_tool::parameters_json() const {
         }
     },
     "required": ["path"]
-})";
+})");
 }
 
 std::string read_file_tool::execute(const std::string& args_json) {
@@ -144,7 +149,12 @@ std::string read_file_tool::execute(const std::string& args_json) {
     long end_line = 0;
     try {
         nlohmann::json j = nlohmann::json::parse(args_json);
-        path = j.value("path", "");
+        auto path_param = j.value("path", "");
+        if (ghc::filesystem::path(path_param).is_relative()) {
+            path = workdir_getter_() / path_param;
+        } else {
+            path = path_param;
+        }
         start_line = j.value("start_line", 1L);
         end_line = j.value("end_line", 0L);
     } catch (const std::exception& e) {
@@ -197,8 +207,8 @@ std::string create_directory_tool::description() const {
     return "Create a directory (and any missing parents). No-op if it already exists.";
 }
 
-std::string create_directory_tool::parameters_json() const {
-    return R"({
+nlohmann::json create_directory_tool::parameters() const {
+    return nlohmann::json::parse(R"({
     "type": "object",
     "properties": {
         "path": {
@@ -207,14 +217,19 @@ std::string create_directory_tool::parameters_json() const {
         }
     },
     "required": ["path"]
-})";
+})");
 }
 
 std::string create_directory_tool::execute(const std::string& args_json) {
     ghc::filesystem::path path;
     try {
         nlohmann::json j = nlohmann::json::parse(args_json);
-        path = j.value("path", "");
+        auto path_param = j.value("path", "");
+        if (ghc::filesystem::path(path_param).is_relative()) {
+            path = workdir_getter_() / path_param;
+        } else {
+            path = path_param;
+        }
     } catch (const std::exception& e) {
         return "[error] invalid arguments: " + std::string(e.what());
     }
@@ -232,8 +247,8 @@ std::string edit_file_tool::description() const {
            "(replace_all=true replaces every occurrence, default replaces the first).";
 }
 
-std::string edit_file_tool::parameters_json() const {
-    return R"({
+nlohmann::json edit_file_tool::parameters() const {
+    return nlohmann::json::parse(R"({
     "type": "object",
     "properties": {
         "path": {
@@ -258,7 +273,7 @@ std::string edit_file_tool::parameters_json() const {
         }
     },
     "required": ["path"]
-})";
+})");
 }
 
 std::string edit_file_tool::execute(const std::string& args_json) {
@@ -267,7 +282,12 @@ std::string edit_file_tool::execute(const std::string& args_json) {
     bool has_content = false, has_search = false, replace_all = false;
     try {
         nlohmann::json j = nlohmann::json::parse(args_json);
-        path = j.value("path", "");
+        auto path_param = j.value("path", "");
+        if (ghc::filesystem::path(path_param).is_relative()) {
+            path = workdir_getter_() / path_param;
+        } else {
+            path = path_param;
+        }
         has_content = j.contains("content");
         content = j.value("content", "");
         has_search = j.contains("search");
@@ -326,8 +346,8 @@ std::string rename_tool::description() const {
     return "Rename or move a file or directory to a new path.";
 }
 
-std::string rename_tool::parameters_json() const {
-    return R"({
+nlohmann::json rename_tool::parameters() const {
+    return nlohmann::json::parse(R"({
     "type": "object",
     "properties": {
         "path": {
@@ -340,15 +360,25 @@ std::string rename_tool::parameters_json() const {
         }
     },
     "required": ["path", "new_path"]
-})";
+})");
 }
 
 std::string rename_tool::execute(const std::string& args_json) {
     ghc::filesystem::path path, new_path;
     try {
         nlohmann::json j = nlohmann::json::parse(args_json);
-        path = j.value("path", "");
-        new_path = j.value("new_path", "");
+        auto path_param = j.value("path", "");
+        if (ghc::filesystem::path(path_param).is_relative()) {
+            path = workdir_getter_() / path_param;
+        } else {
+            path = path_param;
+        }
+        auto new_path_param = j.value("new_path", "");
+        if (ghc::filesystem::path(path_param).is_relative()) {
+            new_path = workdir_getter_() / new_path_param;
+        } else {
+            new_path = new_path_param;
+        }
     } catch (const std::exception& e) {
         return "[error] invalid arguments: " + std::string(e.what());
     }
@@ -364,8 +394,8 @@ std::string delete_tool::description() const {
     return "Delete a file or directory. Directories are removed recursively.";
 }
 
-std::string delete_tool::parameters_json() const {
-    return R"({
+nlohmann::json delete_tool::parameters() const {
+    return nlohmann::json::parse(R"({
     "type": "object",
     "properties": {
         "path": {
@@ -374,14 +404,19 @@ std::string delete_tool::parameters_json() const {
         }
     },
     "required": ["path"]
-})";
+})");
 }
 
 std::string delete_tool::execute(const std::string& args_json) {
     ghc::filesystem::path path;
     try {
         nlohmann::json j = nlohmann::json::parse(args_json);
-        path = j.value("path", "");
+        auto path_param = j.value("path", "");
+        if (ghc::filesystem::path(path_param).is_relative()) {
+            path = workdir_getter_() / path_param;
+        } else {
+            path = path_param;
+        }
     } catch (const std::exception& e) {
         return "[error] invalid arguments: " + std::string(e.what());
     }

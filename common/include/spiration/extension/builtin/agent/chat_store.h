@@ -99,6 +99,8 @@ private:
     ghc::filesystem::path base_dir_;
     mutable std::mutex uuid_mtx_;
     std::string current_uuid_;
+    /// @brief 串行化全部文件操作。
+    mutable std::mutex io_mtx_;
 
     /// @brief 生成 UUID v4 字符串。
     static std::string make_uuid();

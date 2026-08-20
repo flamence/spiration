@@ -5,6 +5,7 @@
  */
 
 #import <spiration/window/macos_window.h>
+#import <spiration/window/ime.h>
 #import <renderer/metal_renderer.h>
 #import <ui/point.h>
 #import <ui/size.h>
@@ -53,7 +54,7 @@ static int cocoa_key_to_vk(unsigned short keyCode) {
     }
 }
 
-@interface SpirationContentView : NSView
+@interface SpirationContentView : NSView <NSTextInputClient>
 @property (nonatomic, assign) spiration::Window* spirationWindow;
 @end
 
@@ -332,6 +333,93 @@ static int cocoa_key_to_vk(unsigned short keyCode) {
             win->get_widget()->handle_event(event_type::keyboard, &ced);
         }
     }
+}
+
+- (BOOL)hasMarkedText {
+    return NO;
+}
+
+- (NSRange)markedRange {
+    return NSMakeRange(NSNotFound, 0);
+}
+
+- (NSRange)selectedRange {
+    return NSMakeRange(NSNotFound, 0);
+}
+
+- (void)unmarkText {
+}
+
+- (void)setMarkedText:(id)string selectedRange:(NSRange)selectedRange replacementRange:(NSRange)replacementRange {
+}
+
+- (NSArray*)validAttributesForMarkedText {
+    return @[];
+}
+
+- (NSUInteger)characterIndexForPoint:(NSPoint)point {
+    return 0;
+}
+
+- (NSRect)firstRectForCharacterRange:(NSRange)range actualRange:(NSRangePointer)actualRange {
+    if (actualRange) *actualRange = range;
+    spiration::Window* win = self.spirationWindow;
+    float cx = 0.0f, cy = 0.0f;
+    if (win) {
+        cx = win->ime_caret_x();
+        cy = win->ime_caret_y();
+    }
+    NSRect viewRect = NSMakeRect(cx, self.bounds.size.height - cy, 1.0, 1.0);
+    NSRect windowRect = [self convertRect:viewRect toView:nil];
+    return [self.window convertRectToScreen:windowRect];
+}
+
+- (void)doCommandBySelector:(SEL)selector {
+    if (!self.spirationWindow) return;
+    spiration::Window* win = self.spirationWindow;
+    int vk = 0;
+    if (selector == @selector(insertNewline:)) vk = vk::Return;
+    else if (selector == @selector(insertTab:)) vk = vk::Tab;
+    else if (selector == @selector(deleteBackward:)) vk = vk::Back;
+    else if (selector == @selector(deleteForward:)) vk = vk::Delete;
+    else if (selector == @selector(moveLeft:)) vk = vk::Left;
+    else if (selector == @selector(moveRight:)) vk = vk::Right;
+    else if (selector == @selector(moveUp:)) vk = vk::Up;
+    else if (selector == @selector(moveDown:)) vk = vk::Down;
+    if (vk != 0 && win->get_widget()) {
+        key_event_data ked;
+        ked.key_code = vk;
+        win->get_widget()->handle_event(event_type::keyboard, &ked);
+        if (win->on_key()) win->on_key()(win);
+    }
+}
+
+- (void)insertText:(id)string replacementRange:(NSRange)replacementRange {
+    if (!self.spirationWindow) return;
+    spiration::Window* win = self.spirationWindow;
+    NSString* text = [string isKindOfClass:[NSAttributedString class]]
+        ? [(NSAttributedString*)string string]
+        : (NSString*)string;
+    if ([text length] == 0) return;
+
+    for (NSUInteger i = 0; i < [text length]; ++i) {
+        unichar c = [text characterAtIndex:i];
+        unsigned int cp = static_cast<unsigned int>(c);
+        if (c >= 0xD800 && c <= 0xDBFF && i + 1 < [text length]) {
+            unichar low = [text characterAtIndex:i + 1];
+            if (low >= 0xDC00 && low <= 0xDFFF) {
+                cp = 0x10000 + ((c - 0xD800) << 10) + (low - 0xDC00);
+                ++i;
+            }
+        }
+        key_event_data ced;
+        ced.key_code = 0;
+        ced.codepoint = cp;
+        if (win->get_widget()) {
+            win->get_widget()->handle_event(event_type::keyboard, &ced);
+        }
+    }
+    if (win->on_key()) win->on_key()(win);
 }
 
 - (void)keyUp:(NSEvent*)event {
@@ -769,6 +857,11 @@ bool Window::initialize(const window_params& params) {
 
     if (!create_renderer()) return false;
 
+    ime::set_caret_callback([this](float x, float y) {
+        m_ImeCaretX = x;
+        m_ImeCaretY = y;
+    });
+
     m_OnClose = params.on_close;
     m_OnResize = params.on_resize;
     m_OnKey = params.on_key;
@@ -893,7 +986,6 @@ void Window::notify_widget_resize() {
     if (!m_Widget) return;
     size sizeData = { static_cast<float>(m_Width), static_cast<float>(m_Height) };
     m_Widget->handle_event(event_type::window_resize, &sizeData);
-    m_NeedsLayout = true;
 }
 
 std::shared_ptr<window> window::create() {

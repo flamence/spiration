@@ -9,6 +9,7 @@
 #include <spiration/ui/point.h>
 #include <spiration/ui/size.h>
 #include <spiration/window/windows_window.h>
+#include <spiration/window/ime.h>
 #include <memory>
 #include <Windows.h>
 #include <windowsx.h>
@@ -325,15 +326,12 @@ LRESULT Window::HandleMessage(UINT uMsg, WPARAM wParam, LPARAM lParam) {
             key_event_data ked;
             ked.codepoint = static_cast<unsigned int>(wParam);
             m_Widget->handle_event(event_type::keyboard, &ked);
-            if (ked.ime_x != tl::nullopt && ked.ime_y != tl::nullopt) {
-                HIMC hIMC = ImmGetContext(m_hWnd);
-                if (hIMC) {
-                    COMPOSITIONFORM cf = { CFS_POINT, { (LONG)(ked.ime_x.value() * m_DPIScale), (LONG)(ked.ime_y.value() * m_DPIScale) }, {} };
-                    ImmSetCompositionWindow(hIMC, &cf);
-                    ImmReleaseContext(m_hWnd, hIMC);
-                }
-            }
         }
+        break;
+
+    case WM_IME_STARTCOMPOSITION:
+    case WM_IME_COMPOSITION:
+        MoveImeCompositionWindow();
         break;
 
     case WM_KEYUP:
@@ -423,6 +421,12 @@ bool Window::initialize(const window_parameters& params) {
     UpdateDPIScale();
 
     if (!CreateRenderer()) return false;
+
+    ime::set_caret_callback([this](float x, float y) {
+        m_ImeCaretX = x;
+        m_ImeCaretY = y;
+        MoveImeCompositionWindow();
+    });
 
     return true;
 }
@@ -540,7 +544,19 @@ void Window::NotifyWidgetResize() {
     get_size(widthDIP, heightDIP);
     size sizeData = { static_cast<float>(widthDIP), static_cast<float>(heightDIP) };
     m_Widget->handle_event(event_type::window_resize, &sizeData);
-    m_NeedsLayout = true;
+}
+
+void Window::MoveImeCompositionWindow() {
+    if (!m_hWnd) return;
+    HIMC hIMC = ImmGetContext(m_hWnd);
+    if (hIMC) {
+        COMPOSITIONFORM cf = { CFS_POINT,
+                              { (LONG)(m_ImeCaretX * m_DPIScale),
+                                (LONG)(m_ImeCaretY * m_DPIScale) },
+                              {} };
+        ImmSetCompositionWindow(hIMC, &cf);
+        ImmReleaseContext(m_hWnd, hIMC);
+    }
 }
 
 

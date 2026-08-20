@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include <spiration/extension/builtin/agent/tool/tool.h>
+#include <spiration/extension/builtin/agent/tool/tool.hpp>
 
 #include <functional>
 #include <memory>

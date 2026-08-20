@@ -22,6 +22,9 @@ public:
     std::string placeholder;
     std::function<void(const std::string&)> on_submit;
 
+    /** @brief 是否支持多行输入，启用后 Shift+Enter 插入换行。 */
+    bool multiline = false;
+
     /** @brief 光标自动跟随阈值 */
     float scroll_margin = 30.0f;
 
@@ -48,10 +51,17 @@ public:
     /// @brief 全选（text_field 用字节偏移光标，需覆写 text_area 的行列版本）。
     void select_all() override;
 
+    /// @brief 清空内容并复位光标与滚动。
+    void clear();
+
     /// @brief 获得焦点（由 focus_manager 驱动）。
     void on_focus() override;
     /// @brief 失去焦点（由 focus_manager 驱动）。
     void on_blur() override;
+
+protected:
+    /// @brief 上报光标位置供输入法定位。
+    void report_ime_caret() override;
 
 private:
     bool focused_ = false;
@@ -60,6 +70,8 @@ private:
     bool selecting_ = false;
     bool mouse_down_ = false;
     float scroll_x_ = 0.0f;
+    /// @brief 多行模式下的垂直滚动偏移。
+    float scroll_y_ = 0.0f;
     float cursor_blink_ = 0.0f;
     bool cursor_visible_ = true;
     std::shared_ptr<renderer> cached_renderer_;
@@ -67,6 +79,9 @@ private:
 
     float padding_h_ = 8.0f;
     float padding_v_ = 6.0f;
+
+    /// @brief 首行内容 y（未含垂直滚动；多行时顶部对齐，单行保持居中）。
+    float content_top() const;
 
     bool has_selection() const;
     void delete_selection();
@@ -76,7 +91,7 @@ private:
     void delete_after_cursor();
     void move_cursor(int delta);
     void ensure_cursor_visible();
-    size_t hit_to_cursor(float mx, std::shared_ptr<renderer> r = nullptr) const;
+    size_t hit_to_cursor(float mx, float my, std::shared_ptr<renderer> r = nullptr) const;
     void open_context_menu(float mx, float my) override;
 };
 

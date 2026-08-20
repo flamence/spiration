@@ -7,6 +7,7 @@
 #pragma once
 
 #include <spiration/ui/container.h>
+#include <spiration/utils/animation.h>
 
 namespace spiration {
 
@@ -21,6 +22,7 @@ public:
 
     void init() override;
     void paint(std::shared_ptr<renderer> renderer) override;
+    void tick(float dt_ms) override;
     bool hit_test(float x, float y) const override;
 
     void set_control_size(float size) { btn_size_ = size; }
@@ -31,6 +33,13 @@ private:
 
     
     bool hover_min_ = false, hover_max_ = false, hover_close_ = false;
+
+    /// @brief 最小化按钮悬停背景过渡。
+    color_transition hover_min_bg_{color::transparent()};
+    /// @brief 最大化按钮悬停背景过渡。
+    color_transition hover_max_bg_{color::transparent()};
+    /// @brief 关闭按钮悬停背景过渡。
+    color_transition close_bg_{color::transparent()};
 
     void handle_event(const event_type& type, void* data) override;
 

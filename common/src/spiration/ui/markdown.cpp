@@ -13,6 +13,7 @@
 #include <algorithm>
 #include <cstdlib>
 #include <map>
+#include <system_error>
 
 namespace spiration {
 
@@ -214,6 +215,34 @@ std::vector<std::vector<markdown::run>> wrap_words(
                 float ww = r ? r->measure_text_width(wp.first, font_size, family)
                              : approx_width(wp.first, font_size);
                 if (!line.empty() && line_w + space_w + ww > width) flush();
+                if (ww > width && width > 0.0f) {
+                    // 超长单词按宽度切分，避免整行溢出。
+                    const float char_w = font_size * 0.5f;
+                    const size_t per_chunk = static_cast<size_t>(
+                        std::max(1.0f, width / char_w));
+                    size_t pos = 0;
+                    while (pos < wp.first.size()) {
+                        size_t end = std::min(wp.first.size(), pos + per_chunk);
+                        while (end > pos + 1 &&
+                               (static_cast<unsigned char>(wp.first[end - 1]) & 0xC0) == 0x80) {
+                            --end;
+                        }
+                        if (end <= pos) end = pos + 1;
+                        std::string chunk = wp.first.substr(pos, end - pos);
+                        float cw = r ? r->measure_text_width(chunk, font_size, family)
+                                     : approx_width(chunk, font_size);
+                        if (!line.empty() && line_w + space_w + cw > width) flush();
+                        line_w += (line.empty() ? 0.0f : space_w) + cw;
+                        markdown::run wr;
+                        wr.text = chunk;
+                        wr.style = run.style;
+                        wr.href = run.href;
+                        wr.src = run.src + segs[s].second + wp.second + pos;
+                        line.push_back(std::move(wr));
+                        pos = end;
+                    }
+                    continue;
+                }
                 line_w += (line.empty() ? 0.0f : space_w) + ww;
                 markdown::run wr;
                 wr.text = wp.first;
@@ -253,6 +282,10 @@ void markdown::ensure_parsed() const {
     if (parsed_text_ != text) {
         blocks_ = parse(text);
         parsed_text_ = text;
+        block_scroll_x_.assign(blocks_.size(), 0.0f);
+        block_rects_.assign(blocks_.size(), rectangle{0.0f, 0.0f, 0.0f, 0.0f});
+        cached_h_width_ = -1.0f;
+        cached_h_height_ = 0.0f;
     }
 }
 
@@ -465,10 +498,18 @@ std::vector<markdown::run> markdown::parse_inline(
         char c = line[i];
 
         if (c == '\\' && i + 1 < n) {
-            if (cur.empty()) cur_start = i;
-            cur += line[i + 1];
-            i += 2;
-            continue;
+            const char nx = line[i + 1];
+            // 仅当后随 ASCII 标点时视为转义（CommonMark 规则），否则保留反斜杠本身。
+            const bool punct = (nx >= 0x21 && nx <= 0x2F) ||
+                               (nx >= 0x3A && nx <= 0x40) ||
+                               (nx >= 0x5B && nx <= 0x60) ||
+                               (nx >= 0x7B && nx <= 0x7E);
+            if (punct) {
+                if (cur.empty()) cur_start = i;
+                cur += nx;
+                i += 2;
+                continue;
+            }
         }
         if (c == '`') {
             size_t end = line.find('`', i + 1);
@@ -698,8 +739,6 @@ float markdown::measure_height(std::shared_ptr<renderer> r, float avail_w) const
 void markdown::layout() {
     on_layout_begin();
     auto r = measure_renderer();
-    if (r) content_w_ = measure_content_width(r);
-    scroll_x_ = std::max(0.0f, std::min(scroll_x_, scroll_max_x()));
     float h = measure_height(r, effective_width());
     if (h > 0.0f) height = h;
 }
@@ -733,30 +772,31 @@ float markdown::table_natural_width(
     return total;
 }
 
-float markdown::measure_content_width(std::shared_ptr<renderer> r) const {
-    ensure_parsed();
+float markdown::block_natural_width(std::shared_ptr<renderer> r, const block& b) const {
     const float base_size = font_size > 0.0f ? font_size : 14.0f;
-    std::string bf = ui_font();
-    float w = 0.0f;
-    for (const auto& b : blocks_) {
-        if (b.k == block::kind::table) {
-            w = std::max(w, table_natural_width(r, b.table, base_size, bf));
-        } else if (b.k == block::kind::code) {
-            const float pad = 6.0f;
-            float cfont = base_size * 0.95f;
-            float cw = 0.0f;
-            for (const auto& cl : b.code_lines) {
-                float lw = r ? r->measure_text_width(cl, cfont, mono_font())
-                             : approx_width(cl, cfont);
-                cw = std::max(cw, lw);
-            }
-            w = std::max(w, cw + pad * 2.0f);
+    if (b.k == block::kind::code) {
+        const float pad = 6.0f;
+        float cfont = base_size * 0.95f;
+        float cw = 0.0f;
+        for (const auto& cl : b.code_lines) {
+            float lw = r ? r->measure_text_width(cl, cfont, mono_font())
+                         : approx_width(cl, cfont);
+            cw = std::max(cw, lw);
         }
+        return cw + pad * 2.0f;
     }
-    return w;
+    if (b.k == block::kind::table) {
+        return table_natural_width(r, b.table, base_size, ui_font());
+    }
+    return 0.0f;
 }
 
-void markdown::draw_block(std::shared_ptr<renderer> r, const block& b,
+float markdown::block_scroll_max(size_t bindex, float avail_w) const {
+    if (bindex >= blocks_.size()) return 0.0f;
+    return std::max(0.0f, block_natural_width(measure_renderer(), blocks_[bindex]) - avail_w);
+}
+
+void markdown::draw_block(std::shared_ptr<renderer> r, const block& b, size_t bindex,
                           float x, float y, float avail_w, float& y_out) const {
     const float base_size = font_size > 0.0f ? font_size : 14.0f;
     const float line_h = base_size * 1.4f;
@@ -807,20 +847,46 @@ void markdown::draw_block(std::shared_ptr<renderer> r, const block& b,
                 float lw = r ? r->measure_text_width(cl, cfont, mono_font()) : 0.0f;
                 nat_w = std::max(nat_w, lw);
             }
-            float bg_w = std::max(avail_w, nat_w + pad * 2.0f);
-            r->draw_rectangle({x, y, bg_w, ch}, code_bg);
-            r->draw_rectangle_outline({x, y, bg_w, ch},
+            nat_w += pad * 2.0f;
+            float bg_w = std::max(avail_w, nat_w);
+
+            block_rects_[bindex] = {x, y, avail_w, ch};
+            float bscroll = (bindex < block_scroll_x_.size()) ? block_scroll_x_[bindex] : 0.0f;
+            const float smax = std::max(0.0f, nat_w - avail_w);
+            if (smax > 0.0f) {
+                if (bscroll > smax) { bscroll = smax; block_scroll_x_[bindex] = bscroll; }
+            } else {
+                bscroll = 0.0f;
+                block_scroll_x_[bindex] = 0.0f;
+            }
+
+            r->push_clip({x, y, avail_w, ch});
+            r->draw_rectangle({x - bscroll, y, bg_w, ch}, code_bg);
+            r->draw_rectangle_outline({x - bscroll, y, bg_w, ch},
                                       theme_manager::get(theme_manager::SEPARATOR), 1.0f);
             float cy = y + pad;
             for (size_t ci = 0; ci < b.code_lines.size(); ++ci) {
                 const auto& cl = b.code_lines[ci];
-                r->draw_text(cl, {x + pad, cy}, code_col, cfont, mono_font(), false);
+                r->draw_text(cl, {x + pad - bscroll, cy}, code_col, cfont, mono_font(), false);
                 float lw = r ? r->measure_text_width(cl, cfont, mono_font()) : 0.0f;
                 size_t loff = (ci < b.code_offsets.size()) ? b.code_offsets[ci] : 0;
-                word_rects_.push_back({x + pad, cy, lw, line_h, loff,
+                word_rects_.push_back({x + pad - bscroll, cy, lw, line_h, loff,
                                        loff + cl.size(), "", cl,
                                        run_style::code, cfont});
                 cy += line_h;
+            }
+            r->pop_clip();
+
+            if (smax > 0.0f &&
+                (bindex == static_cast<size_t>(hover_block_) ||
+                 bindex == static_cast<size_t>(drag_block_) || bscroll > 0.0f)) {
+                const float sb_h = 6.0f;
+                float thumb = std::max(20.0f, avail_w * (avail_w / nat_w));
+                float tx = x + (avail_w - thumb) * (bscroll / smax);
+                r->draw_rectangle({x, y + ch - sb_h, avail_w, sb_h},
+                                  {0.12f, 0.12f, 0.12f, 0.7f});
+                r->draw_rectangle({tx, y + ch - sb_h, thumb, sb_h},
+                                  {0.55f, 0.55f, 0.55f, 0.8f});
             }
             y += ch + base_size * 0.35f;
             break;
@@ -873,11 +939,24 @@ void markdown::draw_block(std::shared_ptr<renderer> r, const block& b,
             color tbl_hdr    = theme_manager::get(theme_manager::CODE_BG);
             float row_h = line_h;
             float table_h = static_cast<float>(b.table.size()) * row_h;
-            r->draw_rectangle({x, y, total, row_h}, tbl_hdr);
+
+            block_rects_[bindex] = {x, y, avail_w, table_h};
+            float bscroll = (bindex < block_scroll_x_.size()) ? block_scroll_x_[bindex] : 0.0f;
+            const float smax = std::max(0.0f, total - avail_w);
+            if (smax > 0.0f) {
+                if (bscroll > smax) { bscroll = smax; block_scroll_x_[bindex] = bscroll; }
+            } else {
+                bscroll = 0.0f;
+                block_scroll_x_[bindex] = 0.0f;
+            }
+
+            r->push_clip({x, y, avail_w, table_h});
+            const float cx0 = x - bscroll;
+            r->draw_rectangle({cx0, y, total, row_h}, tbl_hdr);
             float ry = y;
             for (size_t ri = 0; ri < b.table.size(); ++ri) {
                 const auto& row = b.table[ri];
-                float cx = x;
+                float cx = cx0;
                 for (size_t ci = 0; ci < col_w.size(); ++ci) {
                     if (ci < row.size())
                         draw_word_line(r, row[ci], cx + cell_pad, ry,
@@ -888,11 +967,24 @@ void markdown::draw_block(std::shared_ptr<renderer> r, const block& b,
                     cx += col_w[ci];
                 }
                 if (ri + 1 < b.table.size())
-                    r->draw_line({x, ry + row_h}, {x + total, ry + row_h},
+                    r->draw_line({cx0, ry + row_h}, {cx0 + total, ry + row_h},
                                  tbl_border, 1.0f);
                 ry += row_h;
             }
-            r->draw_rectangle_outline({x, y, total, table_h}, tbl_border, 1.0f);
+            r->draw_rectangle_outline({cx0, y, total, table_h}, tbl_border, 1.0f);
+            r->pop_clip();
+
+            if (smax > 0.0f &&
+                (bindex == static_cast<size_t>(hover_block_) ||
+                 bindex == static_cast<size_t>(drag_block_) || bscroll > 0.0f)) {
+                const float sb_h = 6.0f;
+                float thumb = std::max(20.0f, avail_w * (avail_w / total));
+                float tx = x + (avail_w - thumb) * (bscroll / smax);
+                r->draw_rectangle({x, y + table_h - sb_h, avail_w, sb_h},
+                                  {0.12f, 0.12f, 0.12f, 0.7f});
+                r->draw_rectangle({tx, y + table_h - sb_h, thumb, sb_h},
+                                  {0.55f, 0.55f, 0.55f, 0.8f});
+            }
             y += table_h + base_size * 0.35f;
             break;
         }
@@ -950,11 +1042,25 @@ void markdown::draw_word_line(std::shared_ptr<renderer> r, const std::vector<run
 
 float markdown::draw_image_run(std::shared_ptr<renderer> r, const run& img, float x, float y,
                                float font_size, float line_height) const {
-    std::string path = img.href;
-    if (path.rfind("file://", 0) == 0) path = path.substr(7);
+    std::string path = trim(img.href);
+    // 仅允许本地文件（file:// 或普通路径）；远程/数据 URI 一律不加载，避免任意网络访问。
+    bool remote = path.rfind("http://", 0) == 0 || path.rfind("https://", 0) == 0 ||
+                  path.rfind("data:", 0) == 0 || path.rfind("ftp://", 0) == 0;
+    if (path.rfind("file://", 0) == 0) {
+        path = path.substr(7);
+        remote = false;
+    }
     uint32_t iw = 0, ih = 0;
-    bool has_img = !path.empty() && ghc::filesystem::exists(path) &&
-                   r && r->query_image_size(path, iw, ih) && iw > 0 && ih > 0;
+    bool has_img = false;
+    if (!remote && !path.empty() && path.size() < 1024) {
+        std::error_code ec;
+        auto sz = ghc::filesystem::file_size(path, ec);
+        if (!ec && sz > 0 && sz < 16 * 1024 * 1024 &&
+            r && r->query_image_size(path, iw, ih) && iw > 0 && ih > 0 &&
+            iw < 8192 && ih < 8192) {
+            has_img = true;
+        }
+    }
     if (has_img) {
         float dh = line_height;
         float dw = dh * static_cast<float>(iw) / static_cast<float>(ih);
@@ -1024,7 +1130,6 @@ float markdown::word_prefix_width(const word_rect& wr, size_t byte_len, std::sha
 }
 
 std::string markdown::link_at(float x, float y) const {
-    x += scroll_x_;  // 内容已横向滚动
     for (const auto& wr : word_rects_) {
         if (!wr.href.empty() && x >= wr.x && x <= wr.x + wr.w &&
             y >= wr.y && y <= wr.y + wr.h)
@@ -1035,7 +1140,6 @@ std::string markdown::link_at(float x, float y) const {
 
 bool markdown::hit_text_area(float x, float y) const {
     if (word_rects_.empty()) return false;
-    x += scroll_x_;
     for (const auto& wr : word_rects_) {
         if (x >= wr.x && x <= wr.x + wr.w && y >= wr.y && y <= wr.y + wr.h)
             return true;
@@ -1044,7 +1148,6 @@ bool markdown::hit_text_area(float x, float y) const {
 }
 
 size_t markdown::hit_test_text(float x, float y) const {
-    x += scroll_x_;
     if (word_rects_.empty()) return 0;
     size_t best = text.size();
     bool found = false;
@@ -1086,7 +1189,7 @@ void markdown::draw_selection_highlight(std::shared_ptr<renderer> r) const {
 }
 
 cursor_style markdown::effective_cursor(float lx, float ly) const {
-    const float cx = lx + scroll_x_;
+    const float cx = lx;
     for (const auto& wr : word_rects_) {
         if (cx >= wr.x && cx <= wr.x + wr.w && ly >= wr.y && ly <= wr.y + wr.h) {
             if (!wr.href.empty() || wr.style == run_style::link ||
@@ -1102,42 +1205,71 @@ void markdown::handle_event(const event_type& type, void* data) {
         auto* md = static_cast<mouse_event_data*>(data);
         const float mx = md->position.x;
         const float my = md->position.y;
-        mouse_over_ = (mx >= 0.0f && mx <= width && my >= 0.0f && my <= height);
-        const float smax = scroll_max_x();
         const float sb_h = 6.0f;
 
-        if (md->action == mouse_action::down && md->button == mouse_button::left) {
-            if (mouse_over_ && smax > 0.0f && my >= height - sb_h && my <= height) {
-                scroll_dragging_ = true;
-                scroll_drag_start_x_ = mx;
-                scroll_drag_start_offset_ = scroll_x_;
+        int over = -1;
+        if (mx >= 0.0f && mx <= width && my >= 0.0f && my <= height) {
+            for (size_t bi = 0; bi < block_rects_.size(); ++bi) {
+                const rectangle& br = block_rects_[bi];
+                if (br.width > 0.0f && my >= br.y && my <= br.y + br.height) {
+                    over = static_cast<int>(bi);
+                    break;
+                }
+            }
+        }
+        if (over != hover_block_) {
+            hover_block_ = over;
+            if (request_repaint_) request_repaint_();
+        }
+
+        if (md->action == mouse_action::down && md->button == mouse_button::left &&
+            over >= 0) {
+            const rectangle& br = block_rects_[over];
+            if (my >= br.y + br.height - sb_h && my <= br.y + br.height) {
+                drag_block_ = over;
+                drag_start_x_ = mx;
+                drag_start_off_ = block_scroll_x_[over];
                 set_mouse_capture(this);
                 md->consumed = true;
                 return;
             }
-        } else if (md->action == mouse_action::move && scroll_dragging_) {
-            float track = std::max(1.0f, width - scroll_thumb_w());
-            scroll_x_ = std::max(0.0f, std::min(
-                scroll_drag_start_offset_ + (mx - scroll_drag_start_x_) / track * smax, smax));
+        } else if (md->action == mouse_action::move && drag_block_ >= 0) {
+            const int bi = drag_block_;
+            const rectangle& br = block_rects_[bi];
+            const float smax = block_scroll_max(static_cast<size_t>(bi), br.width);
+            if (smax > 0.0f) {
+                float nat = block_natural_width(measure_renderer(), blocks_[bi]);
+                float track = std::max(1.0f, br.width - std::max(20.0f, br.width * (br.width / nat)));
+                float nx = drag_start_off_ + (mx - drag_start_x_) / track * smax;
+                nx = std::max(0.0f, std::min(nx, smax));
+                if (nx != block_scroll_x_[bi]) {
+                    block_scroll_x_[bi] = nx;
+                    if (request_repaint_) request_repaint_();
+                }
+            }
             md->consumed = true;
-            if (request_repaint_) request_repaint_();
             return;
-        } else if (md->action == mouse_action::up && scroll_dragging_) {
-            scroll_dragging_ = false;
+        } else if (md->action == mouse_action::up && drag_block_ >= 0) {
+            drag_block_ = -1;
             set_mouse_capture(nullptr);
             md->consumed = true;
             return;
         }
 
         if (md->action == mouse_action::wheel) {
-            if (md->shift && mouse_over_ && smax > 0.0f) {
-                float step = (md->wheel_delta > 0) ? -40.0f : 40.0f;
-                float nx = std::max(0.0f, std::min(scroll_x_ + step, smax));
-                if (nx != scroll_x_) {
-                    scroll_x_ = nx;
-                    md->consumed = true;
-                    if (request_repaint_) request_repaint_();
-                    return;
+            if (over >= 0) {
+                const rectangle& br = block_rects_[over];
+                const float smax = block_scroll_max(static_cast<size_t>(over), br.width);
+                if (smax > 0.0f) {
+                    float step = (md->wheel_delta > 0) ? -40.0f : 40.0f;
+                    float nx = std::max(0.0f,
+                        std::min(block_scroll_x_[over] + step, smax));
+                    if (nx != block_scroll_x_[over]) {
+                        block_scroll_x_[over] = nx;
+                        md->consumed = true;
+                        if (request_repaint_) request_repaint_();
+                        return;
+                    }
                 }
             }
             label::handle_event(type, data);
@@ -1162,28 +1294,15 @@ void markdown::paint(std::shared_ptr<renderer> renderer) {
     cached_renderer_ = renderer;
     ensure_parsed();
     word_rects_.clear();
-    content_w_ = measure_content_width(renderer);
-    scroll_x_ = std::max(0.0f, std::min(scroll_x_, scroll_max_x()));
 
     float y = 0.0f;
     float avail_w = effective_width();
 
     renderer->push_clip({0, 0, width, height});
-    renderer->push_transform(-scroll_x_, 0.0f);
-    for (const auto& b : blocks_)
-        draw_block(renderer, b, 0.0f, y, avail_w, y);
+    for (size_t bi = 0; bi < blocks_.size(); ++bi)
+        draw_block(renderer, blocks_[bi], bi, 0.0f, y, avail_w, y);
     draw_selection_highlight(renderer);
-    renderer->pop_transform();
     renderer->pop_clip();
-
-    const float smax = scroll_max_x();
-    if (smax > 0.0f && (mouse_over_ || scroll_dragging_)) {
-        const float sb_h = 6.0f;
-        renderer->draw_rectangle({0, height - sb_h, width, sb_h}, {0.12f, 0.12f, 0.12f, 0.6f});
-        float thumb_w = scroll_thumb_w();
-        float tx = (width - thumb_w) * (scroll_x_ / smax);
-        renderer->draw_rectangle({tx, height - sb_h, thumb_w, sb_h}, {0.55f, 0.55f, 0.55f, 0.85f});
-    }
 }
 
 } // namespace spiration

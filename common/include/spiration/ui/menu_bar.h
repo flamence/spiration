@@ -41,6 +41,11 @@ struct menu_desc {
     };
     std::vector<item> sub_items;
 
+    /// @brief 无尾项的哨兵值。
+    static constexpr size_t NO_TAIL = static_cast<size_t>(-1);
+    /// @brief 固定末尾子项索引，后续添加的子项插到其前。
+    size_t tail_index = NO_TAIL;
+
     void add_separator() { sub_items.push_back({"", nullptr, true}); }
 };
 

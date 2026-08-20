@@ -9,7 +9,7 @@
 #include <spiration/export.h>
 #include <spiration/extension/builtin/agent/chat.h>
 #include <spiration/extension/builtin/agent/provider.h>
-#include <spiration/extension/builtin/agent/tool/tool.h>
+#include <spiration/extension/builtin/agent/tool/tool.hpp>
 
 #include <functional>
 #include <map>

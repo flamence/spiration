@@ -39,6 +39,7 @@ public:
 
     bool enabled = true;
     bool focusable = false;
+    bool visible = true;
 
     style widget_style;
     
@@ -145,6 +146,7 @@ public:
             if (hovered_ != was_hover) on_hover_change(hovered_);
 
             for (auto& child : children_) {
+                if (!child->visible) continue;
                 mouse_data->position.x = original.x - child->x;
                 mouse_data->position.y = original.y - child->y;
                 child->handle_event(type, data);
@@ -153,6 +155,7 @@ public:
             mouse_data->position = original;
         } else if (type == event_type::keyboard) {
             for (auto& child : children_) {
+                if (!child->visible) continue;
                 child->handle_event(type, data);
                 if (static_cast<key_event_data*>(data)->consumed) break;
             }
@@ -338,8 +341,9 @@ public:
     /**
      * @brief 沿父链重新布局。
      *        供动画驱动的控件在高度变化时调用，让父布局及时跟随。
+     * @param max_depth 最多重排的祖先层数（含自身）；默认不限。
      */
-    void relayout_chain();
+    void relayout_chain(unsigned max_depth = 0xFFFFFFFFu);
 
     /**
      * @brief 沿父链查找根节点，找不到返回 nullptr。
@@ -357,7 +361,17 @@ public:
     virtual void on_blur() {}
 
     virtual bool is_focusable() const { return focusable && enabled; }
+    /**
+     * @brief 设置可见性并联动焦点与重绘。
+     * @param v 是否可见
+     */
+    void set_visible(bool v);
 
+    /**
+     * @brief 设置启用状态并联动焦点与重绘。
+     * @param v 是否启用
+     */
+    void set_enabled(bool v);
     void set_focused(bool f) {
         if (f == focused_) return;
         focused_ = f;

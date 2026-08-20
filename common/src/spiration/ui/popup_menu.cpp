@@ -12,6 +12,8 @@ namespace spiration {
 
 void popup_menu::init() {
     widget_style.background_color = theme_manager::get(theme_manager::POPUP_BG);
+    fade_.snap_to(0.0f);
+    fade_.animate_to(1.0f, 120.0f);
 }
 
 void popup_menu::add_item(const std::string& text, std::function<void()> callback) {
@@ -81,6 +83,8 @@ void popup_menu::handle_event(const event_type& type, void* data) {
         }
 
         if (md->action == mouse_action::down && idx < 0) {
+            // 点击弹出区外：消费事件防止穿透到底层控件，同时关闭菜单。
+            md->consumed = true;
             if (on_dismiss_) on_dismiss_();
             return;
         }
@@ -89,11 +93,13 @@ void popup_menu::handle_event(const event_type& type, void* data) {
 }
 
 void popup_menu::tick(float dt_ms) {
+    if (fade_.update(dt_ms) && request_repaint_) request_repaint_();
     if (hover_bg_.update(dt_ms) && request_repaint_) request_repaint_();
     container::tick(dt_ms);
 }
 
 void popup_menu::paint(std::shared_ptr<renderer> renderer) {
+    renderer->set_alpha(fade_.current());
     renderer->draw_rectangle({0, 0, width, height}, theme_manager::get(theme_manager::POPUP_BG));
 
     float iy = 0;
@@ -111,6 +117,7 @@ void popup_menu::paint(std::shared_ptr<renderer> renderer) {
         }
         iy += h;
     }
+    renderer->set_alpha(1.0f);
 }
 
 } // namespace spiration

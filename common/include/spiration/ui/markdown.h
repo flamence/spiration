@@ -7,7 +7,6 @@
 #pragma once
 
 #include <spiration/ui/label.h>
-#include <algorithm>
 #include <map>
 #include <memory>
 #include <string>
@@ -72,15 +71,13 @@ private:
     std::shared_ptr<renderer> measure_renderer() const;
     float effective_width() const;
     float measure_height(std::shared_ptr<renderer> r, float avail_w) const;
-    /// @brief 遍历块级元素，返回内容自然宽度。
-    float measure_content_width(std::shared_ptr<renderer> r) const;
     /// @brief 计算表格按自然列宽展开后的总宽度。
     static float table_natural_width(
         std::shared_ptr<renderer> r,
         const std::vector<std::vector<std::vector<run>>>& table,
         float font_size, const std::string& family,
         std::vector<float>* col_w_out = nullptr);
-    void draw_block(std::shared_ptr<renderer> r, const block& b,
+    void draw_block(std::shared_ptr<renderer> r, const block& b, size_t bindex,
                     float x, float y, float avail_w, float& y_out) const;
     void draw_word_line(std::shared_ptr<renderer> r, const std::vector<run>& line,
                         float x, float y, float font_size, const std::string& base_family,
@@ -89,6 +86,11 @@ private:
     float draw_image_run(std::shared_ptr<renderer> r, const run& img, float x, float y,
                          float font_size, float line_height) const;
     std::string link_at(float x, float y) const;
+
+    /// @brief 代码块/表格的自然宽度（含内边距）。
+    float block_natural_width(std::shared_ptr<renderer> r, const block& b) const;
+    /// @brief 某块可滚动区域的横向最大滚动距离。
+    float block_scroll_max(size_t bindex, float avail_w) const;
 
     struct word_rect {
         float x = 0.0f, y = 0.0f, w = 0.0f, h = 0.0f;
@@ -113,24 +115,17 @@ private:
     mutable float cached_h_height_ = 0.0f;
 
     std::string pressed_link_;
-    bool scroll_dragging_ = false;
-    float scroll_drag_start_x_ = 0.0f;
-    float scroll_drag_start_offset_ = 0.0f;
 
-    /// @brief 内容自然宽度，横向滚动用。
-    mutable float content_w_ = 0.0f;
-    /// @brief 横向滚动偏移。
-    float scroll_x_ = 0.0f;
-    /// @brief 鼠标是否位于本控件内。
-    bool mouse_over_ = false;
-
-    /// @brief 横向最大滚动距离。
-    float scroll_max_x() const { return std::max(0.0f, content_w_ - width); }
-    /// @brief 横向滚动条缩略宽度。
-    float scroll_thumb_w() const {
-        if (content_w_ <= width) return 0.0f;
-        return std::max(20.0f, width * (width / content_w_));
-    }
+    /// @brief 各代码块/表格的横向滚动偏移，与 blocks_ 下标对应。
+    mutable std::vector<float> block_scroll_x_;
+    /// @brief 各代码块/表格的可见矩形（本控件坐标），仅可滚动块有效。
+    mutable std::vector<rectangle> block_rects_;
+    /// @brief 鼠标悬停的可滚动块下标，无则 -1。
+    int hover_block_ = -1;
+    /// @brief 正在拖拽滚动条的可滚动块下标，无则 -1。
+    int drag_block_ = -1;
+    float drag_start_x_ = 0.0f;
+    float drag_start_off_ = 0.0f;
 };
 
 }

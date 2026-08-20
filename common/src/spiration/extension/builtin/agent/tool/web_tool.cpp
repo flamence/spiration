@@ -45,8 +45,8 @@ std::string fetch_tool::description() const {
            "query params (appended to the URL), a request body, and a timeout in seconds.";
 }
 
-std::string fetch_tool::parameters_json() const {
-    return R"({
+nlohmann::json fetch_tool::parameters() const {
+    return nlohmann::json::parse(R"({
     "type": "object",
     "properties": {
         "url": {
@@ -89,7 +89,7 @@ std::string fetch_tool::parameters_json() const {
         }
     },
     "required": ["url"]
-})";
+})");
 }
 
 std::string fetch_tool::execute(const std::string& args_json) {

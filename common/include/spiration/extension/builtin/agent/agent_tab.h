@@ -23,10 +23,9 @@
 #include <spiration/ui/rectangle.h>
 #include <spiration/ui/split_pane.h>
 #include <spiration/ui/tab_bar.h>
-#include <spiration/ui/text_field.h>
+#include <spiration/ui/text_area.h>
 #include <spiration/ui/theme_manager.h>
 
-#include <chrono>
 #include <cstddef>
 #include <atomic>
 #include <deque>
@@ -47,7 +46,7 @@ struct display_message {
 
 /// @brief 后台初始加载结果。
 struct initial_load_result {
-    std::vector<conversation_meta> convos;  ///< 全部会话元信息（按 updated_at 倒序）。
+    std::vector<conversation_meta> convos;  ///< 全部会话元信息。
     std::string uuid;                       ///< 需要打开的会话 UUID，空表示无会话。
     chat_archive archive;                   ///< 该会话的完整存档。
     bool loaded = false;                    ///< 会话存档是否加载成功。
@@ -128,8 +127,14 @@ private:
     size_t todo_count_ = 0;
     bool todo_has_ = false;
 
-    text_field* input_   = nullptr;
+    /// @brief 输入框（多行 text_area，动态高度，达到最大高度后内部滚动）。
+    text_area* input_ = nullptr;
     button*     send_btn_ = nullptr;
+
+    /// @brief 输入框最大高度。
+    static constexpr float MAX_INPUT_H = 120.0f;
+    /// @brief 按输入内容更新输入栏高度。
+    void update_input_height();
 
     std::vector<display_message> messages_;
     std::string current_uuid_;
@@ -152,6 +157,8 @@ private:
     std::future<chat_response> pending_;
     std::future<initial_load_result> initial_load_;
     bool waiting_ = false;
+    /// @brief 会话打开序号，用于丢弃过期异步加载结果。
+    size_t open_seq_ = 0;
 
     std::shared_ptr<std::atomic<bool>> alive_ = std::make_shared<std::atomic<bool>>(true);
 
@@ -177,6 +184,9 @@ private:
     markdown* last_label_   = nullptr;
     size_t stream_msg_index_ = 0;
     bool streamed_content_ = false;
+    /// @brief 流式追加时暂存的末尾不完整 UTF-8 字节（思考/正文各一份）。
+    std::string utf8_hold_reasoning_;
+    std::string utf8_hold_delta_;
 
     std::mutex approval_mtx_;
     std::atomic<bool> approval_pending_{false};
@@ -191,6 +201,8 @@ private:
 
     void new_conversation(bool to_chat = true);
     void open_conversation(const std::string& uuid, bool to_chat = true);
+    /** @brief 将后台加载的会话应用到 UI（UI 线程调用）。 */
+    void apply_open_conversation(const std::string& uuid, const chat_archive& archive, bool to_chat);
     void delete_conversation(const std::string& uuid);
     /** @brief 重建会话列表。preset 非空时直接使用该列表，避免重复读盘。 */
     void rebuild_conversation_list(const std::vector<conversation_meta>* preset = nullptr);
@@ -224,6 +236,8 @@ private:
      */
     void process_stream_events(size_t max_events = 0);
     void relayout_scroll_repaint();
+    /** @brief 消息列表链有界重排。 */
+    void relayout_msg_chain(bool force_bottom = false);
     /** @brief 发送当前输入内容。 */
     void send();
     /** @brief 启动一次对话。 */

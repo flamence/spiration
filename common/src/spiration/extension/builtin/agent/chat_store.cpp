@@ -137,10 +137,13 @@ void chat_store::set_current_uuid(const std::string& uuid) {
 }
 
 std::string chat_store::create(const std::string& name) {
+    std::lock_guard<std::mutex> lk(io_mtx_);
     std::string uuid = make_uuid();
     ghc::filesystem::path dir = conversation_dir(uuid);
-    if (!ghc::filesystem::create_directories(dir)) {
-        application::instance()->logger()->log({logging::level::error, fmt::format("create conversation dir failed: {}", dir.string()), "extension/agent/chat_store"});
+    std::error_code ec;
+    ghc::filesystem::create_directories(dir, ec);
+    if (ec) {
+        application::instance()->logger()->log({logging::level::error, fmt::format("create conversation dir failed: {} ec={}", dir.string(), ec.message()), "extension/agent/chat_store"});
         return {};
     }
 
@@ -168,23 +171,27 @@ std::string chat_store::create(const std::string& name) {
 }
 
 bool chat_store::save(const chat_archive& archive) {
+    std::lock_guard<std::mutex> lk(io_mtx_);
     if (archive.uuid.empty()) return false;
     ghc::filesystem::path dir = conversation_dir(archive.uuid);
-    if (!ghc::filesystem::create_directories(dir)) return false;
+    // create_directories 在目录已存在时返回 false（非错误，ec 为空）；
+    // 必须用 ec 判断真实失败，否则对已有会话的保存会被误判失败而丢弃。
+    std::error_code ec;
+    ghc::filesystem::create_directories(dir, ec);
+    if (ec) {
+        application::instance()->logger()->log({logging::level::error,
+            fmt::format("create conversation dir failed: {} ec={}", dir.string(), ec.message()),
+            "extension/agent/chat_store"});
+        return false;
+    }
 
     nlohmann::json meta;
     meta["uuid"]       = archive.uuid;
     meta["name"]       = archive.name.empty() ? default_name() : archive.name;
     meta["created_at"] = archive.created_at;
-    {
-        std::string existing_updated;
-        try {
-            nlohmann::json old = nlohmann::json::parse(
-                io::read_file_content(dir / "meta.json"));
-            existing_updated = old.value("updated_at", "");
-        } catch (...) {}
-        meta["updated_at"] = existing_updated.empty() ? now_string() : existing_updated;
-    }
+    // updated_at 始终更新为当前时间（最后修改时间，会话列表按此排序）；
+    // 原实现保留旧值导致会话永远不刷新排序。
+    meta["updated_at"] = now_string();
     meta["provider"]   = archive.provider;
     meta["model"]      = archive.model;
     meta["message_count"] = archive.messages.size();
@@ -232,7 +239,30 @@ bool chat_store::save(const chat_archive& archive) {
 }
 
 bool chat_store::load(const std::string& uuid, chat_archive& archive) const {
+    std::lock_guard<std::mutex> lk(io_mtx_);
     ghc::filesystem::path dir = conversation_dir(uuid);
+
+    // 新建会话只写过 meta.json（尚未保存任何消息），按空会话打开。
+    if (!ghc::filesystem::exists(dir / "messages.json")) {
+        archive.uuid = uuid;
+        archive.messages.clear();
+        archive.terminals.clear();
+        archive.todos.clear();
+        archive.can_continue = false;
+        archive.auto_approve = false;
+        archive.tokens_in = 0;
+        archive.tokens_out = 0;
+        archive.memory = "";
+        try {
+            nlohmann::json meta = nlohmann::json::parse(
+                io::read_file_content(dir / "meta.json"));
+            archive.name       = meta.value("name", default_name());
+            archive.created_at = meta.value("created_at", "");
+        } catch (...) {
+            archive.name = default_name();
+        }
+        return true;
+    }
 
     nlohmann::json root;
     try {
@@ -291,6 +321,7 @@ bool chat_store::load(const std::string& uuid, chat_archive& archive) const {
 }
 
 bool chat_store::remove(const std::string& uuid) {
+    std::lock_guard<std::mutex> lk(io_mtx_);
     if (uuid.empty()) return false;
     std::error_code ec;
     ghc::filesystem::remove_all(conversation_dir(uuid), ec);
@@ -304,6 +335,7 @@ bool chat_store::remove(const std::string& uuid) {
 }
 
 std::vector<conversation_meta> chat_store::list() const {
+    std::lock_guard<std::mutex> lk(io_mtx_);
     std::vector<conversation_meta> out;
     for (const auto& entry : ghc::filesystem::directory_iterator(chat_dir())) {
         if (!entry.is_directory()) continue;
@@ -332,11 +364,13 @@ std::vector<conversation_meta> chat_store::list() const {
 }
 
 std::string chat_store::load_memory(const std::string& uuid) const {
+    std::lock_guard<std::mutex> lk(io_mtx_);
     if (uuid.empty()) return {};
     return io::read_file_content(conversation_dir(uuid) / "memory.md");
 }
 
 bool chat_store::save_memory(const std::string& uuid, const std::string& content) {
+    std::lock_guard<std::mutex> lk(io_mtx_);
     if (uuid.empty()) return false;
     return io::write_file_content(conversation_dir(uuid) / "memory.md", content);
 }

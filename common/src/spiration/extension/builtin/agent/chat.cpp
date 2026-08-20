@@ -8,6 +8,7 @@
 #include <spiration/extension/builtin/agent/chat.h>
 #include <spiration/extension/builtin/agent/registry.h>
 #include <spiration/net/http.h>
+#include <spiration/utils/dispatcher.h>
 
 #include <nlohmann/json.hpp>
 
@@ -73,6 +74,7 @@ void chat_client::clear_history() {
 }
 
 void chat_client::register_tool(tool* t) {
+    std::lock_guard<std::mutex> lk(tools_mtx_);
     if (t) tools_.push_back(t);
 }
 
@@ -89,6 +91,7 @@ void chat_client::wait_all_tools() {
 }
 
 void chat_client::clear_tools() {
+    std::lock_guard<std::mutex> lk(tools_mtx_);
     tools_.clear();
 }
 
@@ -233,6 +236,7 @@ chat_response chat_client::finalize_response(provider_response pr, const chat_ev
 }
 
 tool* chat_client::find_tool(const std::string& name) const {
+    std::lock_guard<std::mutex> lk(tools_mtx_);
     for (auto* t : tools_) {
         if (t && t->name() == name) return t;
     }
@@ -280,7 +284,11 @@ std::future<std::string> chat_client::launch_tool(const tool_call& tc,
             return result;
         });
     std::future<std::string> fut = task->get_future();
-    std::thread([task]() { (*task)(); }).detach();
+    if (auto* d = application::instance()->dispatcher()) {
+        d->post([task]() { (*task)(); });
+    } else {
+        std::thread([task]() { (*task)(); }).detach();
+    }
     return fut;
 }
 
@@ -303,7 +311,7 @@ std::string chat_client::execute_tool(const tool_call& tc,
     }
 }
 
-chat_response chat_client::run(int max_rounds, const chat_events& events) {
+chat_response chat_client::run(const chat_events& events, tl::optional<int> max_rounds) {
     running_.store(true, std::memory_order_release);
     struct run_guard {
         std::atomic<bool>& flag;
@@ -315,7 +323,7 @@ chat_response chat_client::run(int max_rounds, const chat_events& events) {
 
     constexpr size_t MAX_CONCURRENT = 4;
 
-    for (int round = 0; round < max_rounds; ++round) {
+    for (int round = 0; !max_rounds.has_value() || round < max_rounds; ++round) {
         if (events.should_stop && events.should_stop()) break;
         if (events.should_yield && events.should_yield()) break;
         last = send_stream(events);

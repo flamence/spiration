@@ -944,7 +944,6 @@ void x11_window::handle_resize(uint32_t width, uint32_t height) {
     }
 
     notify_widget_resize();
-    if (widget_) widget_->layout();
 }
 
 static int keysym_to_vk(KeySym keysym) {
@@ -1443,7 +1442,6 @@ void x11_window::notify_widget_resize() {
 
     size sizeData = { static_cast<float>(width_), static_cast<float>(height_) };
     widget_->handle_event(event_type::window_resize, &sizeData);
-    needs_layout_ = true;
 }
 
 

@@ -22,6 +22,17 @@ enum class text_overflow { none, ellipsis, hide };
 class label : public widget {
 public:
     std::string text;
+
+    /**
+     * @brief 设置文本并标记内容变更。
+     * @param t 新文本内容
+     */
+    void set_text(const std::string& t) {
+        text = t;
+        invalidate_layout();
+        if (request_repaint_) request_repaint_();
+    }
+
     float font_size = 14.0f;
     text_alignment h_align = text_alignment::left;
     vertical_alignment v_align = vertical_alignment::center;
@@ -45,6 +56,17 @@ public:
     void clear_selection();
 
     void clear_text_selection() override { clear_selection(); }
+
+    /// @brief 将控件内坐标映射为文本中的字节偏移（跨控件选取用）。
+    size_t text_offset_at(float x, float y) const { return hit_test_text(x, y); }
+
+    /// @brief 设置本控件的选择区间（跨控件选取用）。
+    void set_selection_range(size_t a, size_t b) {
+        selecting_ = true;
+        sel_anchor_ = a;
+        sel_pos_ = b;
+        if (request_repaint_) request_repaint_();
+    }
 
     /**
      * @brief 点 (x, y) 是否落在文本可视区域内。
@@ -98,6 +120,13 @@ private:
 
     /// @brief 沿父链通知 root：本控件开始新的文本选择。
     void notify_root_selection_started();
+
+    /// @brief 沿父链通知 root：本控件开始一次跨控件选择。
+    void notify_root_cross_selection_begin(size_t offset);
+    /// @brief 沿父链通知 root：拖拽过程中更新跨控件选择。
+    void notify_root_cross_selection_move(float mx, float my);
+    /// @brief 沿父链通知 root：拖拽结束。
+    void notify_root_cross_selection_end();
 
     std::shared_ptr<renderer> cached_renderer_;
 

@@ -25,6 +25,17 @@ public:
     }
 
     std::vector<std::string> items;
+
+    /**
+     * @brief 设置行数据并标记内容变更。
+     * @param rows 新行数据
+     */
+    void set_items(const std::vector<std::string>& rows) {
+        items = rows;
+        invalidate_layout();
+        if (request_repaint_) request_repaint_();
+    }
+
     int selected_index = -1;
     std::function<void(int)> on_selected;
     float item_height = 28.0f;

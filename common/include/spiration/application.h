@@ -18,6 +18,7 @@
 namespace spiration {
 
 class extension_manager;
+class task_dispatcher;
 
 /**
  * @brief 应用类。
@@ -45,7 +46,13 @@ public:
      * @return 该应用附加的拓展管理器实例。
      */
     std::shared_ptr<spiration::extension_manager> extension() const;
+
+    /**
+     * @return 该应用的任务调度器实例。
+     */
+    task_dispatcher* dispatcher() const;
     
+    ~application();
     /**
      * @brief 初始化应用。
      * @param phase 指定所执行应用初始化阶段。
@@ -91,6 +98,7 @@ public:
     
 private:
     std::shared_ptr<extension_manager> extension_manager_;
+    std::unique_ptr<task_dispatcher> dispatcher_;
     static std::unique_ptr<application> instance_;
     std::shared_ptr<logging::logger> logger_;
     spiration::widget* widget_;

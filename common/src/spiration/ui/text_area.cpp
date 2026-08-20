@@ -10,6 +10,7 @@
 #include <spiration/extension/builtin/i18n/i18n.h>
 #include <spiration/utils/clipboard.h>
 #include <spiration/window/event.h>
+#include <spiration/window/ime.h>
 
 #include <algorithm>
 #include <chrono>
@@ -213,6 +214,7 @@ void text_area::handle_event(const event_type& type, void* data) {
         if (mouse->action == mouse_action::down && mouse->button == mouse_button::right) {
             if (mouse->position.x >= 0.0f && mouse->position.x <= width &&
                 mouse->position.y >= 0.0f && mouse->position.y <= height) {
+                focus();
                 open_context_menu(mouse->position.x, mouse->position.y);
                 mouse->consumed = true;
             }
@@ -306,11 +308,18 @@ void text_area::handle_event(const event_type& type, void* data) {
                 if (request_repaint_) request_repaint_();
             }
         } else if (mouse->action == mouse_action::up && mouse->button == mouse_button::left) {
+            const bool was_active = mouse_down_ || scrollbar_dragging_ || h_scrollbar_dragging_;
             set_mouse_capture(nullptr);
             scrollbar_dragging_ = false;
             h_scrollbar_dragging_ = false;
             mouse_down_ = false;
-            mouse->consumed = true;
+            // 仅在 text_area 自身有交互（按下/拖拽）或松开点在自身范围内时消费；
+            // 否则放行给后续兄弟（如同一容器的按钮），使 button::on_click 能收到 up。
+            if (was_active ||
+                (mouse->position.x >= 0.0f && mouse->position.x <= width &&
+                 mouse->position.y >= 0.0f && mouse->position.y <= height)) {
+                mouse->consumed = true;
+            }
         } else if (mouse->action == mouse_action::wheel) {
             if (mouse->shift) {
                 scroll_x_ -= static_cast<float>(mouse->wheel_delta) * 6.0f;
@@ -374,6 +383,14 @@ void text_area::handle_key(const key_event_data& key) {
     } else if (key.ctrl && key.key_code == 83) {
         if (on_save) on_save();
     } else if (key.key_code == 13) {
+        if (submit_on_enter && !key.shift) {
+            // Enter 提交；Shift+Enter 插入换行。
+            if (on_submit) {
+                on_submit(text);
+                suppress_char_after_enter_ = true;
+                return;
+            }
+        }
         insert_codepoint('\n');
         suppress_char_after_enter_ = true;
     } else if (key.key_code == 8) {
@@ -665,6 +682,16 @@ void text_area::ensure_cursor_visible() {
     }
     if (!max_width_dirty_) scroll_x_ = std::min(scroll_x_, scroll_max_x());
     scroll_x_ = std::max(0.0f, scroll_x_);
+
+    report_ime_caret();
+}
+
+void text_area::report_ime_caret() {
+    float cx = cursor_pixel_x_;
+    if (cx < 0.0f) cx = static_cast<float>(cursor_col_) * font_size * 0.6f;
+    float cy = static_cast<float>(cursor_line_) * line_height - scroll_y_ + text_pad_top;
+    point sp = to_screen(text_x() + cx - scroll_x_, cy);
+    ime::set_caret_rect(sp.x, sp.y);
 }
 
 void text_area::resolve_position(float px, float py, size_t& out_line, size_t& out_col,
@@ -761,6 +788,12 @@ void text_area::paint(std::shared_ptr<renderer> r) {
 
     size_t total_lines = line_count();
 
+    if (total_lines == 0 && !focused_ && !placeholder.empty()) {
+        r->draw_text(placeholder, {text_x(), text_pad_top},
+                     theme_manager::get(theme_manager::INPUT_PLACEHOLDER),
+                     font_size, font_family);
+    }
+
     if (total_lines > 0) {
         size_t first_visible = static_cast<size_t>(scroll_y_ / line_height);
         float view_height = std::max(height, 100.0f);
@@ -783,7 +816,9 @@ void text_area::paint(std::shared_ptr<renderer> r) {
 }
 
 void text_area::draw_background(std::shared_ptr<renderer> r) {
-    r->draw_rectangle({0, 0, width, height}, theme_manager::get(theme_manager::WINDOW_BG));
+    color bg = widget_style.background_color;
+    if (bg.a <= 0.0f) bg = theme_manager::get(theme_manager::WINDOW_BG);
+    r->draw_rectangle({0, 0, width, height}, bg);
 }
 
 void text_area::draw_gutter(std::shared_ptr<renderer> r) {
@@ -939,6 +974,12 @@ void text_area::draw_scrollbar(std::shared_ptr<renderer> r) {
 
 size text_area::layout_preferred_size() const {
     return {width, height};
+}
+
+float text_area::content_preferred_height() const {
+    size_t n = line_count();
+    if (n == 0) n = 1;
+    return static_cast<float>(n) * line_height + text_pad_top * 2.0f;
 }
 
 } // namespace spiration

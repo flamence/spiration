@@ -264,6 +264,33 @@ void label::notify_root_selection_started() {
     }
 }
 
+void label::notify_root_cross_selection_begin(size_t offset) {
+    for (widget* p = parent(); p; p = p->parent()) {
+        if (auto* r = dynamic_cast<root*>(p)) {
+            r->begin_cross_selection(this, offset);
+            break;
+        }
+    }
+}
+
+void label::notify_root_cross_selection_move(float mx, float my) {
+    for (widget* p = parent(); p; p = p->parent()) {
+        if (auto* r = dynamic_cast<root*>(p)) {
+            r->update_cross_selection(this, mx, my);
+            break;
+        }
+    }
+}
+
+void label::notify_root_cross_selection_end() {
+    for (widget* p = parent(); p; p = p->parent()) {
+        if (auto* r = dynamic_cast<root*>(p)) {
+            r->end_cross_selection(this);
+            break;
+        }
+    }
+}
+
 void label::open_context_menu(float mx, float my) {
     auto menu = std::make_unique<context_menu>();
     menu->add_item(i18n_manager::get().tr("context.copy"), [this]() {
@@ -297,16 +324,18 @@ void label::handle_event(const event_type& type, void* data) {
                 sel_anchor_ = hit_test_text(mx, my);
                 sel_pos_ = sel_anchor_;
                 set_mouse_capture(this);
+                notify_root_cross_selection_begin(sel_anchor_);
                 if (request_repaint_) request_repaint_();
             } else if (md->action == mouse_action::down && md->button == mouse_button::right && inside) {
                 md->consumed = true;
                 open_context_menu(mx, my);
             } else if (md->action == mouse_action::move && mouse_down_) {
-                sel_pos_ = hit_test_text(mx, my);
+                notify_root_cross_selection_move(mx, my);
                 if (request_repaint_) request_repaint_();
             } else if (md->action == mouse_action::up && mouse_down_) {
                 mouse_down_ = false;
-                sel_pos_ = hit_test_text(mx, my);
+                notify_root_cross_selection_move(mx, my);
+                notify_root_cross_selection_end();
                 set_mouse_capture(nullptr);
                 if (request_repaint_) request_repaint_();
             }

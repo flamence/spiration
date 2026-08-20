@@ -65,7 +65,7 @@ void anthropic_provider::build_tools(web_context& ctx,
         nlohmann::json tool;
         tool["name"]         = def.function_name;
         tool["description"]  = def.description;
-        tool["input_schema"] = nlohmann::json::parse(def.parameters_json);
+        tool["input_schema"] = def.parameters;
         arr.push_back(std::move(tool));
     }
     ctx.payload["tools"] = std::move(arr);

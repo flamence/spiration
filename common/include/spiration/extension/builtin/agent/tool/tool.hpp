@@ -1,6 +1,6 @@
 /**
- * @file tool.h
- * @brief 智能体工具基类接口。
+ * @file tool.hpp
+ * @brief 智能体工具基类接口（含内联实现）。
  * @author clk
  */
 
@@ -8,6 +8,7 @@
 
 #include <ghc/filesystem.hpp>
 #include <functional>
+#include <nlohmann/json.hpp>
 #include <string>
 
 namespace spiration {
@@ -17,7 +18,8 @@ namespace agent {
 struct tool_definition {
     std::string function_name;
     std::string description;
-    std::string parameters_json;
+    /// @brief 参数 JSON Schema 的结构化对象（web_provider 处理为 JSON Schema 发送）。
+    nlohmann::json parameters;
 };
 
 /**
@@ -33,8 +35,8 @@ public:
     /// @brief 工具描述。
     virtual std::string description() const = 0;
 
-    /// @brief 参数 JSON Schema 字符串。
-    virtual std::string parameters_json() const = 0;
+    /// @brief 参数 JSON Schema 的结构化对象。
+    virtual nlohmann::json parameters() const = 0;
 
     /**
      * @brief 执行工具。
@@ -75,7 +77,7 @@ public:
      * @brief 转换为 tool_definition 供 chat_client 注册。
      */
     tool_definition to_definition() const {
-        return {name(), description(), parameters_json()};
+        return {name(), description(), parameters()};
     }
 
 protected:

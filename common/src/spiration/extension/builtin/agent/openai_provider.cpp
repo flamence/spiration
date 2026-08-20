@@ -52,7 +52,7 @@ void openai_provider::build_tools(web_context& ctx,
         tool["type"] = "function";
         tool["function"]["name"]        = def.function_name;
         tool["function"]["description"] = def.description;
-        tool["function"]["parameters"]  = nlohmann::json::parse(def.parameters_json);
+        tool["function"]["parameters"]  = def.parameters;
         arr.push_back(std::move(tool));
     }
     ctx.payload["tools"]       = std::move(arr);

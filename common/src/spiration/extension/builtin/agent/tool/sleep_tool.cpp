@@ -24,8 +24,8 @@ std::string sleep_tool::description() const {
            "The wait is cancellable when the user stops generation.";
 }
 
-std::string sleep_tool::parameters_json() const {
-    return R"({
+nlohmann::json sleep_tool::parameters() const {
+    return nlohmann::json::parse(R"({
     "type": "object",
     "properties": {
         "seconds": {
@@ -33,7 +33,7 @@ std::string sleep_tool::parameters_json() const {
             "description": "How long to sleep, in seconds (may be fractional). Default 1."
         }
     }
-})";
+})");
 }
 
 std::string sleep_tool::execute(const std::string& args_json) {

@@ -52,6 +52,8 @@ private:
     std::vector<context_menu_item> items_;
     bool visible_ = false;
     int hovered_ = -1;
+    /// @brief 弹出淡入透明度。
+    value_transition fade_{0.0f};
     color_transition hover_bg_{color::transparent()};
     void recalc_size();
 };
