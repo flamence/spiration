@@ -57,7 +57,7 @@ private:
 };
 
 posix_terminal_session::posix_terminal_session(const std::string& shell_path,
-                                               const std::string& cwd) {
+                                               const ghc::filesystem::path& cwd) {
     int in_pipe[2] = {-1, -1};
     int out_pipe[2] = {-1, -1};
     if (pipe(in_pipe) != 0) { err_ = "failed to create stdin pipe"; return; }
