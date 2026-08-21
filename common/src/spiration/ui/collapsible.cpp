@@ -4,6 +4,7 @@
  * @author clk
  */
 
+#include <cmath>
 #include <spiration/ui/collapsible.h>
 #include <spiration/ui/container.h>
 #include <spiration/ui/focus_manager.h>

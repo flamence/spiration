@@ -10,7 +10,6 @@
 #include <spiration/ui/widget.h>
 #include <spiration/window/window.h>
 #include <memory>
-#include <functional>
 #include <string>
 
 #ifdef __OBJC__

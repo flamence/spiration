@@ -15,8 +15,6 @@
 #include <windowsx.h>
 #include <dwmapi.h>
 #include <imm.h>
-#include <cmath>
-#include <functional>
 #include <winuser.h>
 
 #ifndef DWMWA_USE_IMMERSIVE_DARK_MODE

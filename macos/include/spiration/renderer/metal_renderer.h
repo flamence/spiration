@@ -10,10 +10,8 @@
 #include <CoreGraphics/CoreGraphics.h>
 #include <Metal/Metal.h>
 #include <QuartzCore/QuartzCore.h>
-#include <unordered_map>
 #include <vector>
 #include <string>
-#include <memory>
 
 namespace spiration {
 

@@ -4,7 +4,7 @@
  * @author clk
  */
 
-#import <application.h>
+#import <spiration/application.h>
 #import <Cocoa/Cocoa.h>
 
 int main(int argc, const char* argv[]) {
