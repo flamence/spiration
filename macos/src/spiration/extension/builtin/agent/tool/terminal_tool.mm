@@ -1,28 +1,28 @@
 /**
- * @file terminal_tool.cpp
+ * @file terminal_tool.mm
  * @brief 终端会话实现。
  * @author clk
  */
 
-#include <spiration/extension/builtin/agent/tool/terminal_tool.h>
-
+#include <atomic>
 #include <cerrno>
 #include <chrono>
 #include <csignal>
 #include <cstdlib>
 #include <cstring>
-#include <fcntl.h>
-#include <sys/types.h>
-#include <sys/wait.h>
-#include <unistd.h>
-
-#include <atomic>
 #include <deque>
+#include <fcntl.h>
 #include <memory>
 #include <mutex>
+#include <spiration/extension/builtin/agent/tool/terminal_tool.h>
 #include <string>
+#include <sys/types.h>
+#include <sys/wait.h>
 #include <thread>
+#include <unistd.h>
 #include <vector>
+
+#import <Foundation/Foundation.h>
 
 namespace spiration {
 namespace agent {

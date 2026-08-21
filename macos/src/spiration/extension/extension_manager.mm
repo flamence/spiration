@@ -1,16 +1,16 @@
 /**
- * @file extension_manager.cpp
+ * @file extension_manager.mm
  * @brief 拓展管理器实现。
  * @author clk
  */
 
 #include <dlfcn.h>
-
+#include <fmt/format.h>
 #include <spiration/application.h>
 #include <spiration/extension/extension_manager.h>
-
-#include <fmt/format.h>
 #include <string>
+
+#import <Foundation/Foundation.h>
 
 namespace spiration {
 
