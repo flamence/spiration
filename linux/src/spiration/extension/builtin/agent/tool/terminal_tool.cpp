@@ -173,7 +173,8 @@ posix_terminal_session::posix_terminal_session(const ghc::filesystem::path& shel
             std::string msg = "chdir failed: " + std::string(strerror(errno)) + "\n";
             ::write(out_pipe[1], msg.data(), msg.size());
         }
-        const char* shell = shell_path.empty() ? "/bin/sh" : shell_path.string().c_str();
+        std::string shell_str = shell_path.empty() ? "/bin/sh" : shell_path.string();
+        const char* shell = shell_str.c_str();
         execl(shell, shell, nullptr);
         _exit(127);
     }

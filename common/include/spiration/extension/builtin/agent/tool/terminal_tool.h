@@ -49,7 +49,7 @@ public:
  */
 struct terminal_snapshot {
     std::string id;
-    std::string shell;
+    ghc::filesystem::path shell;
     std::vector<std::string> lines;
 };
 
@@ -86,7 +86,7 @@ private:
     mutable std::mutex mtx_;
     /// @brief 会话表。使用 shared_ptr 以便锁外安全使用。
     std::map<std::string, std::shared_ptr<terminal_session>> sessions_;
-    std::map<std::string, std::string> shells_;
+    std::map<std::string, ghc::filesystem::path> shells_;
     size_t next_id_ = 1;
 };
 
