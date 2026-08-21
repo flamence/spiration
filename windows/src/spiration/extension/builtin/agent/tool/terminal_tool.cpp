@@ -147,7 +147,7 @@ win_terminal_session::win_terminal_session(const ghc::filesystem::path& shell_pa
     if (!ok) {
         CloseHandle(inWrite);
         CloseHandle(outRead);
-        err_ = "failed to create process: " + exe;
+        err_ = fmt::format("failed to create process: {}", exe.string());
         return;
     }
 

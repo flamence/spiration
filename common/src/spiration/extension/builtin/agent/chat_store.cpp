@@ -217,7 +217,7 @@ bool chat_store::save(const chat_archive& archive) {
     for (const auto& t : archive.terminals) {
         nlohmann::json tj;
         tj["id"]    = t.id;
-        tj["shell"] = t.shell;
+        tj["shell"] = t.shell.string();
         nlohmann::json lines = nlohmann::json::array();
         for (const auto& l : t.lines) lines.push_back(l);
         tj["lines"] = std::move(lines);
