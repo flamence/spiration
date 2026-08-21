@@ -59,7 +59,7 @@ ghc::filesystem::path platform::executable_directory() {
         buf[len] = '\0';
         return ghc::filesystem::path(buf.data()).parent_path();
     }
-    return temp_directory() / "exe";
+    return ghc::filesystem::current_path();
 }
 
 ghc::filesystem::path platform::resources_directory() {

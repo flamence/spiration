@@ -6,6 +6,7 @@
 
 #include "spiration/application.h"
 #include <fmt/format.h>
+#include <ghc/filesystem.hpp>
 #include <string>
 #include <spiration/utils/platform.h>
 
@@ -115,7 +116,7 @@ ghc::filesystem::path platform::executable_directory() {
     } while (length == buffer.size() && GetLastError() == ERROR_INSUFFICIENT_BUFFER);
 
     if (length == 0) {
-        return temp_directory() / "bin";
+        return ghc::filesystem::current_path();
     }
     buffer.resize(length);
     return ghc::filesystem::path(buffer).parent_path();
