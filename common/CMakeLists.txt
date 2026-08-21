@@ -94,13 +94,10 @@ add_library(spiration.core STATIC ${SPIRATION_CORE_HEADERS} ${SPIRATION_CORE_SOU
 target_link_libraries(spiration.core PUBLIC
     fmt::fmt
     ghc::filesystem
-    tl::optional
-    nonstd::string_view
     nlohmann_json::nlohmann_json
-)
-
-target_link_libraries(spiration.core PRIVATE
+    nonstd::string_view
     nothings::stb_image
+    tl::optional
 )
 
 if (NOT OHOS)

@@ -6,12 +6,13 @@
 
 #pragma once
 
-#include <spiration/renderer/renderer.h>
 #include <CoreGraphics/CoreGraphics.h>
 #include <Metal/Metal.h>
-#include <QuartzCore/QuartzCore.h>
-#include <vector>
+#include <spiration/renderer/renderer.h>
 #include <string>
+#include <QuartzCore/QuartzCore.h>
+#include <unordered_map>
+#include <vector>
 
 namespace spiration {
 

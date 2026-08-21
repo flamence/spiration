@@ -6,7 +6,7 @@
 
 #import <spiration/window/cocoa_window.h>
 #import <spiration/window/ime.h>
-#import <renderer/metal_renderer.h>
+#import <spiration/renderer/metal_renderer.h>
 #import <ui/point.h>
 #import <ui/size.h>
 #import <spiration/window/virtual_key.h>

@@ -6,17 +6,18 @@
 
 #pragma once
 
+#include <GL/glx.h>
+#include <memory>
 #include <spiration/ui/cursor.h>
 #include <spiration/renderer/renderer.h>
 #include <spiration/ui/widget.h>
 #include <spiration/window/window.h>
-#include <X11/Xlib.h>
-#include <X11/Xutil.h>
+#include <string>
+#include <unordered_map>
 #include <X11/Xatom.h>
 #include <X11/keysym.h>
-#include <GL/glx.h>
-#include <memory>
-#include <string>
+#include <X11/Xlib.h>
+#include <X11/Xutil.h>
 
 namespace spiration {
 
