@@ -4,6 +4,7 @@
  * @author clk
  */
 
+#include <ghc/filesystem.hpp>
 #include <spiration/extension/builtin/agent/tool/terminal_tool.h>
 
 #include <cerrno>
@@ -115,7 +116,7 @@ std::string sanitize_utf8(const std::string& in) {
 
 class posix_terminal_session : public terminal_session {
 public:
-    posix_terminal_session(const std::string& shell_path, const std::string& cwd);
+    posix_terminal_session(const std::string& shell_path, const ghc::filesystem::path& cwd);
     ~posix_terminal_session() override;
 
     bool is_alive() const override { return alive_.load(); }
@@ -141,7 +142,7 @@ private:
 };
 
 posix_terminal_session::posix_terminal_session(const std::string& shell_path,
-                                               const std::string& cwd) {
+                                               const ghc::filesystem::path& cwd) {
     int in_pipe[2] = {-1, -1};
     int out_pipe[2] = {-1, -1};
     if (pipe(in_pipe) != 0) { err_ = "failed to create stdin pipe"; return; }
@@ -168,7 +169,7 @@ posix_terminal_session::posix_terminal_session(const std::string& shell_path,
         setenv("LC_ALL", "C.UTF-8", 1);
         setenv("LANG", "C.UTF-8", 1);
         setenv("PYTHONIOENCODING", "utf-8", 1);
-        if (!cwd.empty() && chdir(cwd.c_str()) != 0) {
+        if (!cwd.empty() && chdir(cwd.string().c_str()) != 0) {
             std::string msg = "chdir failed: " + std::string(strerror(errno)) + "\n";
             ::write(out_pipe[1], msg.data(), msg.size());
         }
@@ -269,7 +270,7 @@ void posix_terminal_session::reader_loop() {
 } // namespace
 
 std::unique_ptr<terminal_session> create_terminal_session(const std::string& shell_path,
-                                                          const std::string& cwd) {
+                                                          const ghc::filesystem::path& cwd) {
     return std::make_unique<posix_terminal_session>(shell_path, cwd);
 }
 

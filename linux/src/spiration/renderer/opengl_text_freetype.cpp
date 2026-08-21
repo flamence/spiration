@@ -4,8 +4,6 @@
  * @author clk
  */
 
-#if !defined(__OHOS__)
-
 #include <spiration/application.h>
 #include <spiration/renderer/opengl_renderer.h>
 
@@ -503,6 +501,4 @@ bool opengl_renderer::init_glyph_atlas(glyph_atlas* atlas) {
 }
 
 } // namespace spiration
-
-#endif // !defined(__OHOS__)
 

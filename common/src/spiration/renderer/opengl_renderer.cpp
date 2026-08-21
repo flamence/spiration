@@ -4,7 +4,7 @@
  * @author clk
  */
 
-#if (defined(UNIX) && !defined(APPLE)) || defined(__OHOS__)
+#if defined(__linux__) || defined(__OHOS__)
 #include <spiration/application.h>
 #include <spiration/renderer/opengl_renderer.h>
 #include <algorithm>

@@ -8,6 +8,7 @@
 #include <spiration/utils/platform.h>
 
 #include <unistd.h>
+#include <limits.h>
 #include <sys/stat.h>
 #include <sys/utsname.h>
 #include <dirent.h>
@@ -46,6 +47,23 @@ ghc::filesystem::path platform::data_directory() {
     const char* home = getenv("HOME");
     if (home) return std::string(home) + "/.config/spiration";
     return temp_directory() / "data";
+}
+
+ghc::filesystem::path platform::executable_directory() {
+    std::vector<char> buf(PATH_MAX);
+    ssize_t len;
+    while ((len = ::readlink("/proc/self/exe", buf.data(), buf.size())) == static_cast<ssize_t>(buf.size())) {
+        buf.resize(buf.size() * 2);
+    }
+    if (len != -1) {
+        buf[len] = '\0';
+        return ghc::filesystem::path(buf.data()).parent_path();
+    }
+    return temp_directory() / "exe";
+}
+
+ghc::filesystem::path platform::resources_directory() {
+    return executable_directory().parent_path() / "share";
 }
 
 std::string platform::system_locale() {

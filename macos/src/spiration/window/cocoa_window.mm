@@ -64,6 +64,14 @@ static int cocoa_key_to_vk(unsigned short keyCode) {
     return YES;
 }
 
+- (NSAttributedString *)attributedSubstringForProposedRange:(NSRange)range
+                                                actualRange:(NSRangePointer)actualRange {
+    if (actualRange) {
+        *actualRange = NSMakeRange(NSNotFound, 0);
+    }
+    return [[NSAttributedString alloc] initWithString:@""];
+}
+
 - (BOOL)canBecomeKeyView {
     return YES;
 }
@@ -761,20 +769,20 @@ void cocoa_window::request_layout() {
     m_NeedsLayout = true;
 }
 
-void cocoa_window::set_cursor(cursor_type c) {
+void cocoa_window::set_cursor(cursor_style c) {
     @autoreleasepool {
         NSCursor* cur = [NSCursor arrowCursor];
         switch (c) {
-        case cursor_type::text:        cur = [NSCursor IBeamCursor]; break;
-        case cursor_type::pointer:     cur = [NSCursor pointingHandCursor]; break;
-        case cursor_type::crosshair:   cur = [NSCursor crosshairCursor]; break;
-        case cursor_type::move:        cur = [NSCursor openHandCursor]; break;
-        case cursor_type::resize_h:    cur = [NSCursor resizeLeftRightCursor]; break;
-        case cursor_type::resize_v:    cur = [NSCursor resizeUpDownCursor]; break;
-        case cursor_type::resize_nwse: cur = [NSCursor closedHandCursor]; break;
-        case cursor_type::resize_nesw: cur = [NSCursor closedHandCursor]; break;
-        case cursor_type::forbidden:   cur = [NSCursor operationNotAllowedCursor]; break;
-        case cursor_type::default_cursor:
+        case cursor_style::text:        cur = [NSCursor IBeamCursor]; break;
+        case cursor_style::pointer:     cur = [NSCursor pointingHandCursor]; break;
+        case cursor_style::crosshair:   cur = [NSCursor crosshairCursor]; break;
+        case cursor_style::move:        cur = [NSCursor openHandCursor]; break;
+        case cursor_style::resize_h:    cur = [NSCursor resizeLeftRightCursor]; break;
+        case cursor_style::resize_v:    cur = [NSCursor resizeUpDownCursor]; break;
+        case cursor_style::resize_nwse: cur = [NSCursor closedHandCursor]; break;
+        case cursor_style::resize_nesw: cur = [NSCursor closedHandCursor]; break;
+        case cursor_style::forbidden:   cur = [NSCursor operationNotAllowedCursor]; break;
+        case cursor_style::default_cursor:
         default:                       break;
         }
         [cur set];
@@ -810,7 +818,7 @@ void cocoa_window::set_widget(std::unique_ptr<widget> widget) {
     request_repaint();
 }
 
-bool cocoa_window::initialize(const window_params& params) {
+bool cocoa_window::initialize(const window_parameters& params) {
     m_WindowId = s_NextWindowId++;
     m_Title = params.title;
     m_Width = params.width;
@@ -860,7 +868,7 @@ void cocoa_window::shutdown() {
     m_Initialized = false;
 }
 
-bool cocoa_window::create_cocoa_window(const window_params& params) {
+bool cocoa_window::create_cocoa_window(const window_parameters& params) {
     @autoreleasepool {
         if (!NSApp) {
             [NSApplication sharedApplication];
@@ -948,10 +956,10 @@ void cocoa_window::notify_widget_resize() {
 }
 
 std::shared_ptr<window> window::create() {
-    return create(window_params{});
+    return create(window_parameters{});
 }
 
-std::shared_ptr<window> window::create(const window_params& params) {
+std::shared_ptr<window> window::create(const window_parameters& params) {
     auto win = std::make_shared<cocoa_window>();
     if (!win->initialize(params)) return nullptr;
     return win;
