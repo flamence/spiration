@@ -4,6 +4,8 @@
  * @author clk
  */
 
+#include <fmt/core.h>
+#include <ghc/filesystem.hpp>
 #include <spiration/extension/builtin/agent/tool/terminal_tool.h>
 
 #include <windows.h>
@@ -80,7 +82,7 @@ std::string to_oem(const std::string& input) {
 
 class win_terminal_session : public terminal_session {
 public:
-    win_terminal_session(const std::string& shell_path, const ghc::filesystem::path& cwd);
+    win_terminal_session(const ghc::filesystem::path& shell_path, const ghc::filesystem::path& cwd);
     ~win_terminal_session() override;
 
     bool is_alive() const override { return alive_.load(); }
@@ -105,7 +107,7 @@ private:
     void reader_loop();
 };
 
-win_terminal_session::win_terminal_session(const std::string& shell_path, const ghc::filesystem::path& cwd) {
+win_terminal_session::win_terminal_session(const ghc::filesystem::path& shell_path, const ghc::filesystem::path& cwd) {
     SECURITY_ATTRIBUTES sa = {sizeof(SECURITY_ATTRIBUTES), nullptr, TRUE};
 
     HANDLE inRead = INVALID_HANDLE_VALUE, inWrite = INVALID_HANDLE_VALUE;
@@ -130,8 +132,9 @@ win_terminal_session::win_terminal_session(const std::string& shell_path, const 
     si.hStdOutput = outWrite;
     si.hStdError = outWrite;
 
-    std::string exe = shell_path.empty() ? "cmd.exe" : shell_path;
-    std::string cmdline = "\"" + exe + "\"";
+    ghc::filesystem::path exe = shell_path.empty() ? "cmd.exe" : shell_path;
+    exe.make_preferred();
+    std::string cmdline = fmt::format("\"{}\"", exe.string());
 
     PROCESS_INFORMATION pi = {};
     std::string dir_str = cwd.empty() ? std::string() : cwd.string();
@@ -232,7 +235,7 @@ void win_terminal_session::reader_loop() {
 
 } // namespace
 
-std::unique_ptr<terminal_session> create_terminal_session(const std::string& shell_path,
+std::unique_ptr<terminal_session> create_terminal_session(const ghc::filesystem::path& shell_path,
                                                           const ghc::filesystem::path& cwd) {
     return std::make_unique<win_terminal_session>(shell_path, cwd);
 }

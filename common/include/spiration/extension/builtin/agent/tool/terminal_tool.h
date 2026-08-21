@@ -55,10 +55,10 @@ struct terminal_snapshot {
 
 /**
  * @brief 创建平台终端会话。
- * @param shell_path 指定的 shell 路径。
+ * @param shell 指定的 shell 路径。
  * @param cwd 子进程初始工作目录。
  */
-std::unique_ptr<terminal_session> create_terminal_session(const std::string& shell_path,
+std::unique_ptr<terminal_session> create_terminal_session(const ghc::filesystem::path& shell,
                                                           const ghc::filesystem::path& cwd = "");
 
 /**
@@ -69,7 +69,7 @@ public:
     static terminal_manager& instance();
 
     /// @brief 创建终端会话，返回会话 id。
-    std::string create(const std::string& shell, const ghc::filesystem::path& cwd = "");
+    std::string create(const ghc::filesystem::path& shell, const ghc::filesystem::path& cwd = "");
     /// @brief 向指定终端写入内容。
     std::string write(const std::string& id, const std::string& data, bool newline);
     /// @brief 读取指定终端的输出窗口。

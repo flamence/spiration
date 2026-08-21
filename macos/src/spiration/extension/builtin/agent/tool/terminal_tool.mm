@@ -31,7 +31,7 @@ namespace {
 
 class posix_terminal_session : public terminal_session {
 public:
-    posix_terminal_session(const std::string& shell_path, const ghc::filesystem::path& cwd);
+    posix_terminal_session(const ghc::filesystem::path& shell, const ghc::filesystem::path& cwd);
     ~posix_terminal_session() override;
 
     bool is_alive() const override { return alive_.load(); }
@@ -56,7 +56,7 @@ private:
     void reader_loop();
 };
 
-posix_terminal_session::posix_terminal_session(const std::string& shell_path,
+posix_terminal_session::posix_terminal_session(const ghc::filesystem::path& shell_path,
                                                const ghc::filesystem::path& cwd) {
     int in_pipe[2] = {-1, -1};
     int out_pipe[2] = {-1, -1};
@@ -180,9 +180,9 @@ void posix_terminal_session::reader_loop() {
 
 } // namespace
 
-std::unique_ptr<terminal_session> create_terminal_session(const std::string& shell_path,
+std::unique_ptr<terminal_session> create_terminal_session(const ghc::filesystem::path& shell,
                                                           const ghc::filesystem::path& cwd) {
-    return std::make_unique<posix_terminal_session>(shell_path, cwd);
+    return std::make_unique<posix_terminal_session>(shell, cwd);
 }
 
 } // namespace agent

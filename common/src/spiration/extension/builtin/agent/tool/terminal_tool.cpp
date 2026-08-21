@@ -20,7 +20,7 @@ terminal_manager& terminal_manager::instance() {
     return inst;
 }
 
-std::string terminal_manager::create(const std::string& shell, const ghc::filesystem::path& cwd) {
+std::string terminal_manager::create(const ghc::filesystem::path& shell, const ghc::filesystem::path& cwd) {
     std::shared_ptr<terminal_session> s = create_terminal_session(shell, cwd);
     if (!s) return "[error] failed to create terminal session";
     std::lock_guard<std::mutex> lk(mtx_);
@@ -121,7 +121,7 @@ nlohmann::json create_terminal_tool::parameters() const {
 }
 
 std::string create_terminal_tool::execute(const std::string& args_json) {
-    std::string shell;
+    ghc::filesystem::path shell;
     try {
         nlohmann::json j = nlohmann::json::parse(args_json);
         shell = j.value("shell", "");

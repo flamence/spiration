@@ -116,7 +116,7 @@ std::string sanitize_utf8(const std::string& in) {
 
 class posix_terminal_session : public terminal_session {
 public:
-    posix_terminal_session(const std::string& shell_path, const ghc::filesystem::path& cwd);
+    posix_terminal_session(const ghc::filesystem::path& shell, const ghc::filesystem::path& cwd);
     ~posix_terminal_session() override;
 
     bool is_alive() const override { return alive_.load(); }
@@ -141,7 +141,7 @@ private:
     void reader_loop();
 };
 
-posix_terminal_session::posix_terminal_session(const std::string& shell_path,
+posix_terminal_session::posix_terminal_session(const ghc::filesystem::path& shell_path,
                                                const ghc::filesystem::path& cwd) {
     int in_pipe[2] = {-1, -1};
     int out_pipe[2] = {-1, -1};
@@ -173,7 +173,7 @@ posix_terminal_session::posix_terminal_session(const std::string& shell_path,
             std::string msg = "chdir failed: " + std::string(strerror(errno)) + "\n";
             ::write(out_pipe[1], msg.data(), msg.size());
         }
-        const char* shell = shell_path.empty() ? "/bin/sh" : shell_path.c_str();
+        const char* shell = shell_path.empty() ? "/bin/sh" : shell_path.string().c_str();
         execl(shell, shell, nullptr);
         _exit(127);
     }
@@ -269,7 +269,7 @@ void posix_terminal_session::reader_loop() {
 
 } // namespace
 
-std::unique_ptr<terminal_session> create_terminal_session(const std::string& shell_path,
+std::unique_ptr<terminal_session> create_terminal_session(const ghc::filesystem::path& shell_path,
                                                           const ghc::filesystem::path& cwd) {
     return std::make_unique<posix_terminal_session>(shell_path, cwd);
 }
