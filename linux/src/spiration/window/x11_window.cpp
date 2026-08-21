@@ -5,18 +5,18 @@
  */
 
 #include <chrono>
-#include <spiration/window/x11_window.h>
+#include <clocale>
+#include <fmt/format.h>
+#include <stb_image.h>
+#include <spiration/application.h>
 #include <spiration/window/virtual_key.h>
+#include <spiration/window/x11_window.h>
 #include <spiration/ui/point.h>
 #include <spiration/ui/size.h>
 #include <spiration/ui/cursor.h>
 #include <spiration/utils/platform.h>
-#include <stb_image.h>
-#include <clocale>
-#include <fmt/format.h>
 #include <X11/Xutil.h>
 #include <X11/cursorfont.h>
-#include <thread>
 
 namespace spiration {
 
@@ -510,9 +510,9 @@ bool x11_window::initialize(const window_parameters& params) {
     update_dpi();
 
     {
-        std::string iconPath = platform::executable_directory() + "/spiration.png";
+        ghc::filesystem::path iconPath = platform::resources_directory() / "spiration.png";
         int w = 0, h = 0, channels = 0;
-        unsigned char* rgba = stbi_load(iconPath.c_str(), &w, &h, &channels, 4);
+        unsigned char* rgba = stbi_load(iconPath.string().c_str(), &w, &h, &channels, 4);
         if (rgba) {
             std::vector<unsigned long> icon_data(2 + static_cast<size_t>(w) * h, 0);
             icon_data[0] = static_cast<unsigned long>(w);

@@ -4,16 +4,16 @@
  * @author clk
  */
 
-#import <spiration/window/cocoa_window.h>
-#import <spiration/window/ime.h>
-#import <spiration/renderer/metal_renderer.h>
-#import <ui/point.h>
-#import <ui/size.h>
-#import <spiration/window/virtual_key.h>
+#import <cmath>
 #import <Cocoa/Cocoa.h>
 #import <QuartzCore/CAMetalLayer.h>
+#import <spiration/renderer/metal_renderer.h>
+#import <spiration/ui/point.h>
+#import <spiration/ui/size.h>
+#import <spiration/window/cocoa_window.h>
+#import <spiration/window/ime.h>
+#import <spiration/window/virtual_key.h>
 #import <string>
-#import <cmath>
 
 using namespace spiration;
 
