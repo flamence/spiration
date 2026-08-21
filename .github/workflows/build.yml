@@ -39,7 +39,7 @@ jobs:
           - windows-latest
           - windows-11-vs2026-arm
           - macos-latest
-          - macos-latest-large
+          - macos-15-intel
         build_type: [ Release ]
         c_compiler: [ clang ]
         cpp_compiler: [ clang++ ]
