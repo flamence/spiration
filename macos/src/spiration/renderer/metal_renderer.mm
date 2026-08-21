@@ -4,21 +4,22 @@
  * @author clk
  */
 
+#include <spiration/ui/color.h>
+#include <spiration/ui/point.h>
+#include <spiration/ui/rectangle.h>
+#include <cstring>
+#include <cmath>
+#include <algorithm>
+#include <string>
+#include <vector>
+
 #import <spiration/renderer/metal_renderer.h>
-#import <spiration/ui/color.h>
-#import <spiration/ui/point.h>
-#import <spiration/ui/rectangle.h>
 #import <Metal/Metal.h>
 #import <QuartzCore/QuartzCore.h>
 #import <CoreText/CoreText.h>
 #import <CoreImage/CoreImage.h>
 #import <simd/simd.h>
 #import <Cocoa/Cocoa.h>
-#import <cstring>
-#import <cmath>
-#import <algorithm>
-#import <string>
-#import <vector>
 
 namespace spiration {
 

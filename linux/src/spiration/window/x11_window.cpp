@@ -15,6 +15,7 @@
 #include <spiration/ui/size.h>
 #include <spiration/ui/cursor.h>
 #include <spiration/utils/platform.h>
+#include <thread>
 #include <X11/Xutil.h>
 #include <X11/cursorfont.h>
 
@@ -534,7 +535,7 @@ bool x11_window::initialize(const window_parameters& params) {
                             static_cast<int>(icon_data.size()));
             stbi_image_free(rgba);
         } else {
-            application::instance()->logger()->log({logging::level::warning, fmt::format("Failed to load app icon from {}", iconPath), "window"});
+            application::instance()->logger()->log({logging::level::warning, fmt::format("Failed to load app icon from {}", iconPath.string()), "window"});
         }
     }
 

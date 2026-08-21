@@ -4,16 +4,17 @@
  * @author clk
  */
 
-#import <cmath>
+#include <cmath>
+#include <spiration/ui/point.h>
+#include <spiration/ui/size.h>
+#include <spiration/window/ime.h>
+#include <spiration/window/virtual_key.h>
+#include <string>
+
 #import <Cocoa/Cocoa.h>
 #import <QuartzCore/CAMetalLayer.h>
 #import <spiration/renderer/metal_renderer.h>
-#import <spiration/ui/point.h>
-#import <spiration/ui/size.h>
 #import <spiration/window/cocoa_window.h>
-#import <spiration/window/ime.h>
-#import <spiration/window/virtual_key.h>
-#import <string>
 
 using namespace spiration;
 
@@ -535,7 +536,7 @@ cocoa_window::cocoa_window(cocoa_window&& other) noexcept
     , m_IsVisible(other.m_IsVisible)
     , m_Initialized(other.m_Initialized)
     , m_Renderer(std::move(other.m_Renderer))
-    , m_Widget(std::move(other.m_Widget)
+    , m_Widget(std::move(other.m_Widget))
     , m_WindowId(other.m_WindowId)
 {
     other.m_NSWindow = nil;
