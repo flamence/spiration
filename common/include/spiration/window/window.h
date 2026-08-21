@@ -15,6 +15,11 @@
 
 namespace spiration {
 
+static constexpr float kTitleBarDragHeight = 34.0f;
+static constexpr float kResizeBorderWidth = 6.0f;
+static constexpr float kMinWindowWidth = 400.0f;
+static constexpr float kMinWindowHeight = 300.0f;
+
 using void_function = std::function<void(void*)>;
 
 /**

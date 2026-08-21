@@ -4,13 +4,12 @@
  * @author clk
  */
 
-#import <spiration/window/macos_window.h>
+#import <spiration/window/cocoa_window.h>
 #import <spiration/window/ime.h>
 #import <renderer/metal_renderer.h>
 #import <ui/point.h>
 #import <ui/size.h>
-#import <window/window_constants.h>
-#import <window/virtual_key.h>
+#import <spiration/window/virtual_key.h>
 #import <Cocoa/Cocoa.h>
 #import <QuartzCore/CAMetalLayer.h>
 #import <string>
@@ -55,7 +54,7 @@ static int cocoa_key_to_vk(unsigned short keyCode) {
 }
 
 @interface SpirationContentView : NSView <NSTextInputClient>
-@property (nonatomic, assign) spiration::Window* spirationWindow;
+@property (nonatomic, assign) spiration::cocoa_window* spirationWindow;
 @end
 
 @implementation SpirationContentView
@@ -80,7 +79,7 @@ static int cocoa_key_to_vk(unsigned short keyCode) {
 }
 
 - (int)hitTestEdge:(NSPoint)loc {
-    spiration::Window* win = self.spirationWindow;
+    spiration::cocoa_window* win = self.spirationWindow;
     if (!win) return 0;
     int32_t w, h;
     win->get_size(w, h);
@@ -108,7 +107,7 @@ static int cocoa_key_to_vk(unsigned short keyCode) {
 
 - (void)mouseDown:(NSEvent*)event {
     if (!self.spirationWindow) return;
-    spiration::Window* win = self.spirationWindow;
+    spiration::cocoa_window* win = self.spirationWindow;
 
     NSPoint loc = [self convertPoint:event.locationInWindow fromView:nil];
 
@@ -154,12 +153,11 @@ static int cocoa_key_to_vk(unsigned short keyCode) {
     if (win->get_widget()) {
         win->get_widget()->handle_event(event_type::mouse, &data);
     }
-    if (win->on_mouse()) win->on_mouse()(win);
 }
 
 - (void)mouseUp:(NSEvent*)event {
     if (!self.spirationWindow) return;
-    spiration::Window* win = self.spirationWindow;
+    spiration::cocoa_window* win = self.spirationWindow;
     win->m_IsDragging = false;
     win->m_IsResizing = false;
 
@@ -172,12 +170,11 @@ static int cocoa_key_to_vk(unsigned short keyCode) {
     if (win->get_widget()) {
         win->get_widget()->handle_event(event_type::mouse, &data);
     }
-    if (win->on_mouse()) win->on_mouse()(win);
 }
 
 - (void)rightMouseDown:(NSEvent*)event {
     if (!self.spirationWindow) return;
-    spiration::Window* win = self.spirationWindow;
+    spiration::cocoa_window* win = self.spirationWindow;
     NSPoint loc = [self convertPoint:event.locationInWindow fromView:nil];
     mouse_event_data data;
     data.position = { static_cast<float>(loc.x), static_cast<float>(loc.y) };
@@ -187,12 +184,11 @@ static int cocoa_key_to_vk(unsigned short keyCode) {
     if (win->get_widget()) {
         win->get_widget()->handle_event(event_type::mouse, &data);
     }
-    if (win->on_mouse()) win->on_mouse()(win);
 }
 
 - (void)rightMouseUp:(NSEvent*)event {
     if (!self.spirationWindow) return;
-    spiration::Window* win = self.spirationWindow;
+    spiration::cocoa_window* win = self.spirationWindow;
     NSPoint loc = [self convertPoint:event.locationInWindow fromView:nil];
     mouse_event_data data;
     data.position = { static_cast<float>(loc.x), static_cast<float>(loc.y) };
@@ -202,12 +198,11 @@ static int cocoa_key_to_vk(unsigned short keyCode) {
     if (win->get_widget()) {
         win->get_widget()->handle_event(event_type::mouse, &data);
     }
-    if (win->on_mouse()) win->on_mouse()(win);
 }
 
 - (void)mouseMoved:(NSEvent*)event {
     if (!self.spirationWindow) return;
-    spiration::Window* win = self.spirationWindow;
+    spiration::cocoa_window* win = self.spirationWindow;
     NSPoint loc = [self convertPoint:event.locationInWindow fromView:nil];
 
     if (!win->m_IsResizing) {
@@ -222,12 +217,11 @@ static int cocoa_key_to_vk(unsigned short keyCode) {
     if (win->get_widget()) {
         win->get_widget()->handle_event(event_type::mouse, &data);
     }
-    if (win->on_mouse()) win->on_mouse()(win);
 }
 
 - (void)mouseDragged:(NSEvent*)event {
     if (!self.spirationWindow) return;
-    spiration::Window* win = self.spirationWindow;
+    spiration::cocoa_window* win = self.spirationWindow;
 
     if (win->m_IsResizing) {
         NSRect frame = NSMakeRect(win->m_DragStartX, win->m_DragStartY,
@@ -275,12 +269,11 @@ static int cocoa_key_to_vk(unsigned short keyCode) {
     if (win->get_widget()) {
         win->get_widget()->handle_event(event_type::mouse, &data);
     }
-    if (win->on_mouse()) win->on_mouse()(win);
 }
 
 - (void)scrollWheel:(NSEvent*)event {
     if (!self.spirationWindow) return;
-    spiration::Window* win = self.spirationWindow;
+    spiration::cocoa_window* win = self.spirationWindow;
     NSPoint loc = [self convertPoint:event.locationInWindow fromView:nil];
     mouse_event_data data;
     data.position = { static_cast<float>(loc.x), static_cast<float>(loc.y) };
@@ -290,12 +283,11 @@ static int cocoa_key_to_vk(unsigned short keyCode) {
     if (win->get_widget()) {
         win->get_widget()->handle_event(event_type::mouse, &data);
     }
-    if (win->on_mouse()) win->on_mouse()(win);
 }
 
 - (void)keyDown:(NSEvent*)event {
     if (!self.spirationWindow) return;
-    spiration::Window* win = self.spirationWindow;
+    spiration::cocoa_window* win = self.spirationWindow;
 
     unsigned short keyCode = [event keyCode];
     int vk = cocoa_key_to_vk(keyCode);
@@ -320,7 +312,6 @@ static int cocoa_key_to_vk(unsigned short keyCode) {
     if (win->get_widget()) {
         win->get_widget()->handle_event(event_type::keyboard, &ked);
     }
-    if (win->on_key()) win->on_key()(win);
 
     NSString* chars = [event characters];
     if ([chars length] > 0) {
@@ -363,7 +354,7 @@ static int cocoa_key_to_vk(unsigned short keyCode) {
 
 - (NSRect)firstRectForCharacterRange:(NSRange)range actualRange:(NSRangePointer)actualRange {
     if (actualRange) *actualRange = range;
-    spiration::Window* win = self.spirationWindow;
+    spiration::cocoa_window* win = self.spirationWindow;
     float cx = 0.0f, cy = 0.0f;
     if (win) {
         cx = win->ime_caret_x();
@@ -376,7 +367,7 @@ static int cocoa_key_to_vk(unsigned short keyCode) {
 
 - (void)doCommandBySelector:(SEL)selector {
     if (!self.spirationWindow) return;
-    spiration::Window* win = self.spirationWindow;
+    spiration::cocoa_window* win = self.spirationWindow;
     int vk = 0;
     if (selector == @selector(insertNewline:)) vk = vk::Return;
     else if (selector == @selector(insertTab:)) vk = vk::Tab;
@@ -390,13 +381,12 @@ static int cocoa_key_to_vk(unsigned short keyCode) {
         key_event_data ked;
         ked.key_code = vk;
         win->get_widget()->handle_event(event_type::keyboard, &ked);
-        if (win->on_key()) win->on_key()(win);
     }
 }
 
 - (void)insertText:(id)string replacementRange:(NSRange)replacementRange {
     if (!self.spirationWindow) return;
-    spiration::Window* win = self.spirationWindow;
+    spiration::cocoa_window* win = self.spirationWindow;
     NSString* text = [string isKindOfClass:[NSAttributedString class]]
         ? [(NSAttributedString*)string string]
         : (NSString*)string;
@@ -419,12 +409,11 @@ static int cocoa_key_to_vk(unsigned short keyCode) {
             win->get_widget()->handle_event(event_type::keyboard, &ced);
         }
     }
-    if (win->on_key()) win->on_key()(win);
 }
 
 - (void)keyUp:(NSEvent*)event {
     if (!self.spirationWindow) return;
-    spiration::Window* win = self.spirationWindow;
+    spiration::cocoa_window* win = self.spirationWindow;
 
     key_event_data ked;
     ked.key_code = cocoa_key_to_vk([event keyCode]);
@@ -436,13 +425,12 @@ static int cocoa_key_to_vk(unsigned short keyCode) {
     if (win->get_widget()) {
         win->get_widget()->handle_event(event_type::keyboard, &ked);
     }
-    if (win->on_key()) win->on_key()(win);
 }
 
 @end
 
 @interface SpirationWindowDelegate : NSObject <NSWindowDelegate>
-@property (nonatomic, assign) spiration::Window* spirationWindow;
+@property (nonatomic, assign) spiration::cocoa_window* spirationWindow;
 @end
 
 @implementation SpirationWindowDelegate
@@ -481,9 +469,6 @@ static int cocoa_key_to_vk(unsigned short keyCode) {
             }
 
             self.spirationWindow->notify_widget_resize_public();
-            if (self.spirationWindow->on_resize()) {
-                self.spirationWindow->on_resize()(self.spirationWindow);
-            }
         }
     }
 }
@@ -527,13 +512,13 @@ static int cocoa_key_to_vk(unsigned short keyCode) {
 
 namespace spiration {
 
-uint32_t Window::s_NextWindowId = 1;
+uint32_t cocoa_window::s_NextWindowId = 1;
 
-Window::~Window() {
+cocoa_window::~cocoa_window() {
     shutdown();
 }
 
-Window::Window(Window&& other) noexcept
+cocoa_window::cocoa_window(cocoa_window&& other) noexcept
     : m_NSWindow(other.m_NSWindow)
     , m_NSView(other.m_NSView)
     , m_MetalLayer(other.m_MetalLayer)
@@ -549,13 +534,8 @@ Window::Window(Window&& other) noexcept
     , m_IsFullscreen(other.m_IsFullscreen)
     , m_IsVisible(other.m_IsVisible)
     , m_Initialized(other.m_Initialized)
-    , m_OnClose(std::move(other.m_OnClose))
-    , m_OnResize(std::move(other.m_OnResize))
-    , m_OnKey(std::move(other.m_OnKey))
-    , m_OnMouse(std::move(other.m_OnMouse))
     , m_Renderer(std::move(other.m_Renderer))
-    , m_Widget(std::move(other.m_Widget))
-    , m_UserData(other.m_UserData)
+    , m_Widget(std::move(other.m_Widget)
     , m_WindowId(other.m_WindowId)
 {
     other.m_NSWindow = nil;
@@ -564,12 +544,11 @@ Window::Window(Window&& other) noexcept
     other.m_ShouldClose = false;
     other.m_IsVisible = false;
     other.m_Initialized = false;
-    other.m_UserData = nullptr;
     other.m_WindowId = 0;
     other.m_BackingScale = 2.0f;
 }
 
-Window& Window::operator=(Window&& other) noexcept {
+cocoa_window& cocoa_window::operator=(cocoa_window&& other) noexcept {
     if (this != &other) {
         shutdown();
 
@@ -588,13 +567,8 @@ Window& Window::operator=(Window&& other) noexcept {
         m_IsFullscreen = other.m_IsFullscreen;
         m_IsVisible = other.m_IsVisible;
         m_Initialized = other.m_Initialized;
-        m_OnClose = std::move(other.m_OnClose);
-        m_OnResize = std::move(other.m_OnResize);
-        m_OnKey = std::move(other.m_OnKey);
-        m_OnMouse = std::move(other.m_OnMouse);
         m_Renderer = std::move(other.m_Renderer);
         m_Widget = std::move(other.m_Widget);
-        m_UserData = other.m_UserData;
         m_WindowId = other.m_WindowId;
 
         other.m_NSWindow = nil;
@@ -603,14 +577,13 @@ Window& Window::operator=(Window&& other) noexcept {
         other.m_ShouldClose = false;
         other.m_IsVisible = false;
         other.m_Initialized = false;
-        other.m_UserData = nullptr;
         other.m_WindowId = 0;
         other.m_BackingScale = 2.0f;
     }
     return *this;
 }
 
-void Window::show() {
+void cocoa_window::show() {
     @autoreleasepool {
         [m_NSWindow makeKeyAndOrderFront:nil];
         [NSApp activateIgnoringOtherApps:YES];
@@ -618,28 +591,28 @@ void Window::show() {
     }
 }
 
-void Window::hide() {
+void cocoa_window::hide() {
     @autoreleasepool {
         [m_NSWindow orderOut:nil];
         m_IsVisible = NO;
     }
 }
 
-void Window::maximize() {
+void cocoa_window::maximize() {
     @autoreleasepool {
         [m_NSWindow zoom:nil];
         m_IsMaximized = YES;
     }
 }
 
-void Window::minimize() {
+void cocoa_window::minimize() {
     @autoreleasepool {
         [m_NSWindow miniaturize:nil];
         m_IsMinimized = YES;
     }
 }
 
-void Window::restore() {
+void cocoa_window::restore() {
     @autoreleasepool {
         if (m_IsMinimized) {
             [m_NSWindow deminiaturize:nil];
@@ -652,29 +625,28 @@ void Window::restore() {
     }
 }
 
-void Window::close() {
+void cocoa_window::close() {
     if (m_ShouldClose) return;
     m_ShouldClose = YES;
-    if (m_OnClose) m_OnClose(this);
 }
 
-std::string Window::title() const {
+std::string cocoa_window::title() const {
     return m_Title;
 }
 
-void Window::set_title(const std::string& title) {
+void cocoa_window::set_title(const std::string& title) {
     m_Title = title;
     @autoreleasepool {
         [m_NSWindow setTitle:[NSString stringWithUTF8String:title.c_str()]];
     }
 }
 
-void Window::get_size(int32_t& width, int32_t& height) const {
+void cocoa_window::get_size(int32_t& width, int32_t& height) const {
     width = m_Width;
     height = m_Height;
 }
 
-void Window::set_size(int32_t width, int32_t height) {
+void cocoa_window::set_size(int32_t width, int32_t height) {
     m_Width = width;
     m_Height = height;
     @autoreleasepool {
@@ -697,12 +669,12 @@ void Window::set_size(int32_t width, int32_t height) {
     notify_widget_resize();
 }
 
-void Window::get_position(int32_t& x, int32_t& y) const {
+void cocoa_window::get_position(int32_t& x, int32_t& y) const {
     x = m_X;
     y = m_Y;
 }
 
-void Window::set_position(int32_t x, int32_t y) {
+void cocoa_window::set_position(int32_t x, int32_t y) {
     m_X = x;
     m_Y = y;
     @autoreleasepool {
@@ -715,14 +687,14 @@ void Window::set_position(int32_t x, int32_t y) {
     }
 }
 
-bool Window::is_visible() const { return m_IsVisible; }
-bool Window::is_maximized() const {
+bool cocoa_window::is_visible() const { return m_IsVisible; }
+bool cocoa_window::is_maximized() const {
     return [m_NSWindow isZoomed];
 }
-bool Window::is_minimized() const { return m_IsMinimized; }
-bool Window::is_fullscreen() const { return m_IsFullscreen; }
+bool cocoa_window::is_minimized() const { return m_IsMinimized; }
+bool cocoa_window::is_fullscreen() const { return m_IsFullscreen; }
 
-void Window::set_fullscreen(bool fullscreen) {
+void cocoa_window::set_fullscreen(bool fullscreen) {
     @autoreleasepool {
         if (fullscreen != m_IsFullscreen) {
             [m_NSWindow toggleFullScreen:nil];
@@ -731,11 +703,11 @@ void Window::set_fullscreen(bool fullscreen) {
     }
 }
 
-void* Window::native_handle() const {
+void* cocoa_window::native_handle() const {
     return (__bridge void*)m_NSWindow;
 }
 
-void Window::loop() {
+void cocoa_window::loop() {
     @autoreleasepool {
         static NSTimeInterval lastTick = [NSDate timeIntervalSinceReferenceDate];
         NSTimeInterval now = [NSDate timeIntervalSinceReferenceDate];
@@ -765,14 +737,11 @@ void Window::loop() {
     }
 }
 
-bool Window::should_close() const {
+bool cocoa_window::should_close() const {
     return m_ShouldClose;
 }
 
-void* Window::user_data() const { return m_UserData; }
-void Window::set_user_data(void* data) { m_UserData = data; }
-
-void Window::request_repaint() {
+void cocoa_window::request_repaint() {
     @autoreleasepool {
         NSEvent* dummy = [NSEvent otherEventWithType:NSEventTypeApplicationDefined
                                             location:NSZeroPoint
@@ -787,11 +756,11 @@ void Window::request_repaint() {
     }
 }
 
-void Window::request_layout() {
+void cocoa_window::request_layout() {
     m_NeedsLayout = true;
 }
 
-void Window::set_cursor(cursor_type c) {
+void cocoa_window::set_cursor(cursor_type c) {
     @autoreleasepool {
         NSCursor* cur = [NSCursor arrowCursor];
         switch (c) {
@@ -811,12 +780,7 @@ void Window::set_cursor(cursor_type c) {
     }
 }
 
-void Window::set_on_close(void_function callback) { m_OnClose = callback; }
-void Window::set_on_resize(void_function callback) { m_OnResize = callback; }
-void Window::set_on_key(void_function callback) { m_OnKey = callback; }
-void Window::set_on_mouse(void_function callback) { m_OnMouse = callback; }
-
-void Window::set_mouse_capture(bool capture) {
+void cocoa_window::set_mouse_capture(bool capture) {
     if (capture) {
         [NSCursor hide];
         CGAssociateMouseAndMouseCursorPosition(false);
@@ -826,7 +790,7 @@ void Window::set_mouse_capture(bool capture) {
     }
 }
 
-void Window::set_widget(std::unique_ptr<widget> widget) {
+void cocoa_window::set_widget(std::unique_ptr<widget> widget) {
     m_Widget = std::move(widget);
     if (m_Widget) {
         m_Widget->set_repaint_callback([this]() { request_repaint(); });
@@ -845,7 +809,7 @@ void Window::set_widget(std::unique_ptr<widget> widget) {
     request_repaint();
 }
 
-bool Window::initialize(const window_params& params) {
+bool cocoa_window::initialize(const window_params& params) {
     m_WindowId = s_NextWindowId++;
     m_Title = params.title;
     m_Width = params.width;
@@ -862,12 +826,6 @@ bool Window::initialize(const window_params& params) {
         m_ImeCaretY = y;
     });
 
-    m_OnClose = params.on_close;
-    m_OnResize = params.on_resize;
-    m_OnKey = params.on_key;
-    m_OnMouse = params.on_mouse;
-    m_UserData = params.user_data;
-
     m_Initialized = true;
 
     if (params.visible) {
@@ -877,7 +835,7 @@ bool Window::initialize(const window_params& params) {
     return true;
 }
 
-void Window::shutdown() {
+void cocoa_window::shutdown() {
     if (!m_Initialized) return;
 
     if (m_Widget) {
@@ -901,7 +859,7 @@ void Window::shutdown() {
     m_Initialized = false;
 }
 
-bool Window::create_cocoa_window(const window_params& params) {
+bool cocoa_window::create_cocoa_window(const window_params& params) {
     @autoreleasepool {
         if (!NSApp) {
             [NSApplication sharedApplication];
@@ -966,7 +924,7 @@ bool Window::create_cocoa_window(const window_params& params) {
     }
 }
 
-bool Window::create_renderer() {
+bool cocoa_window::create_renderer() {
     if (m_Renderer) return true;
     m_Renderer = renderer::create_metal_renderer();
     if (!m_Renderer) return false;
@@ -982,7 +940,7 @@ bool Window::create_renderer() {
     return true;
 }
 
-void Window::notify_widget_resize() {
+void cocoa_window::notify_widget_resize() {
     if (!m_Widget) return;
     size sizeData = { static_cast<float>(m_Width), static_cast<float>(m_Height) };
     m_Widget->handle_event(event_type::window_resize, &sizeData);
@@ -993,7 +951,7 @@ std::shared_ptr<window> window::create() {
 }
 
 std::shared_ptr<window> window::create(const window_params& params) {
-    auto win = std::make_shared<Window>();
+    auto win = std::make_shared<cocoa_window>();
     if (!win->initialize(params)) return nullptr;
     return win;
 }

@@ -5,6 +5,7 @@
  */
 
 #include <tl/optional.hpp>
+#include <cmath>
 #include <resource.h>
 #include <spiration/ui/point.h>
 #include <spiration/ui/size.h>

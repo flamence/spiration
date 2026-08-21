@@ -27,16 +27,16 @@ namespace spiration {
 /**
  * @brief macOS 平台窗口实现。
  */
-class Window : public window {
+class cocoa_window : public window {
 public:
-    Window() = default;
-    ~Window() override;
+    cocoa_window() = default;
+    ~cocoa_window() override;
 
-    Window(const Window&) = delete;
-    Window& operator=(const Window&) = delete;
+    cocoa_window(const cocoa_window&) = delete;
+    cocoa_window& operator=(const cocoa_window&) = delete;
 
-    Window(Window&& other) noexcept;
-    Window& operator=(Window&& other) noexcept;
+    cocoa_window(cocoa_window&& other) noexcept;
+    cocoa_window& operator=(cocoa_window&& other) noexcept;
 
     void show() override;
     void hide() override;
@@ -65,18 +65,10 @@ public:
     void loop() override;
     bool should_close() const override;
 
-    void* user_data() const override;
-    void set_user_data(void* data) override;
-
     void request_repaint() override;
     void request_layout() override;
 
-    void set_cursor(cursor_type c) override;
-
-    void set_on_close(void_function callback) override;
-    void set_on_resize(void_function callback) override;
-    void set_on_key(void_function callback) override;
-    void set_on_mouse(void_function callback) override;
+    void set_cursor(cursor_style c) override;
     void set_mouse_capture(bool capture) override;
 
     void set_widget(std::unique_ptr<widget> widget) override;
@@ -84,8 +76,6 @@ public:
 
     std::shared_ptr<class renderer> get_renderer() const override { return m_Renderer; }
 
-    void_function on_mouse() const { return m_OnMouse; }
-    void_function on_key() const { return m_OnKey; }
     float backing_scale() const { return m_BackingScale; }
     void set_backing_scale(float s) { m_BackingScale = s; }
 
@@ -96,7 +86,6 @@ public:
     NSWindow* get_ns_window() const { return m_NSWindow; }
     NSView* get_ns_view() const { return m_NSView; }
     CAMetalLayer* get_metal_layer() const { return m_MetalLayer; }
-    void_function on_resize() const { return m_OnResize; }
     void notify_widget_resize_public() { notify_widget_resize(); }
 
     bool m_IsDragging = false;
@@ -112,12 +101,12 @@ public:
     float ime_caret_x() const { return m_ImeCaretX; }
     float ime_caret_y() const { return m_ImeCaretY; }
 
-    bool initialize(const window_params& params) override;
+    bool initialize(const window_parameters& params) override;
 
 private:
     void shutdown() override;
 
-    bool create_cocoa_window(const window_params& params);
+    bool create_cocoa_window(const window_parameters& params);
     bool create_renderer();
     void notify_widget_resize();
 
@@ -139,14 +128,8 @@ private:
     bool m_Initialized = false;
     bool m_NeedsLayout = true;
 
-    void_function m_OnClose = nullptr;
-    void_function m_OnResize = nullptr;
-    void_function m_OnKey = nullptr;
-    void_function m_OnMouse = nullptr;
-
     std::shared_ptr<renderer> m_Renderer;
     std::unique_ptr<widget> m_Widget;
-    void* m_UserData = nullptr;
     uint32_t m_WindowId = 0;
 
     static uint32_t s_NextWindowId;

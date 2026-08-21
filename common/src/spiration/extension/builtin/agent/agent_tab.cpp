@@ -17,6 +17,8 @@
 namespace spiration {
 namespace agent {
 
+constexpr float agent_tab::MAX_INPUT_H;
+
 namespace {
 
 constexpr float BACKBAR_H  = 34.0f;   ///< 竖屏返回栏高度
