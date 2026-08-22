@@ -687,49 +687,47 @@ void* Window::native_handle() const { return m_hWnd; }
 
 void Window::loop() {
     MSG msg;
-    while (!m_ShouldClose) {
-        bool processedInput = false;
-        while (PeekMessage(&msg, nullptr, 0, 0, PM_REMOVE)) {
-            
-            if (msg.message != WM_PAINT) {
-                processedInput = true;
-            }
-            TranslateMessage(&msg);
-            DispatchMessage(&msg);
-            if (msg.message == WM_QUIT) m_ShouldClose = true;
+    bool processedInput = false;
+    while (PeekMessage(&msg, nullptr, 0, 0, PM_REMOVE)) {
+        
+        if (msg.message != WM_PAINT) {
+            processedInput = true;
         }
+        TranslateMessage(&msg);
+        DispatchMessage(&msg);
+        if (msg.message == WM_QUIT) m_ShouldClose = true;
+    }
 
-        if (m_Widget) {
-            if (m_NeedsLayout) {
-                m_Widget->layout();
-                m_NeedsLayout = false;
-            }
+    if (m_Widget) {
+        if (m_NeedsLayout) {
+            m_Widget->layout();
+            m_NeedsLayout = false;
         }
+    }
 
-        if (m_Widget) {
-            if (m_LastTick == std::chrono::steady_clock::time_point{}) {
-                m_LastTick = std::chrono::steady_clock::now();
-            }
-            auto now = std::chrono::steady_clock::now();
-            float dt_ms = std::chrono::duration<float, std::milli>(now - m_LastTick).count();
-            m_LastTick = now;
-            // 与 Linux 循环对齐：空闲后首帧 dt 钳位，避免动画跳变。
-            if (dt_ms > 100.0f) dt_ms = 16.0f;
-            m_Widget->tick(dt_ms);
+    if (m_Widget) {
+        if (m_LastTick == std::chrono::steady_clock::time_point{}) {
+            m_LastTick = std::chrono::steady_clock::now();
         }
+        auto now = std::chrono::steady_clock::now();
+        float dt_ms = std::chrono::duration<float, std::milli>(now - m_LastTick).count();
+        m_LastTick = now;
+        // 与 Linux 循环对齐：空闲后首帧 dt 钳位，避免动画跳变。
+        if (dt_ms > 100.0f) dt_ms = 16.0f;
+        m_Widget->tick(dt_ms);
+    }
 
-        bool hadRepaintReq = m_RepaintRequested.exchange(false);
+    bool hadRepaintReq = m_RepaintRequested.exchange(false);
 
-        if (m_NeedsRepaint || processedInput || hadRepaintReq) {
-            if (m_hWnd) {
-                InvalidateRect(m_hWnd, nullptr, FALSE);
-                m_NeedsRepaint = false;
-            }
+    if (m_NeedsRepaint || processedInput || hadRepaintReq) {
+        if (m_hWnd) {
+            InvalidateRect(m_hWnd, nullptr, FALSE);
+            m_NeedsRepaint = false;
         }
+    }
 
-        if (!processedInput && !m_NeedsRepaint && !hadRepaintReq) {
-            MsgWaitForMultipleObjects(0, nullptr, FALSE, 16, QS_ALLINPUT);
-        }
+    if (!processedInput && !m_NeedsRepaint && !hadRepaintReq) {
+        MsgWaitForMultipleObjects(0, nullptr, FALSE, 16, QS_ALLINPUT);
     }
 }
 

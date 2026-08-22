@@ -148,6 +148,9 @@ private:
     glyph_info* get_glyph(font_face* face, char32_t codepoint);
     float get_glyph_advance(font_face* face, char32_t codepoint);
     bool init_glyph_atlas(glyph_atlas* atlas);
+
+    /// 按顺序查找首个可读的字体文件（公共实现；字体路径由各平台提供）。
+    static std::string find_font_file(const char* const* paths);
 #endif
 
     struct image_resource {

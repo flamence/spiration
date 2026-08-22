@@ -515,27 +515,30 @@ bool x11_window::initialize(const window_parameters& params) {
         int w = 0, h = 0, channels = 0;
         unsigned char* rgba = stbi_load(iconPath.string().c_str(), &w, &h, &channels, 4);
         if (rgba) {
-            std::vector<unsigned long> icon_data(2 + static_cast<size_t>(w) * h, 0);
-            icon_data[0] = static_cast<unsigned long>(w);
-            icon_data[1] = static_cast<unsigned long>(h);
+            std::vector<uint32_t> icon_data(2 + static_cast<size_t>(w) * h, 0);
+            icon_data[0] = static_cast<uint32_t>(w);
+            icon_data[1] = static_cast<uint32_t(h);
             for (int i = 0; i < w * h; ++i) {
                 unsigned char r = rgba[i * 4 + 0];
                 unsigned char g = rgba[i * 4 + 1];
                 unsigned char b = rgba[i * 4 + 2];
                 unsigned char a = rgba[i * 4 + 3];
-                icon_data[2 + i] = static_cast<unsigned long>(
-                    (static_cast<unsigned long>(a) << 24) |
-                    (static_cast<unsigned long>(r) << 16) |
-                    (static_cast<unsigned long>(g) << 8) |
-                    static_cast<unsigned long>(b));
+                icon_data[2 + i] = 
+                    (static_cast<uint32_t>(a) << 24) |
+                    (static_cast<uint32_t>(r) << 16) |
+                    (static_cast<uint32_t>(g) << 8)  |
+                    static_cast<uint32_t>(b);
             }
-            XChangeProperty(display_, window_, net_wm_icon_atom_, XA_CARDINAL, 32,
+            int status = XChangeProperty(display_, window_, net_wm_icon_atom_, XA_CARDINAL, 32,
                             PropModeReplace,
                             reinterpret_cast<unsigned char*>(icon_data.data()),
                             static_cast<int>(icon_data.size()));
+            if (status != Success) {
+                application::instance()->logger()->log({logging::level::warning, fmt::format("failed to load icon with XChangeProperty status code {}", std::to_string(status)), "window"});
+            }
             stbi_image_free(rgba);
         } else {
-            application::instance()->logger()->log({logging::level::warning, fmt::format("Failed to load app icon from {}", iconPath.string()), "window"});
+            application::instance()->logger()->log({logging::level::warning, fmt::format("failed to load app icon from {}", iconPath.string()), "window"});
         }
     }
 
