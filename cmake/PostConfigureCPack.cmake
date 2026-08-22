@@ -1,17 +1,32 @@
-set_property(INSTALL "$<TARGET_FILE_NAME:${PROJECT_NAME}>"
-    PROPERTY CPACK_DESKTOP_SHORTCUTS "${SPIRATION_APP_NAME}"
-)
-set_property(INSTALL "$<TARGET_FILE_NAME:${PROJECT_NAME}>"
-    PROPERTY CPACK_START_MENU_SHORTCUTS "${SPIRATION_APP_NAME}"
-)
-
 install(TARGETS ${PROJECT_NAME}
         BUNDLE DESTINATION .
         RUNTIME DESTINATION bin
         LIBRARY DESTINATION lib
         ARCHIVE DESTINATION lib
 )
-install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/common/lang DESTINATION "${SPIRATION_INSTALL_RESOURCES}")
+if(WIN32)
+    set_property(INSTALL "bin/$<TARGET_FILE_NAME:${PROJECT_NAME}>"
+                 PROPERTY CPACK_DESKTOP_SHORTCUTS "${SPIRATION_APP_NAME}")
+    set_property(INSTALL "bin/$<TARGET_FILE_NAME:${PROJECT_NAME}>"
+                 PROPERTY CPACK_START_MENU_SHORTCUTS "${SPIRATION_APP_NAME}")
+endif()
+if(APPLE)
+    install(CODE "
+        execute_process(
+            COMMAND ${CMAKE_COMMAND} -E copy_directory
+                ${SPIRATION_RESOURCE_SRC_DIR}
+                \${CMAKE_INSTALL_PREFIX}/${PROJECT_NAME}.app/Contents/Resources/lang
+        )
+    ")
+    install(CODE "
+        execute_process(
+            COMMAND codesign --force --deep --sign - 
+                \${CMAKE_INSTALL_PREFIX}/${PROJECT_NAME}.app
+        )
+    ")
+else()
+    install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/common/lang DESTINATION "${SPIRATION_INSTALL_RESOURCES}")
+endif()
 
 set_target_properties(${PROJECT_NAME} PROPERTIES
     SKIP_BUILD_RPATH TRUE

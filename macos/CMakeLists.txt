@@ -5,7 +5,6 @@ find_library(QUARTZCORE_LIBRARY QuartzCore)
 find_library(CORE_TEXT_LIBRARY CoreText)
 find_library(CORE_IMAGE_LIBRARY CoreImage)
 find_library(APPKIT_LIBRARY AppKit)
-find_library(UNIFORM_TYPE_ID_LIBRARY UniformTypeIdentifiers)
 
 file(GLOB_RECURSE MACOS_SOURCES CONFIGURE_DEPENDS
     "src/*.cpp" "src/*.c" "src/*.mm" "src/*.m" "src/*.metal"
@@ -38,6 +37,15 @@ foreach(_loc IN LISTS SPIRATION_LOCALIZATIONS)
     string(APPEND _spiration_localizations_xml "        <string>${_loc}</string>")
 endforeach()
 
+set(_spiration_localizations_xml "")
+foreach(_loc IN LISTS SPIRATION_LOCALIZATIONS)
+    if(_spiration_localizations_xml)
+        string(APPEND _spiration_localizations_xml "\n")
+    endif()
+    string(APPEND _spiration_localizations_xml "        <string>${_loc}</string>")
+endforeach()
+set(SPIRATION_LOCALIZATIONS_XML "${_spiration_localizations_xml}")
+
 set(INFOPLIST_IN  "${CMAKE_CURRENT_SOURCE_DIR}/macos/Info.plist")
 set(INFOPLIST_OUT "${CMAKE_CURRENT_BINARY_DIR}/Info.plist")
 configure_file("${INFOPLIST_IN}" "${INFOPLIST_OUT}" @ONLY)
@@ -65,7 +73,6 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
     ${CORE_TEXT_LIBRARY}
     ${CORE_IMAGE_LIBRARY}
     ${APPKIT_LIBRARY}
-    ${UNIFORM_TYPE_ID_LIBRARY}
 )
 
 set_target_properties(spiration PROPERTIES
@@ -85,4 +92,9 @@ add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
         ${METALLIB_OUT}
         $<TARGET_FILE_DIR:${PROJECT_NAME}>/default.metallib
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+        ${CMAKE_CURRENT_SOURCE_DIR}/../common/lang
+        "$<TARGET_FILE_DIR:${PROJECT_NAME}>/../Resources/lang"
+    COMMAND codesign --force --deep --sign - "$<TARGET_FILE_DIR:${PROJECT_NAME}>/../.."
+    COMMAND xattr -cr "$<TARGET_FILE_DIR:${PROJECT_NAME}>/../.."
 )

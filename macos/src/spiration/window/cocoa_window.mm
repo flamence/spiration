@@ -1,6 +1,6 @@
 /**
- * @file macos_window.mm
- * @brief macOS 平台窗口实现。
+ * @file cocoa_window.mm
+ * @brief 窗口实现。
  * @author clk
  */
 

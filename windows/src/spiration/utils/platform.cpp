@@ -17,26 +17,6 @@
 
 namespace spiration {
 
-namespace {
-
-std::wstring utf8_to_wide(const std::string& s) {
-    int wlen = MultiByteToWideChar(CP_UTF8, 0, s.c_str(), -1, nullptr, 0);
-    std::wstring w(static_cast<size_t>(wlen) - 1, L'\0');
-    MultiByteToWideChar(CP_UTF8, 0, s.c_str(), -1, &w[0], wlen);
-    return w;
-}
-
-std::string wide_to_utf8(const std::wstring& w) {
-    int size = WideCharToMultiByte(CP_UTF8, 0, w.c_str(), -1, nullptr, 0,
-                                   nullptr, nullptr);
-    std::string result(static_cast<size_t>(size) - 1, 0);
-    WideCharToMultiByte(CP_UTF8, 0, w.c_str(), -1, &result[0], size,
-                        nullptr, nullptr);
-    return result;
-}
-
-} // namespace
-
 os_type platform::current_os() {
     return os_type::windows;
 }

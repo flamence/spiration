@@ -63,7 +63,18 @@ ghc::filesystem::path platform::executable_directory() {
 }
 
 ghc::filesystem::path platform::resources_directory() {
-    return executable_directory().parent_path() / "share";
+    auto base = executable_directory().parent_path();
+    
+    for (auto path : {
+        base / "share",
+        base / "share" / "spiration"
+    }) {
+        if (ghc::filesystem::exists(path)) {
+            return path;
+        }
+    }
+
+    return ghc::filesystem::current_path();
 }
 
 std::string platform::system_locale() {

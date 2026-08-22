@@ -3,34 +3,46 @@
 <plist version="1.0">
 <dict>
     <key>CFBundleExecutable</key>
-    <string>@MACOSX_BUNDLE_EXECUTABLE_NAME@</string>
+    <string>@SPIRATION_BUNDLE_NAME@</string>
+
     <key>CFBundleIdentifier</key>
-    <string>@MACOSX_BUNDLE_GUI_IDENTIFIER@</string>
-    <key>CFBundleLocalizations</key>
-    <array>
-@SPIRATION_LOCALIZATIONS@
-    </array>
+    <string>@SPIRATION_BUNDLE_IDENTIFIER@</string>
+
     <key>CFBundleName</key>
-    <string>@MACOSX_BUNDLE_BUNDLE_NAME@</string>
+    <string>@SPIRATION_BUNDLE_NAME@</string>
+
     <key>CFBundlePackageType</key>
     <string>APPL</string>
+
     <key>CFBundleShortVersionString</key>
-    <string>@MACOSX_BUNDLE_SHORT_VERSION_STRING@</string>
+    <string>@PROJECT_VERSION_MAJOR@.@PROJECT_VERSION_MINOR@</string>
+
+    <key>CFBundleVersion</key>
+    <string>@PROJECT_VERSION@</string>
+
     <key>CFBundleSupportedPlatforms</key>
     <array>
         <string>MacOSX</string>
     </array>
-    <key>CFBundleVersion</key>
-    <string>@MACOSX_BUNDLE_BUNDLE_VERSION@</string>
-    <key>NSAllowsArbitraryLoads</key>
-    <true/>
-    <key>NSHighResolutionCapable</key>
-    <true/>
+
+    <key>CFBundleLocalizations</key>
+    <array>
+@SPIRATION_LOCALIZATIONS_XML@
+    </array>
+
     <key>NSHumanReadableCopyright</key>
-    <string>@MACOSX_BUNDLE_COPYRIGHT@</string>
+    <string>Copyright © @SPIRATION_COPYRIGHT_YEAR@ @SPIRATION_VENDOR@. All rights reserved.</string>
+
     <key>NSPrincipalClass</key>
     <string>NSApplication</string>
+
+    <key>NSHighResolutionCapable</key>
+    <true/>
+
     <key>NSSupportsAutomaticGraphicsSwitching</key>
+    <true/>
+
+    <key>NSAllowsArbitraryLoads</key>
     <true/>
 </dict>
 </plist>

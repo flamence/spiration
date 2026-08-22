@@ -139,6 +139,7 @@ target_include_directories(spiration.api INTERFACE
 target_link_libraries(spiration.api INTERFACE
     fmt::fmt
     ghc::filesystem
+    nlohmann_json::nlohmann_json
     tl::optional
     nonstd::string_view
 )
