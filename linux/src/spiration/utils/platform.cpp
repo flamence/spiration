@@ -66,8 +66,8 @@ ghc::filesystem::path platform::resources_directory() {
     auto base = executable_directory().parent_path();
     
     for (auto path : {
-        base / "share",
-        base / "share" / "spiration"
+        base / "share" / "spiration",
+        base / "share"
     }) {
         if (ghc::filesystem::exists(path)) {
             return path;
