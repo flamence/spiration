@@ -517,7 +517,7 @@ bool x11_window::initialize(const window_parameters& params) {
         if (rgba) {
             std::vector<uint32_t> icon_data(2 + static_cast<size_t>(w) * h, 0);
             icon_data[0] = static_cast<uint32_t>(w);
-            icon_data[1] = static_cast<uint32_t(h);
+            icon_data[1] = static_cast<uint32_t>(h);
             for (int i = 0; i < w * h; ++i) {
                 unsigned char r = rgba[i * 4 + 0];
                 unsigned char g = rgba[i * 4 + 1];
