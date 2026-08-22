@@ -30,6 +30,7 @@ set(SPIRATION_CORE_SOURCES
     src/spiration/logging/logger.cpp
     src/spiration/net/http.cpp
     src/spiration/renderer/opengl_renderer.cpp
+    src/spiration/renderer/opengl_text_freetype.cpp
     src/spiration/ui/about_tab.cpp
     src/spiration/ui/appbar.cpp
     src/spiration/ui/button.cpp
@@ -117,6 +118,12 @@ if(UNIX AND NOT APPLE AND NOT OHOS)
         ${OPENGL_INCLUDE_DIR} ${FREETYPE_INCLUDE_DIRS})
     target_link_libraries(spiration.core PRIVATE
         ${OPENGL_LIBRARIES} GLX ${FREETYPE_LIBRARIES})
+elseif(APPLE)
+    # OpenGL 渲染器（Metal 不可用时的回退）需要 FreeType 与 OpenGL.framework。
+    find_package(Freetype REQUIRED)
+    find_library(OPENGL_LIBRARY OpenGL)
+    target_include_directories(spiration.core PRIVATE ${FREETYPE_INCLUDE_DIRS})
+    target_link_libraries(spiration.core PRIVATE ${OPENGL_LIBRARY} ${FREETYPE_LIBRARIES})
 endif()
 
 target_include_directories(spiration.core PRIVATE

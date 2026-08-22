@@ -4,13 +4,17 @@
  * @author clk
  */
 
-#if defined(__linux__) || defined(__OHOS__)
+#if defined(__linux__) || defined(__OHOS__) || defined(__APPLE__)
 #include <spiration/application.h>
 #include <spiration/renderer/opengl_renderer.h>
 #include <algorithm>
 #include <cmath>
 #include <cstring>
 #include <fmt/format.h>
+
+#if defined(__APPLE__)
+#include <spiration/renderer/opengl_platform.h>
+#endif
 
 #define STB_IMAGE_IMPLEMENTATION
 #include <stb_image.h>
@@ -248,7 +252,11 @@ opengl_renderer::opengl_renderer(opengl_renderer&& other) noexcept
     , alpha_(other.alpha_)
     , blend_enabled_(other.blend_enabled_)
     , batch_has_texture_(other.batch_has_texture_)
-    , current_texture_(other.current_texture_) {
+    , current_texture_(other.current_texture_)
+#if defined(__APPLE__)
+    , gl_context_(other.gl_context_)
+#endif
+{
 
     std::memcpy(proj_matrix_, other.proj_matrix_, sizeof(proj_matrix_));
     std::memcpy(mvp_matrix_, other.mvp_matrix_, sizeof(mvp_matrix_));
@@ -267,6 +275,9 @@ opengl_renderer::opengl_renderer(opengl_renderer&& other) noexcept
     other.blend_enabled_ = true;
     other.batch_has_texture_ = false;
     other.current_texture_ = 0;
+#if defined(__APPLE__)
+    other.gl_context_ = nullptr;
+#endif
     mat4_identity(other.current_transform_.m);
 }
 
@@ -312,6 +323,9 @@ opengl_renderer& opengl_renderer::operator=(opengl_renderer&& other) noexcept {
         other.blend_enabled_ = true;
         other.batch_has_texture_ = false;
         other.current_texture_ = 0;
+#if defined(__APPLE__)
+        other.gl_context_ = nullptr;
+#endif
         mat4_identity(other.current_transform_.m);
     }
     return *this;
@@ -329,6 +343,11 @@ bool opengl_renderer::initialize(void* native_window_handle) {
 #if defined(__OHOS__)
     if (!init_egl(native_window_handle)) {
         application::instance()->logger()->log({logging::level::error, "EGL init failed", "renderer/opengl"});
+        return false;
+    }
+#elif defined(__APPLE__)
+    if (!init_gl_context(native_window_handle)) {
+        application::instance()->logger()->log({logging::level::error, "OpenGL context init failed", "renderer/opengl"});
         return false;
     }
 #endif
@@ -402,6 +421,8 @@ void opengl_renderer::shutdown() {
 
 #if defined(__OHOS__)
     destroy_egl();
+#elif defined(__APPLE__)
+    destroy_gl_context();
 #endif
 
     application::instance()->logger()->log({logging::level::info, "shutdown", "renderer/opengl"});
@@ -436,6 +457,8 @@ void opengl_renderer::end_frame() {
     }
 #if defined(__OHOS__)
     eglSwapBuffers(egl_display_, egl_surface_);
+#elif defined(__APPLE__)
+    spiration_gl_flush(gl_context_);
 #endif
 }
 
@@ -955,6 +978,24 @@ void opengl_renderer::draw_circle_impl(float cx, float cy, float radius, const c
         flush_batch();
     }
 }
+
+#if defined(__APPLE__)
+bool opengl_renderer::init_gl_context(void* native_window) {
+    // native_window 为窗口持有的 NSOpenGLContext 句柄（见 cocoa_window）。
+    gl_context_ = native_window;
+    if (!gl_context_) return false;
+    if (!spiration_gl_make_current(gl_context_)) {
+        gl_context_ = nullptr;
+        return false;
+    }
+    return true;
+}
+
+void opengl_renderer::destroy_gl_context() {
+    // 上下文由窗口创建并销毁，渲染器仅解除引用。
+    gl_context_ = nullptr;
+}
+#endif
 
 std::shared_ptr<renderer> renderer::create_opengl_renderer() {
     return std::make_shared<opengl_renderer>();

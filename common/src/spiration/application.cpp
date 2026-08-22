@@ -125,7 +125,9 @@ std::shared_ptr<logging::logger> application::logger() const {
 }
 
 void application::loop() {
-    window_->loop();
+    if (window_) {
+        window_->loop();
+    }
 }
 
 void application::shutdown() {

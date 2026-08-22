@@ -5,6 +5,7 @@ find_library(QUARTZCORE_LIBRARY QuartzCore)
 find_library(CORE_TEXT_LIBRARY CoreText)
 find_library(CORE_IMAGE_LIBRARY CoreImage)
 find_library(APPKIT_LIBRARY AppKit)
+find_library(OPENGL_LIBRARY OpenGL)
 
 file(GLOB_RECURSE MACOS_SOURCES CONFIGURE_DEPENDS
     "src/*.cpp" "src/*.c" "src/*.mm" "src/*.m" "src/*.metal"
@@ -19,7 +20,7 @@ set(METALLIB_OUT  ${CMAKE_CURRENT_BINARY_DIR}/default.metallib)
 
 add_custom_command(
     OUTPUT ${METALLIB_OUT}
-    COMMAND xcrun -sdk macosx metal -c ${METAL_SRC} -o ${METAL_AIR}
+    COMMAND xcrun -sdk macosx metal -c -mmacosx-version-min=${CMAKE_OSX_DEPLOYMENT_TARGET} ${METAL_SRC} -o ${METAL_AIR}
     COMMAND xcrun -sdk macosx metallib ${METAL_AIR} -o ${METALLIB_OUT}
     DEPENDS ${METAL_SRC}
 )
@@ -73,6 +74,7 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
     ${CORE_TEXT_LIBRARY}
     ${CORE_IMAGE_LIBRARY}
     ${APPKIT_LIBRARY}
+    ${OPENGL_LIBRARY}
 )
 
 set_target_properties(spiration PROPERTIES

@@ -14,6 +14,7 @@
 #import <Cocoa/Cocoa.h>
 #import <QuartzCore/CAMetalLayer.h>
 #import <spiration/renderer/metal_renderer.h>
+#import <spiration/renderer/opengl_platform.h>
 #import <spiration/window/cocoa_window.h>
 
 using namespace spiration;
@@ -459,9 +460,12 @@ static int cocoa_key_to_vk(unsigned short keyCode) {
         CGSize size = contentView.bounds.size;
         CGFloat scale = [contentView.window backingScaleFactor];
 
-        CAMetalLayer* metalLayer = (CAMetalLayer*)contentView.layer;
-        if (metalLayer) {
+        if (self.spirationWindow->get_metal_layer()) {
+            CAMetalLayer* metalLayer = self.spirationWindow->get_metal_layer();
             metalLayer.drawableSize = CGSizeMake(size.width * scale, size.height * scale);
+        }
+        if (self.spirationWindow->gl_context()) {
+            spiration_gl_update(self.spirationWindow->gl_context());
         }
 
         int32_t w = static_cast<int32_t>(size.width);
@@ -531,6 +535,8 @@ cocoa_window::cocoa_window(cocoa_window&& other) noexcept
     : m_NSWindow(other.m_NSWindow)
     , m_NSView(other.m_NSView)
     , m_MetalLayer(other.m_MetalLayer)
+    , m_GLContext(other.m_GLContext)
+    , m_UseOpenGL(other.m_UseOpenGL)
     , m_Title(std::move(other.m_Title))
     , m_Width(other.m_Width)
     , m_Height(other.m_Height)
@@ -550,6 +556,8 @@ cocoa_window::cocoa_window(cocoa_window&& other) noexcept
     other.m_NSWindow = nil;
     other.m_NSView = nil;
     other.m_MetalLayer = nil;
+    other.m_GLContext = nullptr;
+    other.m_UseOpenGL = false;
     other.m_ShouldClose = false;
     other.m_IsVisible = false;
     other.m_Initialized = false;
@@ -564,6 +572,8 @@ cocoa_window& cocoa_window::operator=(cocoa_window&& other) noexcept {
         m_NSWindow = other.m_NSWindow;
         m_NSView = other.m_NSView;
         m_MetalLayer = other.m_MetalLayer;
+        m_GLContext = other.m_GLContext;
+        m_UseOpenGL = other.m_UseOpenGL;
         m_Title = std::move(other.m_Title);
         m_Width = other.m_Width;
         m_Height = other.m_Height;
@@ -583,6 +593,8 @@ cocoa_window& cocoa_window::operator=(cocoa_window&& other) noexcept {
         other.m_NSWindow = nil;
         other.m_NSView = nil;
         other.m_MetalLayer = nil;
+        other.m_GLContext = nullptr;
+        other.m_UseOpenGL = false;
         other.m_ShouldClose = false;
         other.m_IsVisible = false;
         other.m_Initialized = false;
@@ -664,11 +676,14 @@ void cocoa_window::set_size(int32_t width, int32_t height) {
         frame.size.height = static_cast<CGFloat>(height);
         [m_NSWindow setFrame:frame display:YES animate:NO];
 
-        CAMetalLayer* layer = (CAMetalLayer*)m_NSView.layer;
-        if (layer) {
+        if (m_MetalLayer) {
+            CAMetalLayer* layer = m_MetalLayer;
             CGFloat scale = [m_NSWindow backingScaleFactor];
             layer.drawableSize = CGSizeMake(width * scale, height * scale);
             m_BackingScale = static_cast<float>(scale);
+        }
+        if (m_GLContext) {
+            spiration_gl_update(m_GLContext);
         }
     }
     if (m_Renderer) {
@@ -865,6 +880,11 @@ void cocoa_window::shutdown() {
         m_MetalLayer = nil;
     }
 
+    if (m_GLContext) {
+        spiration_gl_destroy(m_GLContext);
+        m_GLContext = nullptr;
+    }
+
     m_Initialized = false;
 }
 
@@ -903,23 +923,39 @@ bool cocoa_window::create_cocoa_window(const window_parameters& params) {
         NSRect viewRect = NSMakeRect(0, 0, params.width, params.height);
         SpirationContentView* contentView = [[SpirationContentView alloc] initWithFrame:viewRect];
         contentView.spirationWindow = this;
-        contentView.wantsLayer = YES;
         m_NSView = contentView;
 
-        m_MetalLayer = [CAMetalLayer layer];
-        m_MetalLayer.device = MTLCreateSystemDefaultDevice();
-        m_MetalLayer.pixelFormat = MTLPixelFormatBGRA8Unorm;
-        m_MetalLayer.framebufferOnly = YES;
-        m_MetalLayer.frame = viewRect;
+        id<MTLDevice> metalDevice = MTLCreateSystemDefaultDevice();
+        if (metalDevice) {
+            contentView.wantsLayer = YES;
+            m_MetalLayer = [CAMetalLayer layer];
+            m_MetalLayer.device = metalDevice;
+            m_MetalLayer.pixelFormat = MTLPixelFormatBGRA8Unorm;
+            m_MetalLayer.framebufferOnly = YES;
+            m_MetalLayer.frame = viewRect;
 
-        CGFloat scale = [m_NSWindow backingScaleFactor];
-        m_MetalLayer.drawableSize = CGSizeMake(params.width * scale,
-                                                params.height * scale);
-        m_BackingScale = static_cast<float>(scale);
+            CGFloat scale = [m_NSWindow backingScaleFactor];
+            m_MetalLayer.drawableSize = CGSizeMake(params.width * scale,
+                                                    params.height * scale);
+            m_BackingScale = static_cast<float>(scale);
 
-        [m_NSView setLayer:m_MetalLayer];
+            [m_NSView setLayer:m_MetalLayer];
+        } else {
+            // Metal 不可用（如未开启 3D 加速的虚拟机），回退 OpenGL。
+            m_UseOpenGL = true;
+        }
+
         [m_NSWindow setContentView:m_NSView];
         [m_NSWindow makeFirstResponder:m_NSView];
+
+        if (m_UseOpenGL) {
+            m_GLContext = spiration_gl_create_context((__bridge void*)m_NSView);
+            if (!m_GLContext) {
+                NSLog(@"Failed to create OpenGL context");
+                return false;
+            }
+            m_BackingScale = static_cast<float>([m_NSWindow backingScaleFactor]);
+        }
 
         [m_NSWindow center];
 
@@ -935,18 +971,36 @@ bool cocoa_window::create_cocoa_window(const window_parameters& params) {
 
 bool cocoa_window::create_renderer() {
     if (m_Renderer) return true;
-    m_Renderer = renderer::create_metal_renderer();
-    if (!m_Renderer) return false;
 
-    if (!m_Renderer->initialize((__bridge void*)m_MetalLayer)) {
+    // 优先 Metal；初始化失败（无 Metal 设备或 metallib 无法加载）时回退 OpenGL。
+    if (!m_UseOpenGL) {
+        m_Renderer = renderer::create_metal_renderer();
+        if (m_Renderer && m_Renderer->initialize((__bridge void*)m_MetalLayer)) {
+            CGFloat scale = [m_NSWindow backingScaleFactor];
+            m_Renderer->resize(static_cast<uint32_t>(m_Width * scale),
+                               static_cast<uint32_t>(m_Height * scale));
+            return true;
+        }
         m_Renderer.reset();
-        return false;
+        NSLog(@"Metal renderer unavailable, falling back to OpenGL");
     }
 
-    CGFloat scale = [m_NSWindow backingScaleFactor];
-    m_Renderer->resize(static_cast<uint32_t>(m_Width * scale),
-                       static_cast<uint32_t>(m_Height * scale));
-    return true;
+    if (!m_GLContext) {
+        m_GLContext = spiration_gl_create_context((__bridge void*)m_NSView);
+        if (!m_GLContext) {
+            NSLog(@"Failed to create OpenGL context");
+            return false;
+        }
+    }
+    m_Renderer = renderer::create_opengl_renderer();
+    if (m_Renderer && m_Renderer->initialize((__bridge void*)m_GLContext)) {
+        CGFloat scale = [m_NSWindow backingScaleFactor];
+        m_Renderer->resize(static_cast<uint32_t>(m_Width * scale),
+                           static_cast<uint32_t>(m_Height * scale));
+        return true;
+    }
+    m_Renderer.reset();
+    return false;
 }
 
 void cocoa_window::notify_widget_resize() {

@@ -86,6 +86,8 @@ public:
     NSWindow* get_ns_window() const { return m_NSWindow; }
     NSView* get_ns_view() const { return m_NSView; }
     CAMetalLayer* get_metal_layer() const { return m_MetalLayer; }
+    /// OpenGL 回退路径的 NSOpenGLContext 句柄（无 Metal 时非空）。
+    void* gl_context() const { return m_GLContext; }
     void notify_widget_resize_public() { notify_widget_resize(); }
 
     bool m_IsDragging = false;
@@ -113,6 +115,10 @@ private:
     NSWindow* m_NSWindow = nullptr;
     NSView* m_NSView = nullptr;
     CAMetalLayer* m_MetalLayer = nullptr;
+    /// OpenGL 回退路径的 NSOpenGLContext 句柄（窗口持有并销毁）。
+    void* m_GLContext = nullptr;
+    /// 是否使用 OpenGL 渲染路径（Metal 不可用时置位）。
+    bool m_UseOpenGL = false;
 
     std::string m_Title;
     int32_t m_X = 0;

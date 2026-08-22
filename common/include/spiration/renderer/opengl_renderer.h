@@ -11,6 +11,9 @@
 #if defined(__OHOS__)
 #include <GLES3/gl3.h>
 #include <EGL/egl.h>
+#elif defined(__APPLE__)
+#include <OpenGL/gl3.h>
+#include <OpenGL/gl3ext.h>
 #else
 #define GL_GLEXT_PROTOTYPES 1
 #include <GL/gl.h>
@@ -237,6 +240,11 @@ private:
     EGLConfig egl_config_ = nullptr;
     bool init_egl(void* native_window);
     void destroy_egl();
+#elif defined(__APPLE__)
+    /// NSOpenGLContext 句柄（由窗口创建并持有，渲染器仅使用）。
+    void* gl_context_ = nullptr;
+    bool init_gl_context(void* native_window);
+    void destroy_gl_context();
 #endif
 
     static constexpr int CIRCLE_SEGMENTS = 48;

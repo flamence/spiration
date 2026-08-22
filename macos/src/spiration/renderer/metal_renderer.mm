@@ -956,7 +956,10 @@ float metal_renderer::measure_text_height(const std::string& text, float font_si
 bool metal_renderer::init_metal() {
     @autoreleasepool {
         m_Device = MTLCreateSystemDefaultDevice();
-        if (!m_Device) return false;
+        if (!m_Device) {
+            NSLog(@"Metal device unavailable: MTLCreateSystemDefaultDevice() returned nil (unsupported GPU or 3D acceleration disabled)");
+            return false;
+        }
 
         m_CommandQueue = [m_Device newCommandQueue];
         if (!m_CommandQueue) return false;
@@ -1013,6 +1016,7 @@ bool metal_renderer::init_pipeline_states() {
         NSURL* libURL = [NSURL fileURLWithPath:libPath];
         id<MTLLibrary> library = [m_Device newLibraryWithURL:libURL error:&error];
         if (!library) {
+            NSLog(@"Failed to load Metal library (%@): %@", libPath, error);
             library = [m_Device newDefaultLibrary];
         }
         if (!library) return false;

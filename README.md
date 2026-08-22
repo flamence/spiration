@@ -10,22 +10,9 @@
 
 ## 运行要求
 
-### Windows
+使用 Windows 7 / Mac OS 10.15 / Ubuntu 24.04 / Harmony OS 6.1.1.300 以上的版本。
 
-确保设备支持 Direct2D。
-
-### Mac OS
-
-确保系统版本不低于 10.15。
-
-### Linux
-
-需要支持 X11 桌面；
-确保系统 `glibc` 依赖不低于 `2.35`。
-
-### Open Harmony / Harmony OS
-
-确保系统版本不低于 6.1.1.300。
+> 对于 Linux 系统，理论上可以 [构建编译](#构建编译) 支持更低的版本。
 
 ## 构建编译
 

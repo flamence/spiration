@@ -1,8 +1,10 @@
 /**
  * @file opengl_text_freetype.cpp
- * @brief OpenGL 渲染器 FreeType 文本管线（Linux）。
+ * @brief OpenGL 渲染器 FreeType 文本管线（Linux/macOS）。
  * @author clk
  */
+
+#if defined(__linux__) || defined(__APPLE__)
 
 #include <spiration/application.h>
 #include <spiration/renderer/opengl_renderer.h>
@@ -271,6 +273,16 @@ std::string find_font_file(const char* const* paths) {
 
 bool opengl_renderer::init_cjk_fallback_font() {
     if (!ft_library_) return false;
+#if defined(__APPLE__)
+    const char* cjk_paths[] = {
+        "/System/Library/Fonts/PingFang.ttc",
+        "/System/Library/Fonts/Hiragino Sans GB.ttc",
+        "/System/Library/Fonts/STHeiti Light.ttc",
+        "/System/Library/Fonts/Supplemental/Arial Unicode.ttf",
+        "/System/Library/Fonts/Supplemental/Songti.ttc",
+        nullptr
+    };
+#else
     const char* cjk_paths[] = {
         "/usr/share/fonts/truetype/wqy/wqy-microhei.ttf",
         "/usr/share/fonts/truetype/wqy/wqy-zenhei.ttf",
@@ -279,6 +291,7 @@ bool opengl_renderer::init_cjk_fallback_font() {
         "/usr/share/fonts/truetype/droid/DroidSansFallback.ttf",
         nullptr
     };
+#endif
     std::string path = find_font_file(cjk_paths);
     if (path.empty()) {
         application::instance()->logger()->log({logging::level::warning, "no CJK fallback font found", "renderer/opengl"});
@@ -306,6 +319,27 @@ opengl_renderer::font_face* opengl_renderer::get_font_face(const std::string& fa
     bool is_mono = (family == "DejaVuSansMono" || family == "Consolas" || family == "monospace");
     bool is_sans = !is_mono;
 
+#if defined(__APPLE__)
+    const char* sans_paths[] = {
+        "/System/Library/Fonts/PingFang.ttc",
+        "/System/Library/Fonts/Hiragino Sans GB.ttc",
+        "/System/Library/Fonts/STHeiti Light.ttc",
+        "/System/Library/Fonts/Helvetica.ttc",
+        "/System/Library/Fonts/Supplemental/Arial Unicode.ttf",
+        "/System/Library/Fonts/Supplemental/Arial.ttf",
+        "/System/Library/Fonts/Supplemental/HelveticaNeue.ttc",
+        "/System/Library/Fonts/Supplemental/Verdana.ttf",
+        "/System/Library/Fonts/Supplemental/Songti.ttc",
+        nullptr
+    };
+    const char* mono_paths[] = {
+        "/System/Library/Fonts/Menlo.ttc",
+        "/System/Library/Fonts/Monaco.ttf",
+        "/System/Library/Fonts/Supplemental/Courier New.ttf",
+        "/System/Library/Fonts/Supplemental/Menlo.ttc",
+        nullptr
+    };
+#else
     const char* sans_paths[] = {
         "/usr/share/fonts/truetype/wqy/wqy-microhei.ttf",
         "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc",
@@ -333,6 +367,7 @@ opengl_renderer::font_face* opengl_renderer::get_font_face(const std::string& fa
         "/usr/share/fonts/TTF/DejaVuSansMono.ttf",
         nullptr
     };
+#endif
 
     const char* const* paths = is_mono ? mono_paths : sans_paths;
     std::string font_path = find_font_file(paths);
@@ -501,4 +536,6 @@ bool opengl_renderer::init_glyph_atlas(glyph_atlas* atlas) {
 }
 
 } // namespace spiration
+
+#endif // defined(__linux__) || defined(__APPLE__)
 
