@@ -4,6 +4,7 @@ on:
   push:
     paths:
       - 'CMakeLists.txt'
+      - 'cmake/**'
       - 'common/**'
       - 'windows/**'
       - 'linux/**'
@@ -13,6 +14,7 @@ on:
   pull_request:
     paths:
       - 'CMakeLists.txt'
+      - 'cmake/**'
       - 'common/**'
       - 'windows/**'
       - 'linux/**'
