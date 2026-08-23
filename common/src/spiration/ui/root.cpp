@@ -376,12 +376,14 @@ bool root::add_menu_item(const std::string& menu_name,
                           const std::string& label,
                           std::function<void()> callback) {
 #ifdef __APPLE__
-    if (label.empty()) return false;
-    std::string title = i18n_manager::get().tr(menu_name, menu_name);
-    if (title.empty()) title = menu_name;
+    std::string name_local = menu_name;
+    std::string label_local = label;
+    if (label_local.empty()) return false;
+    std::string title = i18n_manager::get().tr(name_local, name_local);
+    if (title.empty()) title = name_local;
 
     spiration_macos_menu_spec spec{};
-    spec.key = menu_name.c_str();
+    spec.key = name_local.c_str();
     spec.title = title.c_str();
     void* submenu = spiration_macos_menu_get_submenu(&spec);
     if (!submenu) return false;
@@ -389,7 +391,7 @@ bool root::add_menu_item(const std::string& menu_name,
     auto* box = new std::function<void()>(std::move(callback));
     spiration_macos_menu_spec item_spec{};
     item_spec.submenu = submenu;
-    item_spec.title = label.c_str();
+    item_spec.title = label_local.c_str();
     item_spec.callback = box;
     return spiration_macos_menu_add_item(&item_spec) != 0;
 #else
