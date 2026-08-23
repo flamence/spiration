@@ -32,8 +32,8 @@ public:
         "0.7"
     })) {}
 
-    tl::optional<std::string> name() const override { return api->tr("extension.agent.name"); }
-    tl::optional<std::string> description() const override { return api->tr("extension.agent.description"); }
+    tl::optional<std::string> name() const override { return api->tr("agent:name"); }
+    tl::optional<std::string> description() const override { return api->tr("agent:description"); }
     bool initialize() override;
     void shutdown() override;
 

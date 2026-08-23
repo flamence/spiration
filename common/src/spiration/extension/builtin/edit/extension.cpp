@@ -14,19 +14,19 @@ namespace edit {
 bool extension::initialize() {
     if (!api) return false;
 
-    api->add_menu_item("menu.file", i18n_manager::get().tr("menu.file.new"), [this]() {
+    api->add_menu_item("menu.file", i18n_manager::get().tr("edit:menu.file.new"), [this]() {
         new_editor_tab();
     });
 
-    api->add_menu_item("menu.file", i18n_manager::get().tr("menu.file.open"), [this]() {
+    api->add_menu_item("menu.file", i18n_manager::get().tr("edit:menu.file.open"), [this]() {
         open_editor_tab();
     });
 
-    api->add_menu_item("menu.file", i18n_manager::get().tr("menu.file.save"), [this]() {
+    api->add_menu_item("menu.file", i18n_manager::get().tr("edit:menu.file.save"), [this]() {
         save_current();
     });
 
-    api->add_menu_item("menu.file", i18n_manager::get().tr("menu.file.save_as"), [this]() {
+    api->add_menu_item("menu.file", i18n_manager::get().tr("edit:menu.file.save_as"), [this]() {
         save_current_as();
     });
 
@@ -70,7 +70,7 @@ void extension::setup_editor_callbacks(edit_tab* tab) {
 }
 
 void extension::new_editor_tab() {
-    auto tab = std::make_unique<edit_tab>(api->tr("edit.untitled"));
+    auto tab = std::make_unique<edit_tab>(api->tr("edit:untitled"));
 
     auto* raw = tab.get();
     setup_editor_callbacks(raw);
@@ -80,15 +80,15 @@ void extension::new_editor_tab() {
 
 void extension::open_editor_tab() {
 #if __OHOS__
-    spiration::io::open_file_async(api->tr("file_dialog.open_title"),
-                                   api->tr("file_dialog.all_files"), {"*"},
+    spiration::io::open_file_async(api->tr("edit:file_dialog.open_title"),
+                                   api->tr("edit:file_dialog.all_files"), {"*"},
                                    [this](const std::string& path, const std::string& content) {
                                        complete_open_editor_tab(path, content);
                                    });
 #else
     std::string path = spiration::io::open_file(
-        api->tr("file_dialog.open_title"),
-        api->tr("file_dialog.all_files"),
+        api->tr("edit:file_dialog.open_title"),
+        api->tr("edit:file_dialog.all_files"),
         {"*"});
     complete_open_editor_tab(path);
 #endif
@@ -155,16 +155,16 @@ void extension::save_current_as() {
         return;
     }
 #if __OHOS__
-    spiration::io::save_file_async(api->tr("file_dialog.save_title"),
-                                   api->tr("file_dialog.all_files"), {"*"},
+    spiration::io::save_file_async(api->tr("edit:file_dialog.save_title"),
+                                   api->tr("edit:file_dialog.all_files"), {"*"},
                                    editor->text(),
                                    [this](const std::string& path) {
                                        complete_save_as(path);
                                    });
 #else
     std::string path = spiration::io::save_file(
-        api->tr("file_dialog.save_title"),
-        api->tr("file_dialog.all_files"),
+        api->tr("edit:file_dialog.save_title"),
+        api->tr("edit:file_dialog.all_files"),
         {"*"});
     complete_save_as(path);
 #endif

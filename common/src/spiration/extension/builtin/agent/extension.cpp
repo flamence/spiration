@@ -153,11 +153,11 @@ Think first, and do fast.
     application::instance()->extension()->register_service(id(), agent_registry::SERVICE_NAME,
                                         &agent_registry::instance());
 
-    api->add_menu_item("menu.help", i18n_manager::get().tr("menu.help.agent"), [this]() {
+    api->add_menu_item("menu.help", i18n_manager::get().tr("agent:menu.help.agent"), [this]() {
         open_agent_tab();
     });
 
-    api->add_menu_item("menu.help", i18n_manager::get().tr("menu.help.configure_models"), [this]() {
+    api->add_menu_item("menu.help", i18n_manager::get().tr("agent:menu.help.configure_models"), [this]() {
         configure_models();
     });
 

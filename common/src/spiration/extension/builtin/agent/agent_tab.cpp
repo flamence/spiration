@@ -60,7 +60,7 @@ void utf8_append(std::string& dest, std::string& hold, const std::string& src) {
 }
 
 std::string tool_display_name(const std::string& name) {
-    return i18n_manager::get().tr("tool." + name, name);
+    return i18n_manager::get().tr("agent:tool." + name, name);
 }
 
 std::string tool_block_markdown(const std::string& label, const std::string& body) {
@@ -83,7 +83,7 @@ float token_text_estimate_width(const label* lb) {
 
 agent_tab::agent_tab(std::shared_ptr<chat_client> client, std::shared_ptr<chat_store> store)
     : client_(std::move(client)), store_(std::move(store)) {
-    title_ = i18n_manager::get().tr("tab.agent");
+    title_ = i18n_manager::get().tr("agent:tab.agent");
     widget_style.background_color = theme_manager::get(theme_manager::CONTENT_BG);
 
     if (client_) {
@@ -187,7 +187,7 @@ agent_tab::agent_tab(std::shared_ptr<chat_client> client, std::shared_ptr<chat_s
     scroll_->add_child(std::move(ml));
 
     auto tc = std::make_unique<collapsible>();
-    tc->set_summary(i18n_manager::get().tr("chat.todo"));
+    tc->set_summary(i18n_manager::get().tr("agent:chat.todo"));
     tc->max_content_height = 200.0f;
     tc->set_expanded(false);
     todo_capsule_ = tc.get();
@@ -253,7 +253,7 @@ agent_tab::agent_tab(std::shared_ptr<chat_client> client, std::shared_ptr<chat_s
     refresh_reasoning_combo();
 
     auto ap = std::make_unique<checkbox>();
-    ap->text = i18n_manager::get().tr("chat.auto_approve");
+    ap->text = i18n_manager::get().tr("agent:chat.auto_approve");
     ap->on_changed = [this](bool v) { auto_approve_on_ = v; };
     auto_approve_ = ap.get();
     settings_bar_->add_child(std::move(ap));
@@ -272,7 +272,7 @@ agent_tab::agent_tab(std::shared_ptr<chat_client> client, std::shared_ptr<chat_s
     input_bar_ = bar.get();
 
     auto ta = std::make_unique<text_area>();
-    ta->placeholder = i18n_manager::get().tr("tab.agent.input_placeholder");
+    ta->placeholder = i18n_manager::get().tr("agent:tab.agent.input_placeholder");
     ta->font_size = 13.0f;
     ta->font_family = theme_manager::get_str(theme_manager::UI_FONT);
     ta->line_height = 20.0f;
@@ -289,7 +289,7 @@ agent_tab::agent_tab(std::shared_ptr<chat_client> client, std::shared_ptr<chat_s
     bar->add_child(std::move(ta));
 
     auto btn = std::make_unique<button>();
-    btn->text = i18n_manager::get().tr("tab.agent.send");
+    btn->text = i18n_manager::get().tr("agent:tab.agent.send");
     btn->widget_style.width = 56;
     btn->widget_style.margin = margin(6, 0);
     btn->hover_color = theme_manager::get(theme_manager::BUTTON_HOVER);
@@ -696,7 +696,7 @@ void agent_tab::process_stream_events(size_t max_events) {
                     continue;
                 }
                 if (!thinking_capsule_) {
-                    thinking_capsule_ = create_capsule(i18n_manager::get().tr("chat.thinking"));
+                    thinking_capsule_ = create_capsule(i18n_manager::get().tr("agent:chat.thinking"));
                     thinking_scroll_ = static_cast<container*>(thinking_capsule_->content());
                     auto md = std::make_unique<markdown>();
                     md->font_size = 12.0f;
@@ -745,7 +745,7 @@ void agent_tab::process_stream_events(size_t max_events) {
                 break;
             case stream_event::type::tool_result:
                 stream_label_ = nullptr;
-                append_tool_result(ev.text.empty() ? i18n_manager::get().tr("chat.no_output")
+                append_tool_result(ev.text.empty() ? i18n_manager::get().tr("agent:chat.no_output")
                                                    : ev.text);
                 need_layout = true;
                 break;
@@ -857,7 +857,7 @@ void agent_tab::update_todo_capsule() {
     for (const auto& it : items) {
         if (it.status == todo_status::completed) ++done;
     }
-    std::string summary = i18n_manager::get().tr("chat.todo");
+    std::string summary = i18n_manager::get().tr("agent:chat.todo");
     if (todo_count_ > 0)
         summary += " (" + std::to_string(done) + "/" + std::to_string(todo_count_) + ")";
     todo_capsule_->set_summary(summary);
@@ -1001,8 +1001,8 @@ void agent_tab::begin_rename(const std::string& uuid, const std::string& name) {
     if (uuid.empty()) return;
     rename_uuid_ = uuid;
     if (rename_dialog_) {
-        rename_dialog_->show(i18n_manager::get().tr("chat.rename_title"),
-                             i18n_manager::get().tr("chat.rename_hint"), name,
+        rename_dialog_->show(i18n_manager::get().tr("agent:chat.rename_title"),
+                             i18n_manager::get().tr("agent:chat.rename_hint"), name,
                              [this](const std::string& s) { commit_rename_text(s); },
                              [this]() { rename_uuid_.clear(); });
     }
@@ -1064,9 +1064,9 @@ void agent_tab::rebuild_conversation_list(const std::vector<conversation_meta>* 
         button* open_raw = open_btn.get();
         open_raw->on_right_click = [this, uuid = c.uuid, name = c.name, open_raw](float mx, float my) {
             auto menu = std::make_unique<context_menu>();
-            menu->add_item(i18n_manager::get().tr("chat.rename"),
+            menu->add_item(i18n_manager::get().tr("agent:chat.rename"),
                            [this, uuid, name]() { begin_rename(uuid, name); });
-            menu->add_item(i18n_manager::get().tr("chat.delete"),
+            menu->add_item(i18n_manager::get().tr("agent:chat.delete"),
                            [this, uuid]() { delete_conversation(uuid); });
             point sp = open_raw->to_screen(mx, my);
             request_context_menu(sp.x, sp.y, std::move(menu));
@@ -1180,7 +1180,7 @@ void agent_tab::start_send(const std::string& text, bool show_user) {
         add_message("user", text);
     }
     if (!client_) {
-        add_message("assistant", i18n_manager::get().tr("chat.echo") + " " + text);
+        add_message("assistant", i18n_manager::get().tr("agent:chat.echo") + " " + text);
         update_send_button();
         if (request_repaint_) request_repaint_();
         return;
@@ -1203,7 +1203,7 @@ void agent_tab::add_continue_button() {
     row->widget_style.background_color = color::transparent();
 
     auto btn = std::make_unique<button>();
-    btn->text = i18n_manager::get().tr("chat.continue");
+    btn->text = i18n_manager::get().tr("agent:chat.continue");
     btn->widget_style.width = 80;
     btn->widget_style.margin = margin(0, 0);
     btn->set_base_bg(theme_manager::get(theme_manager::BUTTON_BG));
@@ -1228,8 +1228,8 @@ void agent_tab::remove_continue_button() {
 void agent_tab::update_send_button() {
     if (!send_btn_) return;
     send_btn_->text = waiting_
-        ? i18n_manager::get().tr("chat.stop")
-        : i18n_manager::get().tr("tab.agent.send");
+        ? i18n_manager::get().tr("agent:chat.stop")
+        : i18n_manager::get().tr("agent:tab.agent.send");
 }
 
 void agent_tab::update_token_label() {
@@ -1261,7 +1261,7 @@ void agent_tab::refresh_reasoning_combo() {
     if (levels.empty()) return;
     reasoning_combo_->items.clear();
     for (auto l : levels) {
-        std::string key = "reasoning." + std::string(reasoning_level_to_string(l));
+        std::string key = "agent:reasoning." + std::string(reasoning_level_to_string(l));
         reasoning_combo_->items.push_back(i18n_manager::get().tr(key, key));
     }
     reasoning_combo_->selected_index = -1;
@@ -1300,7 +1300,7 @@ collapsible* agent_tab::append_tool_capsule(const std::string& summary, const st
     auto md = std::make_unique<markdown>();
     md->font_size = 12.0f;
     md->selectable = true;
-    md->text = tool_block_markdown(i18n_manager::get().tr("chat.tool_input", "输入"), args);
+    md->text = tool_block_markdown(i18n_manager::get().tr("agent:chat.tool_input", "输入"), args);
     tool_label_ = md.get();
     tool_capsule_scroll_->add_child(std::move(md));
     return tool_capsule_;
@@ -1309,7 +1309,7 @@ collapsible* agent_tab::append_tool_capsule(const std::string& summary, const st
 void agent_tab::append_tool_result(const std::string& text) {
     if (tool_label_) {
         tool_label_->text += tool_block_markdown(
-            i18n_manager::get().tr("chat.tool_output", "输出"), text);
+            i18n_manager::get().tr("agent:chat.tool_output", "输出"), text);
         tool_label_->layout();
         // 内容增长后立即重排胶囊，使其按新内容高度平滑增长。
         if (tool_capsule_) tool_capsule_->layout();
@@ -1328,7 +1328,7 @@ void agent_tab::restore_history_ui(const std::vector<chat_message>& msgs) {
             add_message("user", m.content);
         } else if (m.role == "assistant") {
             if (!m.reasoning_content.empty()) {
-                thinking_capsule_ = create_capsule(i18n_manager::get().tr("chat.thinking"));
+                thinking_capsule_ = create_capsule(i18n_manager::get().tr("agent:chat.thinking"));
                 thinking_scroll_ = static_cast<container*>(thinking_capsule_->content());
                 auto md = std::make_unique<markdown>();
                 md->font_size = 12.0f;
@@ -1352,7 +1352,7 @@ void agent_tab::restore_history_ui(const std::vector<chat_message>& msgs) {
                     md->font_size = 12.0f;
                     md->selectable = true;
                     md->text = tool_block_markdown(
-                        i18n_manager::get().tr("chat.tool_output", "输出"), m.content);
+                        i18n_manager::get().tr("agent:chat.tool_output", "输出"), m.content);
                     sc->add_child(std::move(md));
                 }
             }
@@ -1374,7 +1374,7 @@ void agent_tab::show_inline_approval() {
     tool_capsule_->set_expanded(true);
 
     auto hint = std::make_unique<label>();
-    hint->text = i18n_manager::get().tr("chat.approve_message");
+    hint->text = i18n_manager::get().tr("agent:chat.approve_message");
     hint->font_size = 12.0f;
     approval_hint_ = hint.get();
     tool_capsule_scroll_->add_child(std::move(hint));
@@ -1387,7 +1387,7 @@ void agent_tab::show_inline_approval() {
     row->height = 24;
 
     auto allow = std::make_unique<button>();
-    allow->text = i18n_manager::get().tr("chat.approve");
+    allow->text = i18n_manager::get().tr("agent:chat.approve");
     allow->widget_style.width = 58;
     allow->widget_style.height = 24;
     allow->hover_color = theme_manager::get(theme_manager::BUTTON_HOVER);
@@ -1398,7 +1398,7 @@ void agent_tab::show_inline_approval() {
     row->add_child(std::move(allow));
 
     auto deny = std::make_unique<button>();
-    deny->text = i18n_manager::get().tr("chat.deny");
+    deny->text = i18n_manager::get().tr("agent:chat.deny");
     deny->widget_style.width = 58;
     deny->widget_style.height = 24;
     deny->hover_color = theme_manager::get(theme_manager::CLOSE_HOVER);
@@ -1504,7 +1504,7 @@ void agent_tab::tick(float dt_ms) {
                 update_send_button();
                 std::string err = e.what();
                 if (err.size() > 200) err = err.substr(0, 200);
-                add_message("assistant", i18n_manager::get().tr("chat.request_failed") + " " + err);
+                add_message("assistant", i18n_manager::get().tr("agent:chat.request_failed") + " " + err);
                 update_token_label();
                 save_current();
                 if (!queued_inputs_.empty()) {

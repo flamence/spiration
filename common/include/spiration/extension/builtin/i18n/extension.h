@@ -24,9 +24,9 @@ public:
         "0.2"
     }) {}
 
-    tl::optional<std::string> name() const override { return api->tr("extension.i18n.name"); }
+    tl::optional<std::string> name() const override { return api->tr("i18n:name"); }
 
-    tl::optional<std::string> description() const override { return api->tr("extension.i18n.description"); }
+    tl::optional<std::string> description() const override { return api->tr("i18n:description"); }
 
     init_phase phase() const override { return init_phase::early; }
 

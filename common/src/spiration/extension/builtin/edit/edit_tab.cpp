@@ -12,7 +12,7 @@
 namespace spiration {
 namespace edit {
 
-edit_tab::edit_tab() : edit_tab(i18n_manager::get().tr("edit.untitled")) {
+edit_tab::edit_tab() : edit_tab(i18n_manager::get().tr("edit:untitled")) {
 }
 
 edit_tab::edit_tab(const std::string& title) {

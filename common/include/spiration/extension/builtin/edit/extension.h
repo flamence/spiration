@@ -27,8 +27,8 @@ public:
         "0.4"
     }) {}
 
-    tl::optional<std::string> name() const override { return api->tr("extension.edit.name"); }
-    tl::optional<std::string> description() const override { return api->tr("extension.edit.description"); }
+    tl::optional<std::string> name() const override { return api->tr("edit:name"); }
+    tl::optional<std::string> description() const override { return api->tr("edit:description"); }
 
     bool initialize() override;
     void shutdown() override;
