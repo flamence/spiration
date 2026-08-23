@@ -24,11 +24,11 @@ on:
   release:
     types: [ published ]
 
-permissions:
-  contents: write
-
 jobs:
   detect-changes:
+    permissions:
+      contents: read
+      pull-requests: read
     runs-on: ubuntu-latest
     outputs:
       os-matrix: ${{ steps.set-matrix.outputs.os-matrix }}
@@ -109,6 +109,8 @@ jobs:
 
   build:
     needs: detect-changes
+    permissions:
+      contents: write
     if: fromJSON(needs.detect-changes.outputs.os-matrix) != '[]'
     runs-on: ${{ matrix.os }}
     strategy:
@@ -144,7 +146,7 @@ jobs:
           -DCMAKE_C_COMPILER=${{ matrix.c_compiler }}
           -DCMAKE_BUILD_TYPE=${{ matrix.build_type }}
           -S "$GITHUB_WORKSPACE"
-          -G Ninja
+          -G ${{ matrix.generator }}
 
       - run: cmake --build "${{ steps.pre-strings.outputs.build-output-dir }}" --config ${{ matrix.build_type }} --target package
 
@@ -157,7 +159,7 @@ jobs:
             macOS)   SUFFIX="dmg" ;;
             Linux)   SUFFIX="deb" ;;
           esac
-          PACKAGE_FILE=$(find "$PKG_DIR" -maxdepth 1 -type f -name "spiration-v*.${SUFFIX}" | head -n 1)
+          PACKAGE_FILE=$(find "$PKG_DIR" -maxdepth 1 -type f -name "*.${SUFFIX}" | head -n 1)
           if [ -z "$PACKAGE_FILE" ]; then
             exit 1
           fi
@@ -196,7 +198,7 @@ jobs:
           fi
           echo "archive-name=spiration-$VERSION-harmonyos" >> "$GITHUB_OUTPUT"
 
-      - uses: CoolCLK/build-hap@v1
+      - uses: chen-linkai/build-hap@v1
         with:
           workspace: ${{ steps.strings.outputs.workspace }}
 
