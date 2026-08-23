@@ -121,7 +121,6 @@ static int cocoa_key_to_vk(unsigned short keyCode) {
 
     NSPoint loc = [self convertPoint:event.locationInWindow fromView:nil];
 
-    // 先派发给控件（窗口控制按钮等）；未被消费才进入拖拽/缩放逻辑。
     mouse_event_data data;
     data.position = { static_cast<float>(loc.x), static_cast<float>(self.bounds.size.height - loc.y) };
     data.button = mouse_button::left;
@@ -424,7 +423,7 @@ static int cocoa_key_to_vk(unsigned short keyCode) {
 
 - (void)windowDidResize:(NSNotification*)notification {
     if (self.spirationWindow) {
-        NSWindow* win = (NSWindow*)self.spirationWindow->native_handle();
+        NSWindow* win = (__bridge NSWindow*)self.spirationWindow->native_handle();
         if (!win) return;
 
         NSView* contentView = [win contentView];
@@ -704,7 +703,6 @@ void* cocoa_window::native_handle() const {
 
 void cocoa_window::loop() {
     @autoreleasepool {
-        // 窗口已关闭（如点击原生红绿灯关闭按钮）：退出主循环，由 main 收尾退出。
         if (m_ShouldClose) return;
 
         static NSTimeInterval lastTick = [NSDate timeIntervalSinceReferenceDate];
@@ -721,7 +719,6 @@ void cocoa_window::loop() {
             [NSApp sendEvent:event];
         }
 
-        // 服务 run loop 源：Dock 右键退出/重新打开等 AppleEvent 依赖于此。
         [[NSRunLoop currentRunLoop] runMode:NSDefaultRunLoopMode
                                  beforeDate:[NSDate dateWithTimeIntervalSinceNow:0.0]];
 
@@ -730,7 +727,6 @@ void cocoa_window::loop() {
                 m_Widget->layout();
                 m_NeedsLayout = false;
             }
-            // 推进 tick 驱动的动画（胶囊展开/收起、光标闪烁等）
             m_Widget->tick(dt_ms);
             m_Renderer->begin_frame();
             m_Widget->paint(m_Renderer);
@@ -919,7 +915,6 @@ bool cocoa_window::create_cocoa_window(const window_parameters& params) {
 
             [m_NSView setLayer:m_MetalLayer];
         } else {
-            // Metal 不可用（如未开启 3D 加速的虚拟机），回退 OpenGL。
             m_UseOpenGL = true;
         }
 
@@ -951,7 +946,6 @@ bool cocoa_window::create_cocoa_window(const window_parameters& params) {
 bool cocoa_window::create_renderer() {
     if (m_Renderer) return true;
 
-    // 优先 Metal；初始化失败（无 Metal 设备或 metallib 无法加载）时回退 OpenGL。
     if (!m_UseOpenGL) {
         m_Renderer = renderer::create_metal_renderer();
         if (m_Renderer && m_Renderer->initialize((__bridge void*)m_MetalLayer)) {
@@ -972,7 +966,7 @@ bool cocoa_window::create_renderer() {
         }
     }
     m_Renderer = renderer::create_opengl_renderer();
-    if (m_Renderer && m_Renderer->initialize((__bridge void*)m_GLContext)) {
+    if (m_Renderer && m_Renderer->initialize(m_GLContext)) {
         CGFloat scale = [m_NSWindow backingScaleFactor];
         m_Renderer->resize(static_cast<uint32_t>(m_Width * scale),
                            static_cast<uint32_t>(m_Height * scale));

@@ -13,10 +13,10 @@
 
 @implementation SpirationAppDelegate
 
-- (BOOL)applicationShouldTerminate:(NSApplication*)sender {
+- (NSApplicationTerminateReply)applicationShouldTerminate:(NSApplication*)sender {
     (void)sender;
     spiration::application::instance()->shutdown();
-    return YES;
+    return NSTerminateNow;
 }
 
 @end

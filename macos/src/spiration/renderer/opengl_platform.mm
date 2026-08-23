@@ -1,6 +1,5 @@
 /**
  * @file opengl_platform.mm
- * @brief macOS OpenGL 平台桥接：基于 NSOpenGLContext/CGL 的上下文管理。
  * @author clk
  */
 
@@ -12,7 +11,6 @@
 static NSOpenGLContext* CreateOpenGLContext(NSView* view) {
     if (!view) return nil;
 
-    // 优先请求硬件加速的 4.1 Core Profile（可运行 #version 330 着色器）。
     NSOpenGLPixelFormatAttribute accelerated_attrs[] = {
         NSOpenGLPFAOpenGLProfile, NSOpenGLProfileVersion4_1Core,
         NSOpenGLPFAColorSize, 24,
@@ -25,7 +23,6 @@ static NSOpenGLContext* CreateOpenGLContext(NSView* view) {
         [[NSOpenGLPixelFormat alloc] initWithAttributes:accelerated_attrs];
 
     if (!pixel_format) {
-        // 无硬件加速（如未开启 3D 加速的虚拟机）时回退软件渲染。
         NSOpenGLPixelFormatAttribute software_attrs[] = {
             NSOpenGLPFAOpenGLProfile, NSOpenGLProfileVersion4_1Core,
             NSOpenGLPFAColorSize, 24,
@@ -47,7 +44,10 @@ static NSOpenGLContext* CreateOpenGLContext(NSView* view) {
         return nil;
     }
 
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
     [context setView:view];
+#pragma clang diagnostic pop
 
     GLint swap_interval = 1;
     [context setValues:&swap_interval forParameter:NSOpenGLContextParameterSwapInterval];
