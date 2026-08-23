@@ -97,7 +97,7 @@ jobs:
             if [ ${#OS_ARRAY[@]} -eq 0 ]; then
               OS_ARRAY=()
             fi
-            OS_JSON=$(printf '%s\n' "${OS_ARRAY[@]}" | jq -R . | jq -s .)
+            OS_JSON=$(printf '%s\n' "${OS_ARRAY[@]}" | jq -R . | jq -c -s .)
           fi
 
           echo "os-matrix=$OS_JSON" >> $GITHUB_OUTPUT
