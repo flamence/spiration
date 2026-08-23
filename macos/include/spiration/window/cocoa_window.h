@@ -15,6 +15,7 @@
 #ifdef __OBJC__
 #import <Cocoa/Cocoa.h>
 #import <QuartzCore/CAMetalLayer.h>
+@class SpirationWindowDelegate;
 #else
 typedef struct objc_object NSWindow;
 typedef struct objc_object NSView;
