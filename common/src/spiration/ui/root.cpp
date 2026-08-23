@@ -11,7 +11,6 @@
 #ifdef __APPLE__
 #include <spiration/extension/builtin/i18n/i18n.h>
 #include <spiration/window/macos_menu.h>
-#include <fmt/format.h>
 #endif
 
 namespace spiration {
@@ -380,13 +379,19 @@ bool root::add_menu_item(const std::string& menu_name,
     if (label.empty()) return false;
     std::string title = i18n_manager::get().tr(menu_name, menu_name);
     if (title.empty()) title = menu_name;
-    application::instance()->logger()->log({logging::level::info,
-        fmt::format("[macos_menu] root::add_menu_item menu='{}' label='{}' title='{}'",
-                    menu_name, label, title), "ui/root"});
-    void* submenu = spiration_macos_menu_get_submenu(menu_name.c_str(), title.c_str());
+
+    spiration_macos_menu_spec spec{};
+    spec.key = menu_name.c_str();
+    spec.title = title.c_str();
+    void* submenu = spiration_macos_menu_get_submenu(&spec);
     if (!submenu) return false;
+
     auto* box = new std::function<void()>(std::move(callback));
-    return spiration_macos_menu_add_item(submenu, label.c_str(), box) != 0;
+    spiration_macos_menu_spec item_spec{};
+    item_spec.submenu = submenu;
+    item_spec.title = label.c_str();
+    item_spec.callback = box;
+    return spiration_macos_menu_add_item(&item_spec) != 0;
 #else
     if (!menu_bar_) return false;
     return menu_bar_->add_sub_item(menu_name, label, std::move(callback));

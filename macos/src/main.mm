@@ -34,27 +34,46 @@
 static void build_core_menus() {
     auto& i18n = spiration::i18n_manager::get();
 
-    void* file_menu = spiration_macos_menu_get_submenu("menu.file", i18n.tr("menu.file").c_str());
+    spiration_macos_menu_spec file_spec{};
+    file_spec.key = "menu.file";
+    std::string file_title = i18n.tr("menu.file");
+    file_spec.title = file_title.c_str();
+    void* file_menu = spiration_macos_menu_get_submenu(&file_spec);
     if (file_menu) {
         auto* quit_cb = new std::function<void()>([]() { [NSApp terminate:nil]; });
-        spiration_macos_menu_add_item(file_menu, i18n.tr("menu.file.exit").c_str(), quit_cb);
+        spiration_macos_menu_spec item_spec{};
+        item_spec.submenu = file_menu;
+        std::string exit_title = i18n.tr("menu.file.exit");
+        item_spec.title = exit_title.c_str();
+        item_spec.callback = quit_cb;
+        spiration_macos_menu_add_item(&item_spec);
     }
 
-    void* help_menu = spiration_macos_menu_get_submenu("menu.help", i18n.tr("menu.help").c_str());
+    spiration_macos_menu_spec help_spec{};
+    help_spec.key = "menu.help";
+    std::string help_title = i18n.tr("menu.help");
+    help_spec.title = help_title.c_str();
+    void* help_menu = spiration_macos_menu_get_submenu(&help_spec);
     if (help_menu) {
-        auto* about_cb = new std::function<void()>([]() {
+        auto add_core_item = [&](const std::string& key, std::function<void()> cb) {
+            auto* box = new std::function<void()>(std::move(cb));
+            spiration_macos_menu_spec item_spec{};
+            item_spec.submenu = help_menu;
+            std::string item_title = i18n.tr(key);
+            item_spec.title = item_title.c_str();
+            item_spec.callback = box;
+            spiration_macos_menu_add_item(&item_spec);
+        };
+        add_core_item("menu.help.about", []() {
             if (auto* r = dynamic_cast<spiration::root*>(spiration::application::instance()->widget())) {
                 r->open_tab(std::make_unique<spiration::about_tab>());
             }
         });
-        spiration_macos_menu_add_item(help_menu, i18n.tr("menu.help.about").c_str(), about_cb);
-
-        auto* ext_cb = new std::function<void()>([]() {
+        add_core_item("menu.help.extensions", []() {
             if (auto* r = dynamic_cast<spiration::root*>(spiration::application::instance()->widget())) {
                 r->open_tab(std::make_unique<spiration::extension_tab>());
             }
         });
-        spiration_macos_menu_add_item(help_menu, i18n.tr("menu.help.extensions").c_str(), ext_cb);
     }
 }
 
