@@ -507,6 +507,7 @@ cocoa_window::cocoa_window(cocoa_window&& other) noexcept
     , m_MetalLayer(other.m_MetalLayer)
     , m_GLContext(other.m_GLContext)
     , m_UseOpenGL(other.m_UseOpenGL)
+    , m_Delegate(other.m_Delegate)
     , m_Title(std::move(other.m_Title))
     , m_Width(other.m_Width)
     , m_Height(other.m_Height)
@@ -526,6 +527,7 @@ cocoa_window::cocoa_window(cocoa_window&& other) noexcept
     other.m_NSWindow = nil;
     other.m_NSView = nil;
     other.m_MetalLayer = nil;
+    other.m_Delegate = nil;
     other.m_GLContext = nullptr;
     other.m_UseOpenGL = false;
     other.m_ShouldClose = false;
@@ -542,6 +544,7 @@ cocoa_window& cocoa_window::operator=(cocoa_window&& other) noexcept {
         m_NSWindow = other.m_NSWindow;
         m_NSView = other.m_NSView;
         m_MetalLayer = other.m_MetalLayer;
+        m_Delegate = other.m_Delegate;
         m_GLContext = other.m_GLContext;
         m_UseOpenGL = other.m_UseOpenGL;
         m_Title = std::move(other.m_Title);
@@ -563,6 +566,7 @@ cocoa_window& cocoa_window::operator=(cocoa_window&& other) noexcept {
         other.m_NSWindow = nil;
         other.m_NSView = nil;
         other.m_MetalLayer = nil;
+        other.m_Delegate = nil;
         other.m_GLContext = nullptr;
         other.m_UseOpenGL = false;
         other.m_ShouldClose = false;
@@ -852,6 +856,7 @@ void cocoa_window::shutdown() {
         }
         m_NSView = nil;
         m_MetalLayer = nil;
+        m_Delegate = nil;
     }
 
     if (m_GLContext) {
@@ -892,6 +897,7 @@ bool cocoa_window::create_cocoa_window(const window_parameters& params) {
 
         SpirationWindowDelegate* delegate = [[SpirationWindowDelegate alloc] init];
         delegate.spirationWindow = this;
+        m_Delegate = delegate;  // NSWindow 的 delegate 是弱引用，必须强持有
         [m_NSWindow setDelegate:delegate];
 
         NSRect viewRect = NSMakeRect(0, 0, params.width, params.height);

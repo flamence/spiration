@@ -20,6 +20,7 @@ typedef struct objc_object NSWindow;
 typedef struct objc_object NSView;
 typedef struct objc_object NSApplication;
 typedef struct objc_object CAMetalLayer;
+typedef struct objc_object SpirationWindowDelegate;
 #endif
 
 namespace spiration {
@@ -115,6 +116,9 @@ private:
     NSWindow* m_NSWindow = nullptr;
     NSView* m_NSView = nullptr;
     CAMetalLayer* m_MetalLayer = nullptr;
+    /// 窗口代理（NSWindow 的 delegate 为弱引用，必须由窗口自身强持有，
+    /// 否则 ARC 下局部变量释放后 windowWillClose 等回调全部失效）。
+    SpirationWindowDelegate* m_Delegate = nullptr;
     /// OpenGL 回退路径的 NSOpenGLContext 句柄（窗口持有并销毁）。
     void* m_GLContext = nullptr;
     /// 是否使用 OpenGL 渲染路径（Metal 不可用时置位）。
