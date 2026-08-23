@@ -86,8 +86,22 @@ int spiration_macos_menu_add_item(const spiration_macos_menu_spec* spec) {
     auto* state = static_cast<spiration_menu_item_state*>(spec->callback);
     const char* title_text = state->title.c_str();
     const unsigned char* tp = (const unsigned char*)title_text;
-    NSLog(@"[macos_menu] add item '%s' (title ptr=%p bytes: %02x %02x %02x %02x %02x %02x %02x %02x)",
-          title_text, title_text, tp[0], tp[1], tp[2], tp[3], tp[4], tp[5], tp[6], tp[7]);
+
+    // 显式 UTF-8 构造 NSString；失败（非法 UTF-8）则拒绝添加，
+    // 避免旧式 std::function* 回调被误读为状态对象时崩溃。
+    NSString* ns_title = [NSString stringWithUTF8String:title_text];
+    if (!ns_title) {
+        NSLog(@"[macos_menu] add item FAILED: title not valid UTF-8 "
+              @"(title ptr=%p bytes: %02x %02x %02x %02x %02x %02x %02x %02x)",
+              title_text, tp[0], tp[1], tp[2], tp[3], tp[4], tp[5], tp[6], tp[7]);
+        return 0;
+    }
+    // 注意：菜单项标题以 %@ 打印（实际进入 NSMenuItem 的字符串）。
+    // %s 在部分系统编码下无法显示 UTF-8 中文，会误显示为空。
+    NSLog(@"[macos_menu] add item title='%@' (state=%p title ptr=%p "
+          @"bytes: %02x %02x %02x %02x %02x %02x %02x %02x)",
+          ns_title, state, title_text,
+          tp[0], tp[1], tp[2], tp[3], tp[4], tp[5], tp[6], tp[7]);
 
     SpirationMenuTarget* target =
         [[SpirationMenuTarget alloc] initWithCallback:&state->callback];
@@ -96,7 +110,7 @@ int spiration_macos_menu_add_item(const spiration_macos_menu_spec* spec) {
     }
     [menu_targets addObject:target];
 
-    NSMenuItem* item = [[NSMenuItem alloc] initWithTitle:[NSString stringWithUTF8String:title_text]
+    NSMenuItem* item = [[NSMenuItem alloc] initWithTitle:ns_title
                                                   action:@selector(invoke:)
                                            keyEquivalent:@""];
     [item setTarget:target];

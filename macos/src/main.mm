@@ -10,6 +10,7 @@
 #include <spiration/ui/extension_tab.h>
 #include <spiration/ui/root.h>
 #include <spiration/window/macos_menu.h>
+#include <spiration/window/macos_menu_state.h>
 
 #include <functional>
 
@@ -40,12 +41,13 @@ static void build_core_menus() {
     file_spec.title = file_title.c_str();
     void* file_menu = spiration_macos_menu_get_submenu(&file_spec);
     if (file_menu) {
-        auto* quit_cb = new std::function<void()>([]() { [NSApp terminate:nil]; });
+        // 标题与回调同处堆上状态对象（与 root.cpp 的 add_menu_item 一致）。
+        auto* state = new spiration_menu_item_state{
+            i18n.tr("menu.file.exit"),
+            []() { [NSApp terminate:nil]; }};
         spiration_macos_menu_spec item_spec{};
         item_spec.submenu = file_menu;
-        std::string exit_title = i18n.tr("menu.file.exit");
-        item_spec.title = exit_title.c_str();
-        item_spec.callback = quit_cb;
+        item_spec.callback = state;
         spiration_macos_menu_add_item(&item_spec);
     }
 
@@ -56,12 +58,11 @@ static void build_core_menus() {
     void* help_menu = spiration_macos_menu_get_submenu(&help_spec);
     if (help_menu) {
         auto add_core_item = [&](const std::string& key, std::function<void()> cb) {
-            auto* box = new std::function<void()>(std::move(cb));
+            // 标题与回调同处堆上状态对象（与 root.cpp 的 add_menu_item 一致）。
+            auto* state = new spiration_menu_item_state{i18n.tr(key), std::move(cb)};
             spiration_macos_menu_spec item_spec{};
             item_spec.submenu = help_menu;
-            std::string item_title = i18n.tr(key);
-            item_spec.title = item_title.c_str();
-            item_spec.callback = box;
+            item_spec.callback = state;
             spiration_macos_menu_add_item(&item_spec);
         };
         add_core_item("menu.help.about", []() {
