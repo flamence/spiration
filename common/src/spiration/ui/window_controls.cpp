@@ -15,18 +15,10 @@ bool window_controls::hit_test(float x, float y) const {
 
 window_controls::hit_part window_controls::hit_test_btn(float mx, float my) const {
     if (my < 0.0f || my > height) return hit_part::none;
-#ifdef __APPLE__
-    // 与 macOS 原生红绿灯一致的中心距（约 20pt）
-    constexpr float mac_gap = 20.0f;
-    if (mx >= 0.0f && mx < mac_gap) return hit_part::close;
-    if (mx >= mac_gap && mx < mac_gap * 2) return hit_part::min;
-    if (mx >= mac_gap * 2 && mx < mac_gap * 3) return hit_part::max;
-#else
     float startX = width - btn_size_ * 3.0f;
     if (mx >= startX && mx < startX + btn_size_) return hit_part::min;
     if (mx >= startX + btn_size_ && mx < startX + btn_size_ * 2) return hit_part::max;
     if (mx >= startX + btn_size_ * 2 && mx < startX + btn_size_ * 3) return hit_part::close;
-#endif
     return hit_part::none;
 }
 
@@ -95,24 +87,6 @@ void window_controls::tick(float dt_ms) {
 void window_controls::paint(std::shared_ptr<renderer> renderer) {
     float h = btn_h_;
     constexpr float iconSize = 10.0f;
-    
-#ifdef __APPLE__
-    // 与 macOS 原生红绿灯一致的布局：中心距 20pt、直径 14pt、左侧留白 14pt
-    constexpr float mac_gap = 20.0f;
-    constexpr float mac_start = 14.0f;
-    constexpr float mac_radius = 7.0f;
-    color colors[3] = { {1,0.25f,0.25f}, {1,0.8f,0.1f}, {0.3f,0.85f,0.3f} };
-    bool hovers[3] = { hover_close_, hover_min_, hover_max_ };
-    for (int i = 0; i < 3; ++i) {
-        color c = colors[i];
-        if (hovers[i]) {
-            c.r = std::min(c.r + 0.2f, 1.0f);
-            c.g = std::min(c.g + 0.2f, 1.0f);
-            c.b = std::min(c.b + 0.2f, 1.0f);
-        }
-        renderer->draw_circle({mac_start + mac_gap * i, h * 0.5f}, mac_radius, c);
-    }
-#else
     float startX = width - btn_size_ * 3.0f;
     float cx[3] = { startX + btn_size_ * 0.5f,
                     startX + btn_size_ * 1.5f,
@@ -133,7 +107,6 @@ void window_controls::paint(std::shared_ptr<renderer> renderer) {
     color closeIcon = hover_close_ ? theme_manager::get(theme_manager::CONTROL_ICON_HOVER) : theme_manager::get(theme_manager::CONTROL_ICON);
     renderer->draw_line({cx[2] - 5.0f, cy - 5.0f}, {cx[2] + 5.0f, cy + 5.0f}, closeIcon, 1.5f);
     renderer->draw_line({cx[2] + 5.0f, cy - 5.0f}, {cx[2] - 5.0f, cy + 5.0f}, closeIcon, 1.5f);
-#endif
 }
 
 } 

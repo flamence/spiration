@@ -11,6 +11,7 @@
 #ifdef __APPLE__
 #include <spiration/extension/builtin/i18n/i18n.h>
 #include <spiration/window/macos_menu.h>
+#include <fmt/format.h>
 #endif
 
 namespace spiration {
@@ -378,7 +379,10 @@ bool root::add_menu_item(const std::string& menu_name,
 #ifdef __APPLE__
     if (label.empty()) return false;
     std::string title = i18n_manager::get().tr(menu_name, menu_name);
-    if (title.empty()) title = menu_name;  // 翻译缺失时兜底显示键名
+    if (title.empty()) title = menu_name;
+    application::instance()->logger()->log({logging::level::info,
+        fmt::format("[macos_menu] root::add_menu_item menu='{}' label='{}' title='{}'",
+                    menu_name, label, title), "ui/root"});
     void* submenu = spiration_macos_menu_get_submenu(menu_name.c_str(), title.c_str());
     if (!submenu) return false;
     auto* box = new std::function<void()>(std::move(callback));

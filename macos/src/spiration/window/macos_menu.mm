@@ -47,7 +47,12 @@ void* spiration_macos_menu_get_submenu(const char* key, const char* title) {
     if (!key || !title) return nullptr;
 
     NSMenu* main_menu = [NSApp mainMenu];
-    if (!main_menu) return nullptr;
+    if (!main_menu) {
+        NSLog(@"[macos_menu] mainMenu is NIL");
+        return nullptr;
+    }
+    NSLog(@"[macos_menu] get_submenu key='%s' title='%s' mainMenu items=%lu",
+          key, title, (unsigned long)[[NSApp mainMenu] numberOfItems]);
 
     NSString* ns_key = [NSString stringWithUTF8String:key];
     static NSMutableDictionary* submenus = nil;
@@ -72,6 +77,7 @@ void* spiration_macos_menu_get_submenu(const char* key, const char* title) {
 int spiration_macos_menu_add_item(void* submenu, const char* title, void* callback) {
     NSMenu* menu = (__bridge NSMenu*)submenu;
     if (!menu || !title || !callback) return 0;
+    NSLog(@"[macos_menu] add_item title='%s'", title);
 
     SpirationMenuTarget* target =
         [[SpirationMenuTarget alloc] initWithCallback:(std::function<void()>*)callback];

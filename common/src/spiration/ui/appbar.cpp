@@ -60,15 +60,6 @@ void appbar::init() {
       }}); }
 
     mbar->widget_style.width = static_cast<int>(mbar->children().size()) * 60;
-#ifdef __APPLE__
-    auto wc = std::make_unique<window_controls>();
-    wc->height = height;
-    wc->init();
-    wc->widget_style.width = 46 * 3;
-    add_child(std::move(wc));
-    add_child(std::move(mbar));
-    add_child(std::make_unique<spacer>());
-#else
     add_child(std::move(mbar));
     auto sp = std::make_unique<spacer>();
     sp->height = height;
@@ -78,7 +69,6 @@ void appbar::init() {
     wc->init();
     wc->widget_style.width = 46 * 3;
     add_child(std::move(wc));
-#endif
 }
 
 void appbar::layout() {

@@ -11,6 +11,7 @@
 
 namespace spiration {
 
+#if !defined(__APPLE__)
 /**
  * @brief 窗口控制按钮组。
  */
@@ -46,5 +47,6 @@ private:
     enum class hit_part { none, min, max, close };
     hit_part hit_test_btn(float mx, float my) const;
 };
+#endif
 
 } 
