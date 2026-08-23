@@ -14,6 +14,12 @@ file(GLOB_RECURSE MACOS_HEADERS CONFIGURE_DEPENDS
     "include/*.h" "include/*.hpp"
 )
 
+foreach(_macos_src IN LISTS MACOS_SOURCES)
+    if(_macos_src MATCHES "\\.mm$")
+        set_source_files_properties(${_macos_src} PROPERTIES COMPILE_OPTIONS "-fobjc-arc")
+    endif()
+endforeach()
+
 set(METAL_SRC     ${CMAKE_CURRENT_SOURCE_DIR}/src/spiration/renderer/metal_shaders.metal)
 set(METAL_AIR     ${CMAKE_CURRENT_BINARY_DIR}/metal_shaders.air)
 set(METALLIB_OUT  ${CMAKE_CURRENT_BINARY_DIR}/default.metallib)
@@ -85,6 +91,8 @@ target_include_directories(spiration PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/src
 )
 target_compile_definitions(${PROJECT_NAME} PRIVATE SPIRATION)
+# macOS 的 OpenGL 已弃用：屏蔽弃用警告（回退渲染路径仍依赖它）。
+target_compile_definitions(${PROJECT_NAME} PRIVATE GL_SILENCE_DEPRECATION)
 
 target_link_libraries(${PROJECT_NAME} PRIVATE
     spiration::core

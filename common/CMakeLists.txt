@@ -118,10 +118,9 @@ if(UNIX AND NOT APPLE AND NOT OHOS)
     target_link_libraries(spiration.core PRIVATE
         ${OPENGL_LIBRARIES} GLX ${FREETYPE_LIBRARIES})
 elseif(APPLE)
-    # OpenGL 渲染器（Metal 不可用时的回退）：仅需 OpenGL.framework；
-    # 文本使用系统 CoreText（无第三方依赖）。
     find_library(OPENGL_LIBRARY OpenGL)
     target_link_libraries(spiration.core PRIVATE ${OPENGL_LIBRARY})
+    target_compile_definitions(spiration.core PRIVATE GL_SILENCE_DEPRECATION)
 endif()
 
 target_include_directories(spiration.core PRIVATE
