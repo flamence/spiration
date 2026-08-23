@@ -1,3 +1,5 @@
+name: Build
+
 on:
   push:
     paths:
@@ -26,25 +28,97 @@ permissions:
   contents: write
 
 jobs:
-  build:
-    runs-on: ${{ matrix.os }}
-    container: ${{ matrix.container }}
+  detect-changes:
+    runs-on: ubuntu-latest
+    outputs:
+      os-matrix: ${{ steps.set-matrix.outputs.os-matrix }}
+      run-harmonyos: ${{ steps.set-matrix.outputs.run-harmonyos }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
 
+      - id: changed-files
+        uses: tj-actions/changed-files@v47
+        with:
+          files: |
+            CMakeLists.txt
+            cmake/**
+            common/**
+            windows/**
+            linux/**
+            macos/**
+            ohos/**
+            .github/workflows/**
+
+      - id: set-matrix
+        run: |
+          if [ "${{ github.event_name }}" == "release" ]; then
+            echo 'os-matrix=["ubuntu-latest","ubuntu-24.04-arm","windows-latest","windows-11-vs2026-arm","macos-latest","macos-26-intel"]' >> $GITHUB_OUTPUT
+            echo 'run-harmonyos=true' >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          CHANGED_FILES="${{ steps.changed-files.outputs.all_modified_files }}"
+
+          HAS_COMMON=false
+          HAS_WINDOWS=false
+          HAS_LINUX=false
+          HAS_MACOS=false
+          HAS_OHOS=false
+
+          for file in $CHANGED_FILES; do
+            case "$file" in
+              CMakeLists.txt|cmake/*|common/*|.github/workflows/*)
+                HAS_COMMON=true
+                ;;
+              windows/*)
+                HAS_WINDOWS=true
+                ;;
+              linux/*)
+                HAS_LINUX=true
+                ;;
+              macos/*)
+                HAS_MACOS=true
+                ;;
+              ohos/*)
+                HAS_OHOS=true
+                ;;
+            esac
+          done
+
+          if [ "$HAS_COMMON" = true ]; then
+            OS_JSON='["ubuntu-latest","ubuntu-24.04-arm","windows-latest","windows-11-vs2026-arm","macos-latest","macos-26-intel"]'
+          else
+            OS_ARRAY=()
+            [ "$HAS_WINDOWS" = true ] && OS_ARRAY+=("windows-latest" "windows-11-vs2026-arm")
+            [ "$HAS_LINUX" = true ] && OS_ARRAY+=("ubuntu-latest" "ubuntu-24.04-arm")
+            [ "$HAS_MACOS" = true ] && OS_ARRAY+=("macos-latest" "macos-26-intel")
+            if [ ${#OS_ARRAY[@]} -eq 0 ]; then
+              OS_ARRAY=()
+            fi
+            OS_JSON=$(printf '%s\n' "${OS_ARRAY[@]}" | jq -R . | jq -s .)
+          fi
+
+          echo "os-matrix=$OS_JSON" >> $GITHUB_OUTPUT
+          if [ "$HAS_COMMON" = true ] || [ "$HAS_OHOS" = true ]; then
+            echo 'run-harmonyos=true' >> $GITHUB_OUTPUT
+          else
+            echo 'run-harmonyos=false' >> $GITHUB_OUTPUT
+          fi
+
+  build:
+    needs: detect-changes
+    if: fromJSON(needs.detect-changes.outputs.os-matrix) != []
+    runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
-        os:
-          - ubuntu-latest
-          - ubuntu-24.04-arm
-          - windows-latest
-          - windows-11-vs2026-arm
-          - macos-latest
-          - macos-26-intel
+        os: ${{ fromJSON(needs.detect-changes.outputs.os-matrix) }}
         build_type: [ Release ]
         c_compiler: [ clang ]
         cpp_compiler: [ clang++ ]
         generator: [ Ninja ]
-
     steps:
       - uses: actions/checkout@v7
 
@@ -103,8 +177,9 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   build-harmonyos:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.run-harmonyos == 'true'
     runs-on: ubuntu-latest
-
     steps:
       - uses: actions/checkout@v7
 
