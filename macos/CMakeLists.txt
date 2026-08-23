@@ -26,6 +26,26 @@ add_custom_command(
 )
 add_custom_target(compile_metallib DEPENDS ${METALLIB_OUT})
 
+set(APPICON_PNG     ${CMAKE_CURRENT_SOURCE_DIR}/res/spiration.png)
+set(APPICON_ICNS    ${CMAKE_CURRENT_BINARY_DIR}/AppIcon.icns)
+set(APPICON_ICONSET ${CMAKE_CURRENT_BINARY_DIR}/AppIcon.iconset)
+add_custom_command(
+    OUTPUT ${APPICON_ICNS}
+    COMMAND ${CMAKE_COMMAND} -E make_directory ${APPICON_ICONSET}
+    COMMAND sips -z 16 16 ${APPICON_PNG} --out ${APPICON_ICONSET}/icon_16x16.png
+    COMMAND sips -z 32 32 ${APPICON_PNG} --out ${APPICON_ICONSET}/icon_16x16@2x.png
+    COMMAND sips -z 32 32 ${APPICON_PNG} --out ${APPICON_ICONSET}/icon_32x32.png
+    COMMAND sips -z 64 64 ${APPICON_PNG} --out ${APPICON_ICONSET}/icon_32x32@2x.png
+    COMMAND sips -z 128 128 ${APPICON_PNG} --out ${APPICON_ICONSET}/icon_128x128.png
+    COMMAND sips -z 256 256 ${APPICON_PNG} --out ${APPICON_ICONSET}/icon_128x128@2x.png
+    COMMAND sips -z 256 256 ${APPICON_PNG} --out ${APPICON_ICONSET}/icon_256x256.png
+    COMMAND sips -z 512 512 ${APPICON_PNG} --out ${APPICON_ICONSET}/icon_256x256@2x.png
+    COMMAND sips -z 512 512 ${APPICON_PNG} --out ${APPICON_ICONSET}/icon_512x512.png
+    COMMAND iconutil -c icns ${APPICON_ICONSET} -o ${APPICON_ICNS}
+    DEPENDS ${APPICON_PNG}
+)
+add_custom_target(compile_appicon DEPENDS ${APPICON_ICNS})
+
 set(SPIRATION_BUNDLE_NAME       "${SPIRATION_APP_NAME}")
 set(SPIRATION_BUNDLE_IDENTIFIER "${SPIRATION_BUNDLE_IDENTIFIER}")
 set(SPIRATION_COPYRIGHT_HOLDER  "${SPIRATION_VENDOR}")
@@ -53,6 +73,7 @@ configure_file("${INFOPLIST_IN}" "${INFOPLIST_OUT}" @ONLY)
 
 add_executable(spiration MACOSX_BUNDLE ${MACOS_SOURCES} ${MACOS_HEADERS})
 add_dependencies(spiration compile_metallib)
+add_dependencies(spiration compile_appicon)
 
 target_compile_definitions(${PROJECT_NAME} PRIVATE
     $<$<CONFIG:Debug>:_DEBUG>
@@ -94,6 +115,9 @@ add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
         ${METALLIB_OUT}
         $<TARGET_FILE_DIR:${PROJECT_NAME}>/default.metallib
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        ${APPICON_ICNS}
+        "$<TARGET_FILE_DIR:${PROJECT_NAME}>/../Resources/AppIcon.icns"
     COMMAND ${CMAKE_COMMAND} -E copy_directory
         ${CMAKE_CURRENT_SOURCE_DIR}/../common/lang
         "$<TARGET_FILE_DIR:${PROJECT_NAME}>/../Resources/lang"

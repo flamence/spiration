@@ -135,8 +135,6 @@ void opengl_renderer::draw_text(const std::string& text, const point& position, 
                 (size_t)text_width * 4, CGColorSpaceCreateDeviceRGB(), bitmap_info);
 
             if (bitmap_ctx) {
-                CGContextSetTextMatrix(bitmap_ctx, CGAffineTransformMakeScale(1.0, -1.0));
-
                 CGMutablePathRef path = CGPathCreateMutable();
                 CGPathAddRect(path, nullptr, CGRectMake(0, 0, text_width, text_height));
                 CTFrameRef frame = CTFramesetterCreateFrame(
@@ -175,13 +173,12 @@ void opengl_renderer::draw_text(const std::string& text, const point& position, 
             size_t bpr = CGBitmapContextGetBytesPerRow(bitmap_ctx);
             const uint8_t* pixels = static_cast<const uint8_t*>(CGBitmapContextGetData(bitmap_ctx));
 
-            // 白色文字预乘后 RGB==A；转为直通（非预乘）白+alpha 纹理，
-            // 与现有 GL 混合（SRC_ALPHA / ONE_MINUS_SRC_ALPHA）及顶点着色一致。
             std::vector<uint8_t> rgba(w * h * 4, 0xFF);
             for (size_t row = 0; row < h; ++row) {
                 const uint8_t* src = pixels + row * bpr;
+                size_t dst_row = h - 1 - row;
                 for (size_t col = 0; col < w; ++col) {
-                    rgba[(row * w + col) * 4 + 3] = src[col * 4 + 3];
+                    rgba[(dst_row * w + col) * 4 + 3] = src[col * 4 + 3];
                 }
             }
 

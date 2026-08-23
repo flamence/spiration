@@ -121,48 +121,17 @@ static int cocoa_key_to_vk(unsigned short keyCode) {
 
     NSPoint loc = [self convertPoint:event.locationInWindow fromView:nil];
 
-    int edge = [self hitTestEdge:loc];
-    if (edge != 0) {
-        win->m_IsResizing = true;
-        win->m_ResizeEdge = edge;
-        win->m_DragStartMouseX = event.locationInWindow.x;
-        win->m_DragStartMouseY = event.locationInWindow.y;
-        NSRect frame = [win->get_ns_window() frame];
-        win->m_DragStartX = frame.origin.x;
-        win->m_DragStartY = frame.origin.y;
-        win->m_DragStartW = frame.size.width;
-        win->m_DragStartH = frame.size.height;
-        return;
-    }
-
-    int32_t w, h;
-    win->get_size(w, h);
-    if (loc.y > h - DRAG_AREA_HEIGHT) {
-        if (event.clickCount == 2) {
-            if (win->is_maximized()) {
-                win->restore();
-            } else {
-                win->maximize();
-            }
-            return;
-        }
-        win->m_IsDragging = true;
-        win->m_DragStartMouseX = event.locationInWindow.x;
-        win->m_DragStartMouseY = event.locationInWindow.y;
-        NSRect frame = [win->get_ns_window() frame];
-        win->m_DragStartX = frame.origin.x;
-        win->m_DragStartY = frame.origin.y;
-        return;
-    }
-
+    // 先派发给控件（窗口控制按钮等）；未被消费才进入拖拽/缩放逻辑。
     mouse_event_data data;
     data.position = { static_cast<float>(loc.x), static_cast<float>(self.bounds.size.height - loc.y) };
     data.button = mouse_button::left;
     data.action = mouse_action::down;
     data.shift = ([event modifierFlags] & NSEventModifierFlagShift) != 0;
+    data.consumed = false;
     if (win->get_widget()) {
         win->get_widget()->handle_event(event_type::mouse, &data);
     }
+    if (data.consumed) return;
 }
 
 - (void)mouseUp:(NSEvent*)event {
@@ -216,8 +185,10 @@ static int cocoa_key_to_vk(unsigned short keyCode) {
     NSPoint loc = [self convertPoint:event.locationInWindow fromView:nil];
 
     if (!win->m_IsResizing) {
+#ifndef __APPLE__
         int edge = [self hitTestEdge:loc];
         [self updateResizeCursor:edge];
+#endif
     }
 
     mouse_event_data data;
@@ -733,6 +704,9 @@ void* cocoa_window::native_handle() const {
 
 void cocoa_window::loop() {
     @autoreleasepool {
+        // 窗口已关闭（如点击原生红绿灯关闭按钮）：退出主循环，由 main 收尾退出。
+        if (m_ShouldClose) return;
+
         static NSTimeInterval lastTick = [NSDate timeIntervalSinceReferenceDate];
         NSTimeInterval now = [NSDate timeIntervalSinceReferenceDate];
         float dt_ms = static_cast<float>((now - lastTick) * 1000.0);
@@ -746,6 +720,10 @@ void cocoa_window::loop() {
         if (event) {
             [NSApp sendEvent:event];
         }
+
+        // 服务 run loop 源：Dock 右键退出/重新打开等 AppleEvent 依赖于此。
+        [[NSRunLoop currentRunLoop] runMode:NSDefaultRunLoopMode
+                                 beforeDate:[NSDate dateWithTimeIntervalSinceNow:0.0]];
 
         if (!m_ShouldClose && m_Widget && m_Renderer) {
             if (m_NeedsLayout) {

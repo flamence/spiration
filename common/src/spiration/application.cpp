@@ -33,7 +33,11 @@ std::shared_ptr<spiration::window> create_window() {
     params.title = application::APPLICATION_NAME;
     params.width = 1080;
     params.height = 768;
+#ifdef __APPLE__
+    params.decorated = true;
+#else
     params.decorated = false;
+#endif
     params.visible = false;
     return spiration::window::create(params);
 }
@@ -96,7 +100,11 @@ bool application::initialize(tl::optional<init_phase> phase) {
             return false;
         }
 #endif
+#ifdef __APPLE__
+        auto widget = std::make_unique<spiration::root>(window_, false);
+#else
         auto widget = std::make_unique<spiration::root>(window_);
+#endif
         widget_ = widget.get();
         window_->set_widget(std::move(widget));
         extension_manager_->initialize(init_phase::normal);
@@ -131,6 +139,7 @@ void application::loop() {
 }
 
 void application::shutdown() {
+    window_->close();
     extension_manager_->shutdown();
     if (dispatcher_) dispatcher_->shutdown();
 }

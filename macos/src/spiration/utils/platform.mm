@@ -53,10 +53,11 @@ ghc::filesystem::path platform::data_directory() {
     return temp_directory() / "data";
 }
 
-std::string platform::system_locale() {
+tl::optional<std::string> platform::system_locale() {
     NSString *localeIdentifier = [[NSLocale currentLocale] localeIdentifier];
     if (localeIdentifier) {
-        return [localeIdentifier UTF8String];
+        NSString *replaced = [localeIdentifier stringByReplacingOccurrencesOfString:@"_" withString:@"-"];
+        return [replaced UTF8String];
     }
 
     const char* lang = getenv("LANG");
@@ -70,7 +71,8 @@ std::string platform::system_locale() {
         }
         return locale;
     }
-    return "zh-CN";
+
+    return tl::nullopt;
 }
 
 void platform::open_url(const std::string& url) {

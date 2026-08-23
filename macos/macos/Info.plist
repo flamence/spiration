@@ -5,6 +5,9 @@
     <key>CFBundleExecutable</key>
     <string>@SPIRATION_BUNDLE_NAME@</string>
 
+    <key>CFBundleIconFile</key>
+    <string>AppIcon</string>
+
     <key>CFBundleIdentifier</key>
     <string>@SPIRATION_BUNDLE_IDENTIFIER@</string>
 

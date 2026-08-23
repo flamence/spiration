@@ -11,8 +11,7 @@ namespace i18n {
 bool extension::initialize() {
     ghc::filesystem::path langDir = spiration::platform::resources_directory() / "lang";
     auto& i18n = i18n_manager::get();
-    i18n.load("zh-CN", langDir / "zh-CN.properties");
-    std::string sysLocale = spiration::platform::system_locale();
+    std::string sysLocale = spiration::platform::system_locale().value_or("zh-CN");
     ghc::filesystem::path langPath = langDir / (fmt::format("{}.properties", sysLocale));
     i18n.load(sysLocale, langPath);
     i18n.set_locale(sysLocale);

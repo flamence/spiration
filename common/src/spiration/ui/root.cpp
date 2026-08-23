@@ -8,6 +8,10 @@
 #include <spiration/ui/layout.h>
 #include <spiration/ui/menu_bar.h>
 #include <spiration/ui/theme_manager.h>
+#ifdef __APPLE__
+#include <spiration/extension/builtin/i18n/i18n.h>
+#include <spiration/window/macos_menu.h>
+#endif
 
 namespace spiration {
 
@@ -371,8 +375,17 @@ void root::init() {
 bool root::add_menu_item(const std::string& menu_name,
                           const std::string& label,
                           std::function<void()> callback) {
+#ifdef __APPLE__
+    if (label.empty()) return false;
+    std::string title = i18n_manager::get().tr(menu_name, menu_name);
+    void* submenu = spiration_macos_menu_get_submenu(menu_name.c_str(), title.c_str());
+    if (!submenu) return false;
+    auto* box = new std::function<void()>(std::move(callback));
+    return spiration_macos_menu_add_item(submenu, label.c_str(), box) != 0;
+#else
     if (!menu_bar_) return false;
     return menu_bar_->add_sub_item(menu_name, label, std::move(callback));
+#endif
 }
 
 void root::open_tab(std::unique_ptr<tab> t) {

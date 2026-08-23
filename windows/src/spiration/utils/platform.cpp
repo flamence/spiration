@@ -106,10 +106,10 @@ ghc::filesystem::path platform::resources_directory() {
     return executable_directory().parent_path() / "share";
 }
 
-std::string platform::system_locale() {
+tl::optional<std::string> platform::system_locale() {
     wchar_t locale_name[LOCALE_NAME_MAX_LENGTH];
     if (GetUserDefaultLocaleName(locale_name, LOCALE_NAME_MAX_LENGTH) <= 0)
-        return "zh-CN";
+        return tl::nullopt;
 
     std::wstring wide_locale(locale_name);
     const size_t last_dash = wide_locale.find_last_of(L'-');
@@ -126,7 +126,7 @@ std::string platform::system_locale() {
     const int utf8_size = WideCharToMultiByte(CP_UTF8, 0, simplified.c_str(), -1,
                                               nullptr, 0, nullptr, nullptr);
     if (utf8_size <= 0)
-        return "zh-CN";
+        return tl::nullopt;
 
     std::string result(static_cast<size_t>(utf8_size), '\0');
     WideCharToMultiByte(CP_UTF8, 0, simplified.c_str(), -1,

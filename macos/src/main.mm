@@ -8,13 +8,29 @@
 
 #import <Cocoa/Cocoa.h>
 
+@interface SpirationAppDelegate : NSObject <NSApplicationDelegate>
+@end
+
+@implementation SpirationAppDelegate
+
+- (BOOL)applicationShouldTerminate:(NSApplication*)sender {
+    (void)sender;
+    spiration::application::instance()->shutdown();
+    return YES;
+}
+
+@end
+
 int main(int argc, const char* argv[]) {
     (void)argc;
     (void)argv;
 
+    static SpirationAppDelegate* appDelegate = [[SpirationAppDelegate alloc] init];
+
     @autoreleasepool {
         NSApplication* app = [NSApplication sharedApplication];
         [app setActivationPolicy:NSApplicationActivationPolicyRegular];
+        [app setDelegate:appDelegate];
 
         NSMenu* menubar = [[NSMenu alloc] init];
         NSMenuItem* appMenuItem = [[NSMenuItem alloc] init];
@@ -32,15 +48,6 @@ int main(int argc, const char* argv[]) {
 
     auto instance = spiration::application::instance();
     if (!instance->initialize()) {
-        // 窗口/渲染器创建失败（例如设备不支持 Metal 或 shader 库无法加载），
-        // 此时 window_ 为空，直接进入 loop() 会空指针崩溃。
-        NSLog(@"Spiration failed to initialize");
-        @autoreleasepool {
-            NSAlert* alert = [[NSAlert alloc] init];
-            alert.messageText = @"Spiration 启动失败";
-            alert.informativeText = @"无法创建应用窗口（Metal 与 OpenGL 均不可用）。虚拟机用户请检查是否已开启 3D 加速。";
-            [alert runModal];
-        }
         return 1;
     }
     [NSApp activateIgnoringOtherApps:YES];

@@ -8,6 +8,7 @@
 
 #include <ghc/filesystem.hpp>
 #include <string>
+#include <tl/optional.hpp>
 
 #ifdef linux
 #undef linux
@@ -69,7 +70,7 @@ public:
      * @brief 获取系统默认语言代码。
      * @return 语言代码
      */
-    static std::string system_locale();
+    static tl::optional<std::string> system_locale();
 
     /**
      * @brief 使用系统默认程序打开 URL。

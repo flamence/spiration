@@ -59,7 +59,7 @@ std::string i18n_manager::tr(const std::string& key, const std::string& default_
 
 void i18n_manager::clear() {
     translations_.clear();
-    current_locale_ = "en-US";
+    current_locale_ = "zh-CN";
 }
 
 std::vector<std::string> i18n_manager::available_locales() const {

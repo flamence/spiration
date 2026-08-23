@@ -627,7 +627,13 @@ void Window::hide()   { if (m_hWnd) ShowWindow(m_hWnd, SW_HIDE); }
 void Window::maximize(){ if (m_hWnd) ShowWindow(m_hWnd, SW_MAXIMIZE); }
 void Window::minimize(){ if (m_hWnd) ShowWindow(m_hWnd, SW_MINIMIZE); }
 void Window::restore() { if (m_hWnd) ShowWindow(m_hWnd, SW_RESTORE); }
-void Window::close()   { if (m_hWnd) SendMessage(m_hWnd, WM_CLOSE, 0, 0); }
+
+void Window::close()   { 
+    if (m_hWnd) {
+        SendMessage(m_hWnd, WM_CLOSE, 0, 0);
+    }
+    m_ShouldClose = true;
+ }
 
 std::string Window::title() const {
     if (!m_hWnd) return "";

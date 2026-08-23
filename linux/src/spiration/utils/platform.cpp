@@ -77,7 +77,7 @@ ghc::filesystem::path platform::resources_directory() {
     return ghc::filesystem::current_path();
 }
 
-std::string platform::system_locale() {
+tl::optional<std::string> platform::system_locale() {
     const char* lang = getenv("LANG");
     if (lang) {
         std::string locale(lang);
@@ -89,7 +89,7 @@ std::string platform::system_locale() {
         }
         return locale;
     }
-    return "zh-CN";
+    return tl::nullopt;
 }
 
 void platform::open_url(const std::string& url) {
