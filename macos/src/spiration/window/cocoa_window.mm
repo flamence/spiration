@@ -156,7 +156,7 @@ static int cocoa_key_to_vk(unsigned short keyCode) {
     }
 
     mouse_event_data data;
-    data.position = { static_cast<float>(loc.x), static_cast<float>(loc.y) };
+    data.position = { static_cast<float>(loc.x), static_cast<float>(self.bounds.size.height - loc.y) };
     data.button = mouse_button::left;
     data.action = mouse_action::down;
     data.shift = ([event modifierFlags] & NSEventModifierFlagShift) != 0;
@@ -173,7 +173,7 @@ static int cocoa_key_to_vk(unsigned short keyCode) {
 
     NSPoint loc = [self convertPoint:event.locationInWindow fromView:nil];
     mouse_event_data data;
-    data.position = { static_cast<float>(loc.x), static_cast<float>(loc.y) };
+    data.position = { static_cast<float>(loc.x), static_cast<float>(self.bounds.size.height - loc.y) };
     data.button = mouse_button::left;
     data.action = mouse_action::up;
     data.shift = ([event modifierFlags] & NSEventModifierFlagShift) != 0;
@@ -187,7 +187,7 @@ static int cocoa_key_to_vk(unsigned short keyCode) {
     spiration::cocoa_window* win = self.spirationWindow;
     NSPoint loc = [self convertPoint:event.locationInWindow fromView:nil];
     mouse_event_data data;
-    data.position = { static_cast<float>(loc.x), static_cast<float>(loc.y) };
+    data.position = { static_cast<float>(loc.x), static_cast<float>(self.bounds.size.height - loc.y) };
     data.button = mouse_button::right;
     data.action = mouse_action::down;
     data.shift = ([event modifierFlags] & NSEventModifierFlagShift) != 0;
@@ -201,7 +201,7 @@ static int cocoa_key_to_vk(unsigned short keyCode) {
     spiration::cocoa_window* win = self.spirationWindow;
     NSPoint loc = [self convertPoint:event.locationInWindow fromView:nil];
     mouse_event_data data;
-    data.position = { static_cast<float>(loc.x), static_cast<float>(loc.y) };
+    data.position = { static_cast<float>(loc.x), static_cast<float>(self.bounds.size.height - loc.y) };
     data.button = mouse_button::right;
     data.action = mouse_action::up;
     data.shift = ([event modifierFlags] & NSEventModifierFlagShift) != 0;
@@ -221,7 +221,7 @@ static int cocoa_key_to_vk(unsigned short keyCode) {
     }
 
     mouse_event_data data;
-    data.position = { static_cast<float>(loc.x), static_cast<float>(loc.y) };
+    data.position = { static_cast<float>(loc.x), static_cast<float>(self.bounds.size.height - loc.y) };
     data.action = mouse_action::move;
     data.shift = ([event modifierFlags] & NSEventModifierFlagShift) != 0;
     if (win->get_widget()) {
@@ -273,7 +273,7 @@ static int cocoa_key_to_vk(unsigned short keyCode) {
 
     NSPoint loc = [self convertPoint:event.locationInWindow fromView:nil];
     mouse_event_data data;
-    data.position = { static_cast<float>(loc.x), static_cast<float>(loc.y) };
+    data.position = { static_cast<float>(loc.x), static_cast<float>(self.bounds.size.height - loc.y) };
     data.action = mouse_action::move;
     data.shift = ([event modifierFlags] & NSEventModifierFlagShift) != 0;
     if (win->get_widget()) {
@@ -286,7 +286,7 @@ static int cocoa_key_to_vk(unsigned short keyCode) {
     spiration::cocoa_window* win = self.spirationWindow;
     NSPoint loc = [self convertPoint:event.locationInWindow fromView:nil];
     mouse_event_data data;
-    data.position = { static_cast<float>(loc.x), static_cast<float>(loc.y) };
+    data.position = { static_cast<float>(loc.x), static_cast<float>(self.bounds.size.height - loc.y) };
     data.action = mouse_action::wheel;
     data.wheel_delta = static_cast<int>([event scrollingDeltaY] * 10);
     data.shift = ([event modifierFlags] & NSEventModifierFlagShift) != 0;

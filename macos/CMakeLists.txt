@@ -6,8 +6,6 @@ find_library(CORE_TEXT_LIBRARY CoreText)
 find_library(CORE_IMAGE_LIBRARY CoreImage)
 find_library(APPKIT_LIBRARY AppKit)
 find_library(OPENGL_LIBRARY OpenGL)
-# OpenGL 渲染器的 FreeType 文本管线（opengl_text_freetype.cpp）编译于本目标。
-find_package(Freetype REQUIRED)
 
 file(GLOB_RECURSE MACOS_SOURCES CONFIGURE_DEPENDS
     "src/*.cpp" "src/*.c" "src/*.mm" "src/*.m" "src/*.metal"
@@ -64,7 +62,6 @@ target_compile_definitions(${PROJECT_NAME} PRIVATE
 target_include_directories(spiration PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/include
     ${CMAKE_CURRENT_SOURCE_DIR}/src
-    ${FREETYPE_INCLUDE_DIRS}
 )
 target_compile_definitions(${PROJECT_NAME} PRIVATE SPIRATION)
 
@@ -78,7 +75,6 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
     ${CORE_IMAGE_LIBRARY}
     ${APPKIT_LIBRARY}
     ${OPENGL_LIBRARY}
-    ${FREETYPE_LIBRARIES}
 )
 
 set_target_properties(spiration PROPERTIES

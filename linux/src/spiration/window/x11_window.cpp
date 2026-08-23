@@ -1020,24 +1020,50 @@ void x11_window::handle_key_press(XKeyEvent* event) {
         }
         if (xic_) {
             Status status;
-            char buf[16] = {};
+            char buf[64] = {};
             int len = Xutf8LookupString(xic_, event, buf, sizeof(buf), &keysym, &status);
+            if (status == XLookupNone) {
+                // 输入法组合期间消耗了按键（如拼音字母），不向界面派发。
+                return;
+            }
+            if (status == XLookupKeySym || status == XLookupBoth) {
+                // 原始按键事件（快捷键、编辑键等）。
+                widget_->handle_event(event_type::keyboard, &ked);
+            }
             if (len > 0 && (status == XLookupChars || status == XLookupBoth)) {
-                unsigned char c = static_cast<unsigned char>(buf[0]);
-                if (c < 0x80) {
-                    ked.codepoint = c;
-                } else if ((c & 0xE0) == 0xC0 && len >= 2) {
-                    ked.codepoint = ((c & 0x1F) << 6) |
-                                    (static_cast<unsigned char>(buf[1]) & 0x3F);
-                } else if ((c & 0xF0) == 0xE0 && len >= 3) {
-                    ked.codepoint = ((c & 0x0F) << 12) |
-                                    ((static_cast<unsigned char>(buf[1]) & 0x3F) << 6) |
-                                    (static_cast<unsigned char>(buf[2]) & 0x3F);
-                } else if ((c & 0xF8) == 0xF0 && len >= 4) {
-                    ked.codepoint = ((c & 0x07) << 18) |
-                                    ((static_cast<unsigned char>(buf[1]) & 0x3F) << 12) |
-                                    ((static_cast<unsigned char>(buf[2]) & 0x3F) << 6) |
-                                    (static_cast<unsigned char>(buf[3]) & 0x3F);
+                // 输入法可能一次提交多个字符（如整句中文），逐个码点派发。
+                size_t i = 0;
+                while (i < static_cast<size_t>(len)) {
+                    unsigned char c = static_cast<unsigned char>(buf[i]);
+                    unsigned int cp = 0;
+                    if (c < 0x80) {
+                        cp = c;
+                        i += 1;
+                    } else if ((c & 0xE0) == 0xC0 && i + 1 < static_cast<size_t>(len)) {
+                        cp = ((c & 0x1F) << 6) |
+                             (static_cast<unsigned char>(buf[i + 1]) & 0x3F);
+                        i += 2;
+                    } else if ((c & 0xF0) == 0xE0 && i + 2 < static_cast<size_t>(len)) {
+                        cp = ((c & 0x0F) << 12) |
+                             ((static_cast<unsigned char>(buf[i + 1]) & 0x3F) << 6) |
+                             (static_cast<unsigned char>(buf[i + 2]) & 0x3F);
+                        i += 3;
+                    } else if ((c & 0xF8) == 0xF0 && i + 3 < static_cast<size_t>(len)) {
+                        cp = ((c & 0x07) << 18) |
+                             ((static_cast<unsigned char>(buf[i + 1]) & 0x3F) << 12) |
+                             ((static_cast<unsigned char>(buf[i + 2]) & 0x3F) << 6) |
+                             (static_cast<unsigned char>(buf[i + 3]) & 0x3F);
+                        i += 4;
+                    } else {
+                        ++i;
+                        continue;
+                    }
+                    if (cp != 0) {
+                        key_event_data ced = ked;
+                        ced.key_code = 0;
+                        ced.codepoint = static_cast<int>(cp);
+                        widget_->handle_event(event_type::keyboard, &ced);
+                    }
                 }
             }
         } else {
@@ -1045,9 +1071,8 @@ void x11_window::handle_key_press(XKeyEvent* event) {
             KeySym ks;
             int len = XLookupString(event, ascii_buf, sizeof(ascii_buf), &ks, nullptr);
             if (len > 0) ked.codepoint = static_cast<unsigned char>(ascii_buf[0]);
+            widget_->handle_event(event_type::keyboard, &ked);
         }
-
-        widget_->handle_event(event_type::keyboard, &ked);
     }
 }
 

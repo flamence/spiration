@@ -239,7 +239,7 @@ opengl_renderer::opengl_renderer(opengl_renderer&& other) noexcept
     , vao_(other.vao_)
     , vbo_(other.vbo_)
     , batch_(std::move(other.batch_))
-#if !defined(__OHOS__)
+#if defined(__linux__) && !defined(__OHOS__)
     , ft_library_(other.ft_library_)
     , font_faces_(std::move(other.font_faces_))
     , glyph_cache_(std::move(other.glyph_cache_))
@@ -266,7 +266,7 @@ opengl_renderer::opengl_renderer(opengl_renderer&& other) noexcept
     other.shape_shader_ = {};
     other.vao_ = 0;
     other.vbo_ = 0;
-#if !defined(__OHOS__)
+#if defined(__linux__) && !defined(__OHOS__)
     other.ft_library_ = nullptr;
     other.glyph_atlas_ = {};
     other.cjk_fallback_ = nullptr;
@@ -291,7 +291,7 @@ opengl_renderer& opengl_renderer::operator=(opengl_renderer&& other) noexcept {
         vao_ = other.vao_;
         vbo_ = other.vbo_;
         batch_ = std::move(other.batch_);
-#if !defined(__OHOS__)
+#if defined(__linux__) && !defined(__OHOS__)
         ft_library_ = other.ft_library_;
         font_faces_ = std::move(other.font_faces_);
         glyph_cache_ = std::move(other.glyph_cache_);
@@ -314,7 +314,7 @@ opengl_renderer& opengl_renderer::operator=(opengl_renderer&& other) noexcept {
         other.shape_shader_ = {};
         other.vao_ = 0;
         other.vbo_ = 0;
-#if !defined(__OHOS__)
+#if defined(__linux__) && !defined(__OHOS__)
         other.ft_library_ = nullptr;
         other.glyph_atlas_ = {};
         other.cjk_fallback_ = nullptr;
@@ -362,7 +362,7 @@ bool opengl_renderer::initialize(void* native_window_handle) {
         return false;
     }
 
-#if !defined(__OHOS__)
+#if defined(__linux__) && !defined(__OHOS__)
     if (!init_freetype()) {
         application::instance()->logger()->log({logging::level::warning, "FreeType init failed, text rendering disabled", "renderer/opengl"});
     } else {
@@ -391,7 +391,7 @@ void opengl_renderer::shutdown() {
     }
     images_.clear();
 
-#if !defined(__OHOS__)
+#if defined(__linux__) && !defined(__OHOS__)
     if (glyph_atlas_.texture_id) {
         glDeleteTextures(1, &glyph_atlas_.texture_id);
         glyph_atlas_.texture_id = 0;
@@ -685,7 +685,7 @@ void opengl_renderer::draw_rounded_rectangle(const rectangle& rect, const color&
 
     float rc = fill_color.r, gc = fill_color.g, bc = fill_color.b, ac = fill_color.a * alpha_;
     float x = rect.x, y = rect.y, w = rect.width, h = rect.height;
-    constexpr int SEGS = 8;
+    constexpr int SEGS = 24;
 
     if (batch_has_texture_) flush_batch();
 
@@ -693,9 +693,11 @@ void opengl_renderer::draw_rounded_rectangle(const rectangle& rect, const color&
     draw_rect_impl(x, y + r2, r2, h - r2 * 2.0f, fill_color);
     draw_rect_impl(x + w - r2, y + r2, r2, h - r2 * 2.0f, fill_color);
 
+    // 角起点角度（屏幕 y 向下）：TL=π、TR=3π/2、BR=0、BL=π/2，
+    // 各角按顺时针扫过四分之一圆，扇形必须落在角部方块内。
     float cxs[4] = {x + r2, x + w - r2, x + w - r2, x + r2};
     float cys[4] = {y + r2, y + r2, y + h - r2, y + h - r2};
-    float sa[4] = {3.14159f, 0.0f, 1.5708f, 4.7124f};
+    float sa[4] = {3.14159f, 4.71239f, 0.0f, 1.5708f};
     for (int q = 0; q < 4; ++q) {
         float cx = cxs[q], cy = cys[q];
         transform_point(cx, cy);
@@ -718,10 +720,55 @@ void opengl_renderer::draw_rounded_rectangle_outline(const rectangle& rect, cons
     float x = rect.x, y = rect.y, w = rect.width, h = rect.height;
     float hw = stroke_width * 0.5f;
 
+    if (batch_has_texture_) flush_batch();
+
+    // 四条直边（不含角部）
     draw_rect_outline_impl(x + r2, y - hw, w - r2 * 2.0f, stroke_width, stroke_color, stroke_width);
     draw_rect_outline_impl(x + r2, y + h - hw, w - r2 * 2.0f, stroke_width, stroke_color, stroke_width);
     draw_rect_outline_impl(x - hw, y + r2, stroke_width, h - r2 * 2.0f, stroke_color, stroke_width);
     draw_rect_outline_impl(x + w - hw, y + r2, stroke_width, h - r2 * 2.0f, stroke_color, stroke_width);
+
+    // 四角圆弧描边（沿弧线的粗线段），与直边无缝衔接
+    constexpr int SEGS = 24;
+    float cxs[4] = {x + r2, x + w - r2, x + w - r2, x + r2};
+    float cys[4] = {y + r2, y + r2, y + h - r2, y + h - r2};
+    float sa[4] = {3.14159f, 4.71239f, 0.0f, 1.5708f};
+    float r = stroke_color.r, g = stroke_color.g, b = stroke_color.b, a = stroke_color.a * alpha_;
+    for (int q = 0; q < 4; ++q) {
+        float cx = cxs[q], cy = cys[q];
+        float prev_x = cx + r2 * std::cos(sa[q]);
+        float prev_y = cy + r2 * std::sin(sa[q]);
+        for (int i = 1; i <= SEGS; ++i) {
+            float ang = sa[q] + 1.5708f * i / SEGS;
+            float curr_x = cx + r2 * std::cos(ang);
+            float curr_y = cy + r2 * std::sin(ang);
+
+            float dx = curr_x - prev_x;
+            float dy = curr_y - prev_y;
+            float len = std::sqrt(dx * dx + dy * dy);
+            if (len > 0.001f) {
+                float nx = -dy / len * hw;
+                float ny =  dx / len * hw;
+                float ax = prev_x + nx, ay = prev_y + ny;
+                float bx = prev_x - nx, by = prev_y - ny;
+                float c2x = curr_x - nx, c2y = curr_y - ny;
+                float d2x = curr_x + nx, d2y = curr_y + ny;
+                transform_point(ax, ay);
+                transform_point(bx, by);
+                transform_point(c2x, c2y);
+                transform_point(d2x, d2y);
+                push_vertex(batch_, ax, ay, 0, 0, r, g, b, a);
+                push_vertex(batch_, bx, by, 0, 0, r, g, b, a);
+                push_vertex(batch_, c2x, c2y, 0, 0, r, g, b, a);
+                push_vertex(batch_, ax, ay, 0, 0, r, g, b, a);
+                push_vertex(batch_, c2x, c2y, 0, 0, r, g, b, a);
+                push_vertex(batch_, d2x, d2y, 0, 0, r, g, b, a);
+            }
+            prev_x = curr_x;
+            prev_y = curr_y;
+        }
+    }
+    if (batch_.size() >= MAX_BATCH_VERTICES) flush_batch();
 }
 
 void opengl_renderer::set_blend_mode(bool enabled) {
@@ -820,7 +867,7 @@ void opengl_renderer::flush_batch() {
         glUniform1i(shape_shader_.u_use_texture, 1);
         glUniform1i(shape_shader_.u_texture_sampler, 0);
         glActiveTexture(GL_TEXTURE0);
-#if !defined(__OHOS__)
+#if defined(__linux__) && !defined(__OHOS__)
         glBindTexture(GL_TEXTURE_2D, glyph_atlas_.texture_id);
 #endif
     } else {

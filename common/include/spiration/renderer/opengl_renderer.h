@@ -20,7 +20,7 @@
 #include <GL/glext.h>
 #endif
 
-#if !defined(__OHOS__)
+#if defined(__linux__) && !defined(__OHOS__)
 #include <ft2build.h>
 #include FT_FREETYPE_H
 #endif
@@ -120,7 +120,7 @@ private:
     bool compile_shaders();
     void destroy_shaders();
 
-#if !defined(__OHOS__)
+#if defined(__linux__) && !defined(__OHOS__)
     struct glyph_info {
         float s0, t0, s1, t1;
         float bearing_x, bearing_y;
@@ -190,7 +190,7 @@ private:
     GLuint vbo_ = 0;
     std::vector<vertex> batch_;
 
-#if !defined(__OHOS__)
+#if defined(__linux__) && !defined(__OHOS__)
     FT_Library ft_library_ = nullptr;
     std::unordered_map<std::string, font_face> font_faces_;
     std::unordered_map<uint64_t, glyph_info> glyph_cache_;
