@@ -46,12 +46,15 @@ NSMutableArray* menu_targets = nil;
 extern "C" {
 
 void* spiration_macos_menu_get_submenu(const spiration_macos_menu_spec* spec) {
-    if (!spec || !spec->key || !spec->title) return nullptr;
+    if (!spec || !spec->key) return nullptr;
 
     NSMenu* main_menu = [NSApp mainMenu];
     if (!main_menu) return nullptr;
 
     NSString* ns_key = [NSString stringWithUTF8String:spec->key];
+    NSString* ns_title = (spec->title && spec->title[0])
+        ? [NSString stringWithUTF8String:spec->title] : ns_key;
+
     static NSMutableDictionary* submenus = nil;
     if (!submenus) {
         submenus = [NSMutableDictionary dictionary];
@@ -59,7 +62,6 @@ void* spiration_macos_menu_get_submenu(const spiration_macos_menu_spec* spec) {
 
     NSMenu* menu = [submenus objectForKey:ns_key];
     if (!menu) {
-        NSString* ns_title = [NSString stringWithUTF8String:spec->title];
         menu = [[NSMenu alloc] initWithTitle:ns_title];
         NSMenuItem* top = [[NSMenuItem alloc] initWithTitle:ns_title
                                                      action:nil
@@ -67,13 +69,18 @@ void* spiration_macos_menu_get_submenu(const spiration_macos_menu_spec* spec) {
         [top setSubmenu:menu];
         [main_menu addItem:top];
         [submenus setObject:menu forKey:ns_key];
+        NSLog(@"[macos_menu] created top-level '%@' (key=%s)", ns_title, spec->key);
     }
     return (__bridge void*)menu;
 }
 
 int spiration_macos_menu_add_item(const spiration_macos_menu_spec* spec) {
     NSMenu* menu = (__bridge NSMenu*)(spec ? spec->submenu : nullptr);
-    if (!menu || !spec || !spec->title || !spec->callback) return 0;
+    if (!menu || !spec || !spec->callback) return 0;
+
+    // 标题为空时回退键名（此处键名不可用，回退为空字符串而非崩溃）。
+    const char* title_text = (spec->title && spec->title[0]) ? spec->title : "";
+    NSLog(@"[macos_menu] add item '%s'", title_text);
 
     SpirationMenuTarget* target =
         [[SpirationMenuTarget alloc] initWithCallback:(std::function<void()>*)spec->callback];
@@ -82,7 +89,7 @@ int spiration_macos_menu_add_item(const spiration_macos_menu_spec* spec) {
     }
     [menu_targets addObject:target];
 
-    NSMenuItem* item = [[NSMenuItem alloc] initWithTitle:[NSString stringWithUTF8String:spec->title]
+    NSMenuItem* item = [[NSMenuItem alloc] initWithTitle:[NSString stringWithUTF8String:title_text]
                                                   action:@selector(invoke:)
                                            keyEquivalent:@""];
     [item setTarget:target];
