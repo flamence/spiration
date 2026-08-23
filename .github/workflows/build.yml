@@ -109,7 +109,7 @@ jobs:
 
   build:
     needs: detect-changes
-    if: fromJSON(needs.detect-changes.outputs.os-matrix) != []
+    if: fromJSON(needs.detect-changes.outputs.os-matrix) != '[]'
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
