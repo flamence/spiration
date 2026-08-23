@@ -11,6 +11,7 @@
 #ifdef __APPLE__
 #include <spiration/extension/builtin/i18n/i18n.h>
 #include <spiration/window/macos_menu.h>
+#include <fmt/format.h>
 #endif
 
 namespace spiration {
@@ -381,6 +382,13 @@ bool root::add_menu_item(const std::string& menu_name,
     if (label_local.empty()) return false;
     std::string title = i18n_manager::get().tr(name_local, name_local);
     if (title.empty()) title = name_local;
+
+    application::instance()->logger()->log({logging::level::trace,
+        fmt::format("[macos_menu] root add_menu_item menu='{}' label='{}' title='{}' "
+                    "(ptr label={} title={})",
+                    name_local, label_local, title,
+                    static_cast<const void*>(label_local.c_str()),
+                    static_cast<const void*>(title.c_str())), "ui/root"});
 
     spiration_macos_menu_spec spec{};
     spec.key = name_local.c_str();
