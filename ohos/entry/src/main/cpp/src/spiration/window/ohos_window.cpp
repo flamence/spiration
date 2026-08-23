@@ -185,4 +185,12 @@ void ohos_window::on_key_event(int key_code, unsigned int codepoint, bool ctrl, 
     root_widget_->handle_event(event_type::keyboard, &key);
 }
 
+void ohos_window::on_ime_composition(const std::string& text, int cursor) {
+    if (!root_widget_) return;
+    ime_composition_data data;
+    data.text = text;
+    data.cursor = cursor < 0 ? -1 : cursor;
+    root_widget_->handle_event(event_type::ime_composition, &data);
+}
+
 } // namespace spiration

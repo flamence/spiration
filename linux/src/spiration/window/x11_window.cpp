@@ -4,9 +4,13 @@
  * @author clk
  */
 
+#include <cerrno>
+#include <cctype>
 #include <chrono>
 #include <clocale>
 #include <fmt/format.h>
+#include <iconv.h>
+#include <langinfo.h>
 #include <stb_image.h>
 #include <spiration/application.h>
 #include <spiration/window/virtual_key.h>
@@ -17,6 +21,7 @@
 #include <spiration/utils/platform.h>
 #include <thread>
 #include <X11/Xutil.h>
+#include <X11/XIM.h>
 #include <X11/cursorfont.h>
 
 namespace spiration {
@@ -1015,8 +1020,23 @@ void x11_window::handle_key_press(XKeyEvent* event) {
             xim_ = XOpenIM(display_, nullptr, nullptr, nullptr);
         }
         if (xim_ && !xic_) {
-            xic_ = XCreateIC(xim_, XNInputStyle, XIMPreeditNothing | XIMStatusNothing,
-                             XNClientWindow, window_, XNFocusWindow, window_, nullptr);
+            // 优先启用应用内 preedit 回调（组合文本由本应用绘制）；
+            // 输入法不支持该风格时回退外置 preedit 窗口。
+            XIMCallback start_cb = { reinterpret_cast<XPointer>(this), xim_preedit_start_cb };
+            XIMCallback draw_cb  = { reinterpret_cast<XPointer>(this), xim_preedit_draw_cb };
+            XIMCallback caret_cb = { reinterpret_cast<XPointer>(this), xim_preedit_caret_cb };
+            XIMCallback done_cb  = { reinterpret_cast<XPointer>(this), xim_preedit_done_cb };
+            xic_ = XCreateIC(xim_, XNInputStyle, XIMPreeditCallbacks | XIMStatusNothing,
+                             XNClientWindow, window_, XNFocusWindow, window_,
+                             XNPreeditStartCallback, &start_cb,
+                             XNPreeditDrawCallback, &draw_cb,
+                             XNPreeditCaretCallback, &caret_cb,
+                             XNPreeditDoneCallback, &done_cb,
+                             nullptr);
+            if (!xic_) {
+                xic_ = XCreateIC(xim_, XNInputStyle, XIMPreeditNothing | XIMStatusNothing,
+                                 XNClientWindow, window_, XNFocusWindow, window_, nullptr);
+            }
         }
         if (xic_) {
             Status status;
@@ -1082,7 +1102,96 @@ void x11_window::handle_key_release(XKeyEvent* event) {
     key_state_[keysym] = false;
 }
 
+// ---------------------------------------------------------------------------
+// 输入法组合文本（XIM preedit）
+// ---------------------------------------------------------------------------
+
+void x11_window::xim_preedit_start_cb(XIC ic, XPointer client_data, XPointer call_data) {
+    (void)ic;
+    (void)call_data;
+    auto* win = reinterpret_cast<x11_window*>(client_data);
+    if (win) win->set_composition("", -1);
+}
+
+void x11_window::xim_preedit_draw_cb(XIC ic, XPointer client_data, XPointer call_data) {
+    (void)ic;
+    auto* win = reinterpret_cast<x11_window*>(client_data);
+    if (win) win->on_xim_preedit_draw(static_cast<XIMPreeditDrawCallbackStruct*>(call_data));
+}
+
+void x11_window::xim_preedit_caret_cb(XIC ic, XPointer client_data, XPointer call_data) {
+    // 组合内光标移动：绘制时由 draw 回调的 caret 字段携带，无需单独处理。
+    (void)ic;
+    (void)client_data;
+    (void)call_data;
+}
+
+void x11_window::xim_preedit_done_cb(XIC ic, XPointer client_data, XPointer call_data) {
+    (void)ic;
+    (void)call_data;
+    auto* win = reinterpret_cast<x11_window*>(client_data);
+    if (win) win->on_xim_preedit_done();
+}
+
+void x11_window::on_xim_preedit_draw(XIMPreeditDrawCallbackStruct* data) {
+    if (!data) return;
+    if (data->text && data->text->string && !data->text->encoding_is_wchar) {
+        set_composition(locale_to_utf8(data->text->string, data->text->length), data->caret);
+    } else {
+        // wchar 编码的 preedit 少见：放弃预览，仅清空组合。
+        set_composition("", -1);
+    }
+}
+
+void x11_window::on_xim_preedit_done() {
+    set_composition("", -1);
+}
+
+void x11_window::set_composition(const std::string& text, int cursor) {
+    if (!widget_) return;
+    ime_composition_data data;
+    data.text = text;
+    data.cursor = cursor < 0 ? -1 : cursor;
+    widget_->handle_event(event_type::ime_composition, &data);
+}
+
 namespace {
+
+/// 将本地编码文本（XIMText.string 的编码）转为 UTF-8。
+std::string locale_to_utf8(const char* s, int len) {
+    if (!s || len <= 0) return {};
+    std::string codeset = nl_langinfo(CODESET);
+    for (auto& c : codeset) {
+        c = static_cast<char>(::toupper(static_cast<unsigned char>(c)));
+    }
+    if (codeset.find("UTF-8") != std::string::npos ||
+        codeset.find("UTF8") != std::string::npos) {
+        return std::string(s, static_cast<size_t>(len));
+    }
+    iconv_t cd = iconv_open("UTF-8", codeset.c_str());
+    if (cd == reinterpret_cast<iconv_t>(-1)) return {};
+    std::string out;
+    char* in = const_cast<char*>(s);
+    size_t in_left = static_cast<size_t>(len);
+    char buf[256];
+    while (in_left > 0) {
+        char* outp = buf;
+        size_t out_left = sizeof(buf);
+        size_t rc = iconv(cd, &in, &in_left, &outp, &out_left);
+        out.append(buf, sizeof(buf) - out_left);
+        if (rc == static_cast<size_t>(-1)) {
+            if (errno == E2BIG) continue;
+            if (in_left > 0) {  // 非法序列：跳过一字节继续
+                ++in;
+                --in_left;
+            } else {
+                break;
+            }
+        }
+    }
+    iconv_close(cd);
+    return out;
+}
 
 struct clipboard_wait_ctx {
     ::Window window;

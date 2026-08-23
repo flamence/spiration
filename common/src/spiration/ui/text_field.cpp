@@ -72,6 +72,8 @@ void text_field::on_blur() {
     focused_ = false;
     selecting_ = false;
     cursor_visible_ = false;
+    composition_text_.clear();
+    composition_cursor_ = -1;
     if (request_repaint_) request_repaint_();
 }
 
@@ -139,6 +141,13 @@ std::string text_field::selected_text() const {
 }
 
 void text_field::handle_event(const event_type& type, void* data) {
+    if (type == event_type::ime_composition) {
+        if (!focused_) return;
+        auto* ime = static_cast<ime_composition_data*>(data);
+        set_composition(ime->text, ime->cursor);
+        return;
+    }
+
     if (type == event_type::mouse) {
         auto* md = static_cast<mouse_event_data*>(data);
         float mx = md->position.x;
@@ -338,8 +347,35 @@ void text_field::paint(std::shared_ptr<renderer> renderer) {
             while (le < text.size() && text[le] != '\n') ++le;
             std::string lt = text.substr(ls, le - ls);
             const float ly = top + static_cast<float>(li) * line_h - scroll_y_;
-            renderer->draw_text(lt, {text_area_x - scroll_x_, ly},
-                                theme_manager::get(theme_manager::INPUT_TEXT), font_size, fam, false);
+
+            // 组合输入：光标所在行拆为 前缀 + 组合文本(下划线) + 后缀。
+            const bool comp_line = has_composition() && cursor_pos_ >= ls && cursor_pos_ <= le;
+            if (comp_line) {
+                const size_t rel = cursor_pos_ - ls;
+                const std::string prefix = lt.substr(0, rel);
+                const std::string suffix = lt.substr(rel);
+                float cx = text_area_x - scroll_x_;
+                if (!prefix.empty()) {
+                    renderer->draw_text(prefix, {cx, ly},
+                                        theme_manager::get(theme_manager::INPUT_TEXT), font_size, fam, false);
+                    cx += renderer->measure_text_width(prefix, font_size, fam);
+                }
+                if (!composition_text_.empty()) {
+                    renderer->draw_text(composition_text_, {cx, ly},
+                                        theme_manager::get(theme_manager::INPUT_TEXT), font_size, fam, false);
+                    const float cw = renderer->measure_text_width(composition_text_, font_size, fam);
+                    renderer->draw_rectangle({cx, ly + font_size + 3.0f, cw, 1.5f},
+                                             theme_manager::get(theme_manager::INPUT_CURSOR));
+                    cx += cw;
+                }
+                if (!suffix.empty()) {
+                    renderer->draw_text(suffix, {cx, ly},
+                                        theme_manager::get(theme_manager::INPUT_TEXT), font_size, fam, false);
+                }
+            } else {
+                renderer->draw_text(lt, {text_area_x - scroll_x_, ly},
+                                    theme_manager::get(theme_manager::INPUT_TEXT), font_size, fam, false);
+            }
 
             if (cursor_pos_ >= ls && cursor_pos_ <= le) {
                 cur_line = li;
@@ -367,6 +403,12 @@ void text_field::paint(std::shared_ptr<renderer> renderer) {
             float cursor_x = text_area_x - scroll_x_;
             if (!before.empty())
                 cursor_x += renderer->measure_text_width(before, font_size, fam);
+            // 组合输入：光标停在组合文本内光标处。
+            if (has_composition()) {
+                const size_t comp_bytes = utf16_offset_to_utf8_bytes(composition_text_, composition_cursor_);
+                cursor_x += renderer->measure_text_width(
+                    composition_text_.substr(0, comp_bytes), font_size, fam);
+            }
             float cursor_y = top + static_cast<float>(cur_line) * line_h - scroll_y_;
             renderer->draw_rectangle({cursor_x, cursor_y, 1.5f, line_h},
                                      theme_manager::get(theme_manager::INPUT_CURSOR));

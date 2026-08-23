@@ -19,10 +19,57 @@ namespace spiration {
 
 namespace {
 
+/// 将 UTF-8 字节串安全转为 NSString。
+/// stringWithUTF8String: 遇到非法 UTF-8（如流式输出被分块截断的多字节序列）返回 nil，
+/// 若直接用于 NSAttributedString 会崩溃（NSInvalidArgumentException nil value）。
+/// 这里逐字节校验，非法字节以 U+FFFD 替换，保证返回值永不为 nil。
+NSString* ns_string_from_utf8(const std::string& text) {
+    NSString* ns = [NSString stringWithUTF8String:text.c_str()];
+    if (ns) return ns;
+
+    NSMutableString* out = [NSMutableString stringWithCapacity:text.size()];
+    const unsigned char* p = reinterpret_cast<const unsigned char*>(text.data());
+    size_t n = text.size();
+    size_t i = 0;
+    while (i < n) {
+        unsigned char c = p[i];
+        size_t len = 0;
+        if (c < 0x80) {
+            len = 1;
+        } else if ((c & 0xE0) == 0xC0) {
+            len = 2;
+        } else if ((c & 0xF0) == 0xE0) {
+            len = 3;
+        } else if ((c & 0xF8) == 0xF0) {
+            len = 4;
+        }
+        bool valid = len > 0 && i + len <= n;
+        if (valid) {
+            for (size_t k = 1; k < len; ++k) {
+                if ((p[i + k] & 0xC0) != 0x80) {
+                    valid = false;
+                    break;
+                }
+            }
+        }
+        if (valid) {
+            NSString* piece = [[NSString alloc] initWithBytes:p + i
+                                                       length:len
+                                                     encoding:NSUTF8StringEncoding];
+            if (piece) {
+                [out appendString:piece];
+                i += len;
+                continue;
+            }
+        }
+        [out appendString:@"\uFFFD"];
+        ++i;
+    }
+    return out;
+}
+
 CTFontRef create_ct_font(const std::string& family, float size) {
-    NSString* ns_family = family.empty()
-        ? @"Helvetica"
-        : [NSString stringWithUTF8String:family.c_str()];
+    NSString* ns_family = family.empty() ? @"Helvetica" : ns_string_from_utf8(family);
     CTFontRef font = CTFontCreateWithName((__bridge CFStringRef)ns_family, size, nullptr);
     if (!font) {
         // 回退系统默认字体（CoreText 在绘制时仍会按需级联到中日韩字体）。
@@ -32,7 +79,7 @@ CTFontRef create_ct_font(const std::string& family, float size) {
 }
 
 NSAttributedString* create_attributed_string(const std::string& text, CTFontRef font) {
-    NSString* ns_text = [NSString stringWithUTF8String:text.c_str()];
+    NSString* ns_text = ns_string_from_utf8(text);
     NSDictionary* attrs = @{
         (__bridge id)kCTFontAttributeName: (__bridge id)font,
         (__bridge id)kCTForegroundColorAttributeName:
@@ -173,12 +220,14 @@ void opengl_renderer::draw_text(const std::string& text, const point& position, 
             size_t bpr = CGBitmapContextGetBytesPerRow(bitmap_ctx);
             const uint8_t* pixels = static_cast<const uint8_t*>(CGBitmapContextGetData(bitmap_ctx));
 
+            // 位图内存行 0 即图像顶部（与 Metal 渲染器同一约定）；
+            // 纹理行 0 对应四边形顶部（v=0），因此按序拷贝、不得翻转，
+            // 否则字形会上下颠倒。
             std::vector<uint8_t> rgba(w * h * 4, 0xFF);
             for (size_t row = 0; row < h; ++row) {
                 const uint8_t* src = pixels + row * bpr;
-                size_t dst_row = h - 1 - row;
                 for (size_t col = 0; col < w; ++col) {
-                    rgba[(dst_row * w + col) * 4 + 3] = src[col * 4 + 3];
+                    rgba[(row * w + col) * 4 + 3] = src[col * 4 + 3];
                 }
             }
 

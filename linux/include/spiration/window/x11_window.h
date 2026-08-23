@@ -18,6 +18,7 @@
 #include <X11/keysym.h>
 #include <X11/Xlib.h>
 #include <X11/Xutil.h>
+#include <X11/XIM.h>
 
 namespace spiration {
 
@@ -100,6 +101,19 @@ private:
     void handle_selection_request(const XSelectionRequestEvent& req);
     void handle_selection_clear();
     std::string read_selection_property(Atom property);
+
+    /// @brief 向控件派发输入法组合文本更新（text 为空表示组合结束）。
+    void set_composition(const std::string& text, int cursor);
+
+    /// @brief XIM preedit 绘制回调（组合文本变化时由输入法调用）。
+    void on_xim_preedit_draw(XIMPreeditDrawCallbackStruct* data);
+    /// @brief XIM preedit 结束回调。
+    void on_xim_preedit_done();
+
+    static void xim_preedit_start_cb(XIC ic, XPointer client_data, XPointer call_data);
+    static void xim_preedit_draw_cb(XIC ic, XPointer client_data, XPointer call_data);
+    static void xim_preedit_caret_cb(XIC ic, XPointer client_data, XPointer call_data);
+    static void xim_preedit_done_cb(XIC ic, XPointer client_data, XPointer call_data);
 
     bool needs_layout_ = true;
 

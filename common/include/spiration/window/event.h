@@ -17,6 +17,7 @@ namespace spiration {
 enum class event_type {
     mouse,
     keyboard,
+    ime_composition,
     window_resize,
 };
 
@@ -53,6 +54,16 @@ struct key_event_data {
     bool shift = false;
     bool alt = false;
     bool consumed = false;
+};
+
+/**
+ * @brief 输入法组合文本（preedit）更新事件。
+ * 各平台输入法（macOS NSTextInput、Windows IMM32、X11 XIM 等）
+ * 在组合输入期间持续派发；空 text 表示组合结束（已提交/取消）。
+ */
+struct ime_composition_data {
+    std::string text;  ///< 组合文本（UTF-8）；空串表示组合结束。
+    int cursor = -1;   ///< 组合内光标位置（UTF-16 码元数）；-1 表示末尾。
 };
 
 }

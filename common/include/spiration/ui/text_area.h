@@ -107,8 +107,19 @@ public:
     ///< 重置光标/选区/滚动（换内容后调用）。
     void reset_view();
 
+    /// @brief 更新输入法组合文本（preedit）。
+    /// @param text 组合文本（UTF-8）；空串表示组合结束。
+    /// @param cursor 组合内光标（UTF-16 码元数）；-1 表示末尾。
+    void set_composition(const std::string& text, int cursor);
+    /// @brief 是否处于输入法组合状态。
+    bool has_composition() const { return !composition_text_.empty(); }
+
 protected:
     float cursor_pixel_x_ = -1.0f;
+
+    ///< 输入法组合文本（preedit）与组合内光标（UTF-16 码元数，-1=末尾）。
+    std::string composition_text_;
+    int composition_cursor_ = -1;
 
     /// @brief 上报光标位置供输入法定位。
     virtual void report_ime_caret();
@@ -117,6 +128,9 @@ protected:
     float text_x() const {
         return (show_line_numbers ? gutter_width : 0.0f) + text_pad_left;
     }
+
+    /// @brief UTF-16 码元偏移 → UTF-8 字节偏移（组合文本内光标换算）。
+    static size_t utf16_offset_to_utf8_bytes(const std::string& utf8, int utf16_units);
 
 private:
     std::vector<size_t> line_starts_;

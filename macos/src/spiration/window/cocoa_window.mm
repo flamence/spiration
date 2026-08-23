@@ -25,11 +25,12 @@ static constexpr float MIN_WINDOW_WIDTH = spiration::kMinWindowWidth;
 static constexpr float MIN_WINDOW_HEIGHT = spiration::kMinWindowHeight;
 
 static int cocoa_key_to_vk(unsigned short keyCode) {
+    // 特殊键：macOS keyCode → Windows VK（与 common/vk 一致）。
     switch (keyCode) {
         case 0x33: return vk::Back;
         case 0x30: return vk::Tab;
         case 0x24: return vk::Return;
-        case 0x1B: return vk::Escape;
+        case 0x35: return vk::Escape;
         case 0x75: return vk::Delete;
         case 0x73: return vk::Home;
         case 0x7B: return vk::Left;
@@ -51,12 +52,68 @@ static int cocoa_key_to_vk(unsigned short keyCode) {
         case 0x6D: return vk::F10;
         case 0x67: return vk::F11;
         case 0x6F: return vk::F12;
-        default: return static_cast<int>(keyCode);
+    }
+    // ANSI 字符键：macOS keyCode → VK。注意不可返回原始 keyCode：
+    // 它会被当作 VK 使用（如 'W'=0x0D 撞 vk::Return=0x0D，导致输入 W 触发回车）。
+    switch (keyCode) {
+        case 0x00: return 0x41; // A
+        case 0x01: return 0x53; // S
+        case 0x02: return 0x44; // D
+        case 0x03: return 0x46; // F
+        case 0x04: return 0x48; // H
+        case 0x05: return 0x47; // G
+        case 0x06: return 0x5A; // Z
+        case 0x07: return 0x58; // X
+        case 0x08: return 0x43; // C
+        case 0x09: return 0x56; // V
+        case 0x0B: return 0x42; // B
+        case 0x0C: return 0x51; // Q
+        case 0x0D: return 0x57; // W
+        case 0x0E: return 0x45; // E
+        case 0x0F: return 0x52; // R
+        case 0x10: return 0x59; // Y
+        case 0x11: return 0x54; // T
+        case 0x12: return 0x31; // 1
+        case 0x13: return 0x32; // 2
+        case 0x14: return 0x33; // 3
+        case 0x15: return 0x34; // 4
+        case 0x16: return 0x36; // 6
+        case 0x17: return 0x35; // 5
+        case 0x18: return 0xBB; // =
+        case 0x19: return 0x39; // 9
+        case 0x1A: return 0x37; // 7
+        case 0x1B: return 0xBD; // -
+        case 0x1C: return 0x38; // 8
+        case 0x1D: return 0x30; // 0
+        case 0x1E: return 0xDD; // ]
+        case 0x1F: return 0x4F; // O
+        case 0x20: return 0x55; // U
+        case 0x21: return 0xDB; // [
+        case 0x22: return 0x49; // I
+        case 0x23: return 0x50; // P
+        case 0x25: return 0x4C; // L
+        case 0x26: return 0x4A; // J
+        case 0x27: return 0xDE; // '
+        case 0x28: return 0x4B; // K
+        case 0x29: return 0xBA; // ;
+        case 0x2A: return 0xDC; // \
+        case 0x2B: return 0xBC; // ,
+        case 0x2C: return 0xBF; // /
+        case 0x2D: return 0x4E; // N
+        case 0x2E: return 0x4D; // M
+        case 0x2F: return 0xBE; // .
+        case 0x31: return 0x20; // Space
+        case 0x32: return 0xC0; // `
+        default: return 0;
     }
 }
 
 @interface SpirationContentView : NSView <NSTextInputClient>
 @property (nonatomic, assign) spiration::cocoa_window* spirationWindow;
+///< 是否处于输入法组合状态（marked text）。
+@property (nonatomic) BOOL imeMarked;
+/// 向控件派发输入法组合文本更新（text 为空表示组合结束）。
+- (void)sendImeComposition:(NSString*)text cursor:(NSInteger)cursor;
 @end
 
 @implementation SpirationContentView
@@ -269,6 +326,13 @@ static int cocoa_key_to_vk(unsigned short keyCode) {
     if (!self.spirationWindow) return;
     spiration::cocoa_window* win = self.spirationWindow;
 
+    // 输入法优先：存在组合输入（如拼音）时事件由输入法消费，
+    // 期间通过 setMarkedText:/insertText: 回调送达结果；
+    // 未被消费的普通按键返回 NO，继续常规处理。
+    if (self.inputContext && [self.inputContext handleEvent:event]) {
+        return;
+    }
+
     unsigned short keyCode = [event keyCode];
     int vk = cocoa_key_to_vk(keyCode);
 
@@ -293,25 +357,30 @@ static int cocoa_key_to_vk(unsigned short keyCode) {
         win->get_widget()->handle_event(event_type::keyboard, &ked);
     }
 
+    // 文本字符：macOS 方向键等功能键的 characters 是私有区字符
+    // （U+F700–U+F8FF，如 ← 为 U+F702），控制字符同样不作为文本输入。
     NSString* chars = [event characters];
     if ([chars length] > 0) {
-        key_event_data ced;
-        ced.codepoint = static_cast<unsigned int>([chars characterAtIndex:0]);
-        ced.ctrl = ked.ctrl;
-        ced.shift = ked.shift;
-        ced.alt = ked.alt;
-        if (win->get_widget()) {
-            win->get_widget()->handle_event(event_type::keyboard, &ced);
+        unichar c = [chars characterAtIndex:0];
+        if (c >= 0x20 && c != 0x7F && !(c >= 0xF700 && c <= 0xF8FF)) {
+            key_event_data ced;
+            ced.codepoint = static_cast<unsigned int>(c);
+            ced.ctrl = ked.ctrl;
+            ced.shift = ked.shift;
+            ced.alt = ked.alt;
+            if (win->get_widget()) {
+                win->get_widget()->handle_event(event_type::keyboard, &ced);
+            }
         }
     }
 }
 
 - (BOOL)hasMarkedText {
-    return NO;
+    return self.imeMarked;
 }
 
 - (NSRange)markedRange {
-    return NSMakeRange(NSNotFound, 0);
+    return self.imeMarked ? NSMakeRange(0, 0) : NSMakeRange(NSNotFound, 0);
 }
 
 - (NSRange)selectedRange {
@@ -319,9 +388,30 @@ static int cocoa_key_to_vk(unsigned short keyCode) {
 }
 
 - (void)unmarkText {
+    self.imeMarked = NO;
+    [self sendImeComposition:nil cursor:-1];
+}
+
+/// 向控件派发输入法组合文本更新（text 为空表示组合结束）。
+- (void)sendImeComposition:(NSString*)text cursor:(NSInteger)cursor {
+    if (!self.spirationWindow || !self.spirationWindow->get_widget()) return;
+    spiration::ime_composition_data data;
+    if (text && [text length] > 0) {
+        const char* utf8 = [text UTF8String];
+        if (utf8) data.text = utf8;
+        data.cursor = (cursor < 0 || cursor == NSNotFound)
+            ? -1 : static_cast<int>(cursor);
+    }
+    self.spirationWindow->get_widget()->handle_event(event_type::ime_composition, &data);
 }
 
 - (void)setMarkedText:(id)string selectedRange:(NSRange)selectedRange replacementRange:(NSRange)replacementRange {
+    (void)replacementRange;
+    NSString* text = [string isKindOfClass:[NSAttributedString class]]
+        ? [(NSAttributedString*)string string]
+        : (NSString*)string;
+    self.imeMarked = (text && [text length] > 0);
+    [self sendImeComposition:text cursor:(NSInteger)selectedRange.location];
 }
 
 - (NSArray*)validAttributesForMarkedText {
@@ -367,6 +457,11 @@ static int cocoa_key_to_vk(unsigned short keyCode) {
 - (void)insertText:(id)string replacementRange:(NSRange)replacementRange {
     if (!self.spirationWindow) return;
     spiration::cocoa_window* win = self.spirationWindow;
+
+    // 提交前先结束组合状态（输入法在组合结束时调用本方法）。
+    self.imeMarked = NO;
+    [self sendImeComposition:nil cursor:-1];
+
     NSString* text = [string isKindOfClass:[NSAttributedString class]]
         ? [(NSAttributedString*)string string]
         : (NSString*)string;

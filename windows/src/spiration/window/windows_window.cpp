@@ -26,6 +26,35 @@ namespace spiration {
 
 namespace {
 
+/// UTF-16（含代理对）→ UTF-8。
+std::string utf16_to_utf8(const wchar_t* s, size_t n) {
+    std::string out;
+    for (size_t i = 0; i < n; ++i) {
+        unsigned int cp = static_cast<unsigned int>(s[i]);
+        if (cp >= 0xD800 && cp <= 0xDBFF && i + 1 < n &&
+            s[i + 1] >= 0xDC00 && s[i + 1] <= 0xDFFF) {
+            cp = 0x10000 + ((cp - 0xD800) << 10) + (static_cast<unsigned int>(s[i + 1]) - 0xDC00);
+            ++i;
+        }
+        if (cp < 0x80) {
+            out += static_cast<char>(cp);
+        } else if (cp < 0x800) {
+            out += static_cast<char>(0xC0 | (cp >> 6));
+            out += static_cast<char>(0x80 | (cp & 0x3F));
+        } else if (cp < 0x10000) {
+            out += static_cast<char>(0xE0 | (cp >> 12));
+            out += static_cast<char>(0x80 | ((cp >> 6) & 0x3F));
+            out += static_cast<char>(0x80 | (cp & 0x3F));
+        } else {
+            out += static_cast<char>(0xF0 | (cp >> 18));
+            out += static_cast<char>(0x80 | ((cp >> 12) & 0x3F));
+            out += static_cast<char>(0x80 | ((cp >> 6) & 0x3F));
+            out += static_cast<char>(0x80 | (cp & 0x3F));
+        }
+    }
+    return out;
+}
+
 HCURSOR load_cursor(cursor_style c) {
     switch (c) {
     case cursor_style::text:        return LoadCursorW(nullptr, IDC_IBEAM);
@@ -329,9 +358,64 @@ LRESULT Window::HandleMessage(UINT uMsg, WPARAM wParam, LPARAM lParam) {
         break;
 
     case WM_IME_STARTCOMPOSITION:
-    case WM_IME_COMPOSITION:
+        // 组合开始：清除旧组合状态。
+        SendImeComposition(L"", -1);
         MoveImeCompositionWindow();
-        break;
+        return 0;
+
+    case WM_IME_COMPOSITION: {
+        MoveImeCompositionWindow();
+        HIMC hIMC = ImmGetContext(m_hWnd);
+        if (hIMC) {
+            if (lParam & GCS_RESULTSTR) {
+                // 提交文本：结束组合并逐码点插入。
+                DWORD len = ImmGetCompositionStringW(hIMC, GCS_RESULTSTR, nullptr, 0);
+                if (len > 0) {
+                    std::wstring wstr(len / sizeof(wchar_t), L'\0');
+                    ImmGetCompositionStringW(hIMC, GCS_RESULTSTR, &wstr[0], len);
+                    SendImeComposition(L"", -1);
+                    for (size_t i = 0; i < wstr.size(); ++i) {
+                        unsigned int cp = static_cast<unsigned int>(wstr[i]);
+                        if (cp >= 0xD800 && cp <= 0xDBFF && i + 1 < wstr.size() &&
+                            wstr[i + 1] >= 0xDC00 && wstr[i + 1] <= 0xDFFF) {
+                            cp = 0x10000 + ((cp - 0xD800) << 10) +
+                                 (static_cast<unsigned int>(wstr[i + 1]) - 0xDC00);
+                            ++i;
+                        }
+                        SendCodepoint(cp);
+                    }
+                    m_ImeCommitPending = true; // 吞掉随后的 WM_IME_CHAR，避免重复插入
+                }
+            } else if (lParam & GCS_COMPSTR) {
+                // 组合更新（preedit）。
+                DWORD len = ImmGetCompositionStringW(hIMC, GCS_COMPSTR, nullptr, 0);
+                if (len > 0) {
+                    std::wstring wstr(len / sizeof(wchar_t), L'\0');
+                    ImmGetCompositionStringW(hIMC, GCS_COMPSTR, &wstr[0], len);
+                    DWORD cursor = ImmGetCompositionStringW(hIMC, GCS_CURSORPOS, nullptr, 0);
+                    SendImeComposition(wstr, static_cast<int>(cursor));
+                } else {
+                    SendImeComposition(L"", -1);
+                }
+            }
+            ImmReleaseContext(m_hWnd, hIMC);
+        }
+        return 0;
+    }
+
+    case WM_IME_ENDCOMPOSITION:
+        SendImeComposition(L"", -1);
+        return 0;
+
+    case WM_IME_CHAR:
+        // 已由 GCS_RESULTSTR 提交时吞掉，避免重复插入；
+        // 部分输入法仅以 WM_IME_CHAR 送达提交字符，此时直接插入。
+        if (m_ImeCommitPending) {
+            m_ImeCommitPending = false;
+            return 0;
+        }
+        SendCodepoint(static_cast<unsigned int>(wParam));
+        return 0;
 
     case WM_KEYUP:
     case WM_SYSKEYUP:
@@ -556,6 +640,23 @@ void Window::MoveImeCompositionWindow() {
         ImmSetCompositionWindow(hIMC, &cf);
         ImmReleaseContext(m_hWnd, hIMC);
     }
+}
+
+void Window::SendImeComposition(const std::wstring& text, int cursor) {
+    if (!m_Widget) return;
+    ime_composition_data data;
+    if (!text.empty()) {
+        data.text = utf16_to_utf8(text.data(), text.size());
+        data.cursor = cursor < 0 ? -1 : cursor;
+    }
+    m_Widget->handle_event(event_type::ime_composition, &data);
+}
+
+void Window::SendCodepoint(unsigned int cp) {
+    if (!m_Widget) return;
+    key_event_data ked;
+    ked.codepoint = cp;
+    m_Widget->handle_event(event_type::keyboard, &ked);
 }
 
 

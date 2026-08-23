@@ -67,6 +67,8 @@ public:
     void on_touch_event(float x, float y, int action);
     void on_mouse_event(float x, float y, int action, int button);
     void on_key_event(int key_code, unsigned int codepoint, bool ctrl, bool shift, bool alt, bool is_down);
+    /// @brief 输入法组合文本更新（text 为空表示组合结束；由 ArkUI 侧 IME 回调转发）。
+    void on_ime_composition(const std::string& text, int cursor);
 
     void resize_widget(int32_t logical_w, int32_t logical_h);
 

@@ -111,6 +111,7 @@ static napi_value NapiInitResourceManager(napi_env env, napi_callback_info info)
 static napi_value NapiOnTouchEvent(napi_env env, napi_callback_info info);
 static napi_value NapiOnMouseEvent(napi_env env, napi_callback_info info);
 static napi_value NapiOnKeyEvent(napi_env env, napi_callback_info info);
+static napi_value NapiOnImeComposition(napi_env env, napi_callback_info info);
 static napi_value NapiOnWindowResize(napi_env env, napi_callback_info info);
 static napi_value NapiOnFrameTick(napi_env env, napi_callback_info info);
 static napi_value NapiRegisterCloseCallback(napi_env env, napi_callback_info info);
@@ -146,6 +147,7 @@ static napi_value Init(napi_env env, napi_value exports) {
         {"onTouchEvent", nullptr, NapiOnTouchEvent, nullptr, nullptr, nullptr, napi_default, nullptr},
         {"onMouseEvent", nullptr, NapiOnMouseEvent, nullptr, nullptr, nullptr, napi_default, nullptr},
         {"onKeyEvent", nullptr, NapiOnKeyEvent, nullptr, nullptr, nullptr, napi_default, nullptr},
+        {"onImeComposition", nullptr, NapiOnImeComposition, nullptr, nullptr, nullptr, napi_default, nullptr},
         {"onWindowResize", nullptr, NapiOnWindowResize, nullptr, nullptr, nullptr, napi_default, nullptr},
         {"onFrameTick", nullptr, NapiOnFrameTick, nullptr, nullptr, nullptr, napi_default, nullptr},
         {"initResourceManager", nullptr, NapiInitResourceManager, nullptr, nullptr, nullptr, napi_default, nullptr},
@@ -475,6 +477,39 @@ static napi_value NapiOnKeyEvent(napi_env env, napi_callback_info info) {
 /**
  * @brief 接收 ArkUI 窗口大小变化事件，更新渲染器和 widget 树。
  */
+/**
+ * @brief 接收 ArkUI 输入法组合文本更新（preedit），转发到 widget 树。
+ * 参数：组合文本（UTF-8 字符串，空串表示组合结束）、组合内光标（UTF-16 码元数，-1=末尾）。
+ */
+static napi_value NapiOnImeComposition(napi_env env, napi_callback_info info) {
+    size_t argc = 2;
+    napi_value args[2];
+    napi_get_cb_info(env, info, &argc, args, nullptr, nullptr);
+
+    std::string text;
+    if (argc >= 1) {
+        size_t len = 0;
+        napi_get_value_string_utf8(env, args[0], nullptr, 0, &len);
+        if (len > 0) {
+            text.resize(len);
+            napi_get_value_string_utf8(env, args[0], &text[0], len + 1, &len);
+        }
+    }
+    double cursor = -1;
+    if (argc >= 2) {
+        napi_get_value_double(env, args[1], &cursor);
+    }
+
+    if (g_window) {
+        g_window->on_ime_composition(text, static_cast<int>(cursor));
+        if (g_renderer) g_window->render(g_renderer);
+    }
+
+    napi_value ret;
+    napi_get_undefined(env, &ret);
+    return ret;
+}
+
 static napi_value NapiOnWindowResize(napi_env env, napi_callback_info info) {
     size_t argc = 3;
     napi_value args[3];

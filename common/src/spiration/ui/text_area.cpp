@@ -88,6 +88,8 @@ void text_area::on_focus() {
 void text_area::on_blur() {
     focused_ = false;
     selecting_ = false;
+    composition_text_.clear();
+    composition_cursor_ = -1;
     if (request_repaint_) request_repaint_();
 }
 
@@ -201,6 +203,13 @@ void text_area::tick(float dt_ms) {
 void text_area::handle_event(const event_type& type, void* data) {
     if (!data) return;
 
+    if (type == event_type::ime_composition) {
+        if (!focused_) return;
+        auto* ime = static_cast<ime_composition_data*>(data);
+        set_composition(ime->text, ime->cursor);
+        return;
+    }
+
     if (type == event_type::keyboard) {
         if (!focused_) return;
         auto* key = static_cast<key_event_data*>(data);
@@ -208,8 +217,7 @@ void text_area::handle_event(const event_type& type, void* data) {
         return;
     }
 
-    if (type == event_type::mouse) {
-        auto* mouse = static_cast<mouse_event_data*>(data);
+    if (type == event_type::mouse) {        auto* mouse = static_cast<mouse_event_data*>(data);
 
         if (mouse->action == mouse_action::down && mouse->button == mouse_button::right) {
             if (mouse->position.x >= 0.0f && mouse->position.x <= width &&
@@ -686,6 +694,29 @@ void text_area::ensure_cursor_visible() {
     report_ime_caret();
 }
 
+size_t text_area::utf16_offset_to_utf8_bytes(const std::string& utf8, int utf16_units) {
+    if (utf16_units <= 0) return 0;
+    size_t bytes = 0;
+    int units = 0;
+    while (bytes < utf8.size()) {
+        unsigned char c = static_cast<unsigned char>(utf8[bytes]);
+        size_t len = 1;
+        if ((c & 0xF0) == 0xF0) len = 4;
+        else if ((c & 0xE0) == 0xE0) len = 3;
+        else if ((c & 0xC0) == 0xC0) len = 2;
+        units += (len == 4) ? 2 : 1;
+        bytes += len;
+        if (units >= utf16_units) return bytes;
+    }
+    return utf8.size();
+}
+
+void text_area::set_composition(const std::string& text, int cursor) {
+    composition_text_ = text;
+    composition_cursor_ = cursor < 0 ? -1 : cursor;
+    if (request_repaint_) request_repaint_();
+}
+
 void text_area::report_ime_caret() {
     float cx = cursor_pixel_x_;
     if (cx < 0.0f) cx = static_cast<float>(cursor_col_) * font_size * 0.6f;
@@ -852,10 +883,38 @@ void text_area::draw_line_numbers(std::shared_ptr<renderer> r, size_t line_idx, 
 
 void text_area::draw_line_content(std::shared_ptr<renderer> r, size_t line_idx, float line_y) {
     nonstd::string_view sv = line_text(line_idx);
-    if (sv.empty()) return;
 
     float text_x_pos = text_x() - scroll_x_;
     float text_y = line_y + 2.0f;
+
+    // 组合输入：光标所在行拆为 前缀 + 组合文本(下划线) + 后缀。
+    if (has_composition() && line_idx == cursor_line_) {
+        size_t col = std::min(cursor_col_, sv.size());
+        std::string prefix(sv.data(), col);
+        std::string suffix(sv.data() + col, sv.size() - col);
+
+        float x = text_x_pos;
+        if (!prefix.empty()) {
+            r->draw_text(prefix, {x, text_y}, theme_manager::get(theme_manager::INPUT_TEXT),
+                         font_size, font_family, false);
+            x += r->measure_text_width(prefix, font_size, font_family);
+        }
+        if (!composition_text_.empty()) {
+            r->draw_text(composition_text_, {x, text_y}, theme_manager::get(theme_manager::INPUT_TEXT),
+                         font_size, font_family, false);
+            float cw = r->measure_text_width(composition_text_, font_size, font_family);
+            r->draw_rectangle({x, text_y + font_size + 3.0f, cw, 1.5f},
+                              theme_manager::get(theme_manager::INPUT_CURSOR));
+            x += cw;
+        }
+        if (!suffix.empty()) {
+            r->draw_text(suffix, {x, text_y}, theme_manager::get(theme_manager::INPUT_TEXT),
+                         font_size, font_family, false);
+        }
+        return;
+    }
+
+    if (sv.empty()) return;
     r->draw_text(std::string(sv.data(), sv.size()), {text_x_pos, text_y},
                  theme_manager::get(theme_manager::INPUT_TEXT), font_size, font_family, false);
 }
@@ -866,6 +925,13 @@ void text_area::draw_cursor(std::shared_ptr<renderer> r) {
     nonstd::string_view sv = line_text(cursor_line_);
     std::string prefix(sv.data(), std::min(cursor_col_, sv.size()));
     cursor_pixel_x_ = r->measure_text_width(prefix, font_size, font_family);
+
+    // 组合输入：光标停在组合文本内光标处。
+    if (has_composition()) {
+        size_t comp_bytes = utf16_offset_to_utf8_bytes(composition_text_, composition_cursor_);
+        cursor_pixel_x_ += r->measure_text_width(
+            composition_text_.substr(0, comp_bytes), font_size, font_family);
+    }
 
     float cx = text_x() + cursor_pixel_x_ - scroll_x_;
     float cy = text_pad_top + static_cast<float>(cursor_line_) * line_height - scroll_y_;

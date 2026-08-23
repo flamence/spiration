@@ -84,6 +84,8 @@ private:
     bool CreateWindowClass();
     bool CreateActualWindow(const window_parameters& params);
     void NotifyWidgetResize();    void MoveImeCompositionWindow();
+    void SendImeComposition(const std::wstring& text, int cursor);
+    void SendCodepoint(unsigned int cp);
     HWND m_hWnd = nullptr;
     HINSTANCE m_hInstance = nullptr;
     std::wstring m_WindowClassName;
@@ -107,6 +109,9 @@ private:
     float m_DPIScale = 1.0f;
     float m_ImeCaretX = 0.0f;
     float m_ImeCaretY = 0.0f;
+
+    ///< GCS_RESULTSTR 已处理提交时置位，用于吞掉随后重复的 WM_IME_CHAR。
+    bool m_ImeCommitPending = false;
     
     static constexpr float DRAG_AREA_HEIGHT = spiration::kTitleBarDragHeight;
 
