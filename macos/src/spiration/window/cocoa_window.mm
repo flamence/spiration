@@ -940,8 +940,9 @@ bool cocoa_window::create_cocoa_window(const window_parameters& params) {
         NSRect frame = [m_NSWindow frame];
         m_X = static_cast<int32_t>(frame.origin.x);
         m_Y = static_cast<int32_t>(frame.origin.y);
-        m_Width = static_cast<int32_t>(frame.size.width);
-        m_Height = static_cast<int32_t>(frame.size.height);
+        NSRect content = [m_NSWindow contentRectForFrameRect:frame];
+        m_Width = static_cast<int32_t>(content.size.width);
+        m_Height = static_cast<int32_t>(content.size.height);
 
         return true;
     }
