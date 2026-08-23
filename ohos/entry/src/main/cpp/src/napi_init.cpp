@@ -251,8 +251,6 @@ static napi_value NapiInitResourceManager(napi_env env, napi_callback_info info)
     // 与其它平台一致：扩展注册 + early 阶段（i18n 扩展读取沙箱 lang 目录）
     spiration::application::instance()->initialize(spiration::init_phase::early);
 
-    std::string sysLocale = spiration::platform::system_locale();
-    spiration::application::instance()->logger()->log({spiration::logging::level::info, fmt::format("ResourceManager initialized, locale={}", sysLocale), "napi"});
     napi_value ret;
     napi_get_boolean(env, true, &ret);
     return ret;
