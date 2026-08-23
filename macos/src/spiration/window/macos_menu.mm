@@ -71,7 +71,8 @@ void* spiration_macos_menu_get_submenu(const spiration_macos_menu_spec* spec) {
         [top setSubmenu:menu];
         [main_menu addItem:top];
         [submenus setObject:menu forKey:ns_key];
-        NSLog(@"[macos_menu] created top-level '%@' (key=%s)", ns_title, spec->key);
+        NSLog(@"[macos_menu] created top-level '%@' (key=%s, mainMenu items now=%lu)",
+              ns_title, spec->key, (unsigned long)[main_menu numberOfItems]);
     }
     return (__bridge void*)menu;
 }

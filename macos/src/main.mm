@@ -103,12 +103,19 @@ int main(int argc, const char* argv[]) {
         [appMenuItem setSubmenu:appMenu];
     }
 
+    [NSApp finishLaunching];
+
     auto instance = spiration::application::instance();
     if (!instance->initialize()) {
         return 1;
     }
     build_core_menus();
-    [NSApp activateIgnoringOtherApps:YES];
+
+    [NSApp setMainMenu:[NSApp mainMenu]];
+    [[NSRunningApplication currentApplication] activateWithOptions:NSApplicationActivateIgnoringOtherApps];
+    NSLog(@"[macos_menu] after setup: mainMenu items=%lu active=%d running=%d",
+          (unsigned long)[[NSApp mainMenu] numberOfItems], [NSApp isActive], [NSApp isRunning]);
+
     instance->loop();
     instance->shutdown();
 
