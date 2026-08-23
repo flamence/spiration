@@ -1,54 +1,19 @@
 # Spiration
 
-[![](https://github.com/flamence/spiration/actions/workflows/cmake-multi-platform.yml/badge.svg?branch=gui)](https://github.com/flamence/spiration/actions/workflows/cmake-multi-platform.yml) [![](https://img.shields.io/github/downloads/flamence/spiration/total?label=%E4%B8%8B%E8%BD%BD%E9%87%8F)](https://github.com/flamence/spiration/releases)
+[![](https://github.com/flamence/spiration/actions/workflows/build.yml/badge.svg)](https://github.com/flamence/spiration/actions/workflows/build.yml) [![](https://img.shields.io/github/downloads/flamence/spiration/total)](https://github.com/flamence/spiration/releases)
 
-## 快速开始
+[简体中文](README.zh_Hans.md) · [English](#)
 
-前往 [Release](https://github.com/flamence/spiration/releases) 页面下载最新稳定的版本，
+## Quick Start
 
-或是在 [Actions](https://github.com/flamence/spiration/actions) 中找到最近一次成功的构建。
+Go to the [Releases](https://github.com/flamence/spiration/releases/latest) page to download the latest stable version,
 
-## 运行要求
+or find the most recent successful build in [Actions](https://github.com/flamence/spiration/actions).
 
-使用 Windows 7 / Mac OS 10.15 / Ubuntu 24.04 / Harmony OS 6.1.1.300 以上的版本。
+## Contributing
 
-> 对于 Linux 系统，理论上可以 [构建编译](#构建编译) 支持更低的版本。
+For details, see [Contributing to Spiration](https://flamence.github.io/spiration.docs/en/contributing/).
 
-## 构建编译
+## License
 
-### 本地操作
-
-#### Windows / Mac OS / Linux
-
-使用 [Git](https://git-scm.cn/) 克隆、[CMake](https://cmake.org/) 进行构建：
-
-```bash
-git clone https://github.com/flamence/spiration
-cd ./spiration/
-cmake . -DCMAKE_BUILD_TYPE=Release
-cmake --build ./build
-```
-
-#### Open Harmony / Harmony OS
-
-通过 [DevEco Studio](https://developer.huawei.com/consumer/cn/deveco-studio/) 打开 [ohos](ohos/) 文件夹。
-
-借助菜单栏 **构建(<u>B</u>)**>**编译 Hap(s)/APP(s)** 的选项来构建。
-
-### Github Actions
-
-[Fork](https://github.com/flamence/spiration/fork) 项目，
-依照提示创建分支。
-
-在分支仓库的 [Actions](#) 中找到最后一个编译成功的工作流，
-在 [Summary](#) 的 **Artifacts** 中找到适合的文件下载，
-或是在分支仓库的主页面找到 [Release](#) 并创建一个新版本，
-稍等片刻，即可下载相关二进制文件。
-
-## 贡献支持
-
-详见 [为 Spiration 贡献](https://flamence.github.io/spiration.docs/contributing)。
-
-## 协议许可
-
-详见 [LICENSE](LICENSE)。
+This repository is licensed under the [Apache License 2.0](LICENSE).
