@@ -11,6 +11,7 @@
 #ifdef __APPLE__
 #include <spiration/extension/builtin/i18n/i18n.h>
 #include <spiration/window/macos_menu.h>
+#include <spiration/window/macos_menu_state.h>
 #include <fmt/format.h>
 #endif
 
@@ -396,11 +397,17 @@ bool root::add_menu_item(const std::string& menu_name,
     void* submenu = spiration_macos_menu_get_submenu(&spec);
     if (!submenu) return false;
 
-    auto* box = new std::function<void()>(std::move(callback));
+    // 标题与回调放于同一堆对象：标题经堆内字符串读取，不依赖任何栈帧。
+    auto* state = new spiration_menu_item_state{label_local, std::move(callback)};
+    application::instance()->logger()->log({logging::level::trace,
+        fmt::format("[macos_menu] root add_menu_item state={} title_ptr={} title='{}'",
+                    static_cast<const void*>(state),
+                    static_cast<const void*>(state->title.c_str()),
+                    state->title), "ui/root"});
+
     spiration_macos_menu_spec item_spec{};
     item_spec.submenu = submenu;
-    item_spec.title = label_local.c_str();
-    item_spec.callback = box;
+    item_spec.callback = state;
     return spiration_macos_menu_add_item(&item_spec) != 0;
 #else
     if (!menu_bar_) return false;

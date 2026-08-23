@@ -19,8 +19,9 @@ extern "C" {
 typedef struct spiration_macos_menu_spec {
     void* submenu;      ///< add_item：目标子菜单句柄；get_submenu 忽略。
     const char* key;    ///< get_submenu：菜单标识（如 "menu.file"）。
-    const char* title;  ///< 本地化显示标题（菜单或菜单项）。
-    void* callback;     ///< add_item：堆上分配的 std::function<void()>*。
+    const char* title;  ///< get_submenu：菜单本地化显示标题；add_item 忽略
+                        ///< （菜单项标题由堆上状态对象提供）。
+    void* callback;     ///< add_item：堆上 spiration_menu_item_state*（含标题与回调）。
 } spiration_macos_menu_spec;
 
 /**

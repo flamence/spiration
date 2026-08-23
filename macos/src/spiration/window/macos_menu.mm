@@ -10,6 +10,7 @@
 #include <string>
 
 #include <spiration/window/macos_menu.h>
+#include <spiration/window/macos_menu_state.h>
 
 namespace {
 
@@ -47,6 +48,7 @@ extern "C" {
 
 void* spiration_macos_menu_get_submenu(const spiration_macos_menu_spec* spec) {
     if (!spec || !spec->key) return nullptr;
+    NSLog(@"[macos_menu] get_submenu spec=%p key='%s'(%p) title=%p", spec, spec->key, spec->key, spec->title);
 
     NSMenu* main_menu = [NSApp mainMenu];
     if (!main_menu) return nullptr;
@@ -75,15 +77,20 @@ void* spiration_macos_menu_get_submenu(const spiration_macos_menu_spec* spec) {
 }
 
 int spiration_macos_menu_add_item(const spiration_macos_menu_spec* spec) {
+    NSLog(@"[macos_menu] add_item spec=%p submenu=%p state=%p",
+          spec, spec ? spec->submenu : nullptr, spec ? spec->callback : nullptr);
     NSMenu* menu = (__bridge NSMenu*)(spec ? spec->submenu : nullptr);
     if (!menu || !spec || !spec->callback) return 0;
 
-    // 标题为空时回退键名（此处键名不可用，回退为空字符串而非崩溃）。
-    const char* title_text = (spec->title && spec->title[0]) ? spec->title : "";
-    NSLog(@"[macos_menu] add item '%s'", title_text);
+    // 标题与回调同处堆上状态对象，经堆内字符串读取。
+    auto* state = static_cast<spiration_menu_item_state*>(spec->callback);
+    const char* title_text = state->title.c_str();
+    const unsigned char* tp = (const unsigned char*)title_text;
+    NSLog(@"[macos_menu] add item '%s' (title ptr=%p bytes: %02x %02x %02x %02x %02x %02x %02x %02x)",
+          title_text, title_text, tp[0], tp[1], tp[2], tp[3], tp[4], tp[5], tp[6], tp[7]);
 
     SpirationMenuTarget* target =
-        [[SpirationMenuTarget alloc] initWithCallback:(std::function<void()>*)spec->callback];
+        [[SpirationMenuTarget alloc] initWithCallback:&state->callback];
     if (!menu_targets) {
         menu_targets = [NSMutableArray array];
     }
