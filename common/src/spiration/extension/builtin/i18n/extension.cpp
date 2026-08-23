@@ -9,12 +9,14 @@ namespace spiration {
 namespace i18n {
 
 bool extension::initialize() {
-    ghc::filesystem::path langDir = spiration::platform::resources_directory() / "lang";
+    ghc::filesystem::path language_directory = spiration::platform::resources_directory() / "lang";
     auto& i18n = i18n_manager::get();
-    std::string sysLocale = spiration::platform::system_locale().value_or("zh-CN");
-    ghc::filesystem::path langPath = langDir / (fmt::format("{}.properties", sysLocale));
-    i18n.load(sysLocale, langPath);
-    i18n.set_locale(sysLocale);
+    tl::optional<std::string> locale = spiration::platform::system_locale();
+    if (!locale.has_value() || !i18n.load(locale.value(), language_directory / fmt::format("{}.properties", locale.value()))) {
+        locale = "zh-CN";
+        i18n.load(locale.value(), language_directory / "zh-CN.properties");
+    }
+    i18n.set_locale(locale.value());
 
     application::instance()->extension()->register_service(id(), "i18n", &i18n);
 
