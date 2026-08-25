@@ -10,6 +10,8 @@
 
 或是在 [Actions](https://github.com/flamence/spiration/actions) 中找到最近一次成功的构建。
 
+在 [Spiration 文档](https://flamence.github.io/spiration.docs/en/) 中了解更多。
+
 ## 贡献支持
 
 详见 [为 Spiration 贡献](https://flamence.github.io/spiration.docs/contributing)。

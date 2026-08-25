@@ -10,6 +10,8 @@ Go to the [Releases](https://github.com/flamence/spiration/releases/latest) page
 
 or find the most recent successful build in [Actions](https://github.com/flamence/spiration/actions).
 
+Learning more on [Spiration Documents](https://flamence.github.io/spiration.docs/en/).
+
 ## Contributing
 
 For details, see [Contributing to Spiration](https://flamence.github.io/spiration.docs/en/contributing/).
