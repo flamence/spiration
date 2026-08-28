@@ -198,7 +198,7 @@ jobs:
           fi
           echo "archive-name=spiration-$VERSION-harmonyos" >> "$GITHUB_OUTPUT"
 
-      - uses: chen-linkai/build-hap@v1
+      - uses: chen-linkai/build-hap@v2
         with:
           workspace: ${{ steps.strings.outputs.workspace }}
 
