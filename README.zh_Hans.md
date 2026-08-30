@@ -10,7 +10,7 @@
 
 或是在 [Actions](https://github.com/flamence/spiration/actions) 中找到最近一次成功的构建。
 
-在 [Spiration 文档](https://flamence.github.io/spiration.docs/en/) 中了解更多。
+在 [Spiration 文档](https://flamence.github.io/spiration.docs/) 中了解更多。
 
 ## 贡献支持
 
