@@ -25,7 +25,8 @@ namespace spiration {
 using extension_initialize_function = spiration::extension* (*)(spiration::manifest_data);
 
 const std::string extension_manager::extension_manifest_name_ = "extension.json";
-const std::string extension_manager::extension_symbol_name_ = "spiration_initialize";
+const std::string extension_manager::extension_initialize_symbol_name_ = "spiration_initialize";
+const std::string extension_manager::extension_shutdown_symbol_name_ = "spiration_shutdown";
 
 extension_manager::extension_manager(const application& application) : 
         application_(application),
@@ -84,7 +85,7 @@ bool extension_manager::load(const ghc::filesystem::path& path) {
     }
 
     entry.handle = std::move(handle);
-    extension_initialize_function symbol = reinterpret_cast<extension_initialize_function>(find_symbol(entry.handle.get(), extension_symbol_name_));
+    extension_initialize_function symbol = reinterpret_cast<extension_initialize_function>(find_symbol(entry.handle.get(), extension_initialize_symbol_name_));
     if (symbol == nullptr) {
         logger_.log({
             logging::level::trace,

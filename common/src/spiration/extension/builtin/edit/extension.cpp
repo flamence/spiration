@@ -30,7 +30,6 @@ bool extension::initialize() {
         save_current_as();
     });
 
-    // 注册编辑服务，供其它拓展（如智能体）将文件打开到编辑器。
     application::instance()->extension()->register_service(
         id(), edit_service::SERVICE_NAME, static_cast<edit_service*>(this));
 
@@ -38,7 +37,7 @@ bool extension::initialize() {
 }
 
 void extension::open_file(const ghc::filesystem::path& path) {
-#if defined(OHOS_PLATFORM)
+#if defined(__OHOS__)
     std::string content = spiration::io::read_file_content(path);
     complete_open_editor_tab(path.string(), content);
 #else
@@ -79,7 +78,7 @@ void extension::new_editor_tab() {
 }
 
 void extension::open_editor_tab() {
-#if __OHOS__
+#if defined(__OHOS__)
     spiration::io::open_file_async(api->tr("edit:file_dialog.open_title"),
                                    api->tr("edit:file_dialog.all_files"), {"*"},
                                    [this](const std::string& path, const std::string& content) {
@@ -121,7 +120,7 @@ void extension::complete_open_editor_tab(const std::string& path, const std::str
     }
 
     auto tab = std::make_unique<edit_tab>(filename);
-#if defined(OHOS_PLATFORM)
+#if defined(__OHOS__)
     tab->open_content(path, content);
 #else
     tab->load_file(path);
@@ -154,7 +153,7 @@ void extension::save_current_as() {
         api->log_info("no active editor to save");
         return;
     }
-#if __OHOS__
+#if defined(__OHOS__)
     spiration::io::save_file_async(api->tr("edit:file_dialog.save_title"),
                                    api->tr("edit:file_dialog.all_files"), {"*"},
                                    editor->text(),
@@ -180,7 +179,7 @@ void extension::complete_save_as(const std::string& path) {
         api->log_info("no active editor to save");
         return;
     }
-#if defined(OHOS_PLATFORM)
+#if defined(__OHOS__)
     editor->confirm_saved(path);
     api->log_info(fmt::format("saved as: {}", path));
 #else

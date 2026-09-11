@@ -1,6 +1,5 @@
 /**
  * @file extension.h
- * @brief 拓展基类。
  * @author clk
  */
 

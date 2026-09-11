@@ -156,7 +156,8 @@ private:
     logging::logger& logger_;
 
     static const std::string extension_manifest_name_;
-    static const std::string extension_symbol_name_;
+    static const std::string extension_initialize_symbol_name_;
+    static const std::string extension_shutdown_symbol_name_;
 
     struct loaded_extension {
         ghc::filesystem::path path;
