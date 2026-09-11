@@ -26,7 +26,6 @@ namespace spiration {
 
 namespace {
 
-/// UTF-16（含代理对）→ UTF-8。
 std::string utf16_to_utf8(const wchar_t* s, size_t n) {
     std::string out;
     for (size_t i = 0; i < n; ++i) {
@@ -834,7 +833,7 @@ void Window::loop() {
     }
 
     if (!processedInput && !m_NeedsRepaint && !hadRepaintReq) {
-        MsgWaitForMultipleObjects(0, nullptr, FALSE, 16, QS_ALLINPUT);
+        MsgWaitForMultipleObjects(0, nullptr, FALSE, 1, QS_ALLINPUT);
     }
 }
 

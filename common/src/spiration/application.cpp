@@ -19,7 +19,7 @@ const std::string application::APPLICATION_NAME = "Spiration";
 const std::string application::APPLICATION_LOWER_NAME = "spiration";
 const std::string application::APPLICATION_PACKAGE = "com.flamence.spiration";
 
-#ifdef __OHOS__
+#if defined(__OHOS__)
 void application::bind_window(std::shared_ptr<spiration::window> window) {
     window_ = window;
 }
@@ -27,13 +27,13 @@ void application::bind_window(std::shared_ptr<spiration::window> window) {
 
 namespace {
 
-#ifndef __OHOS__
+#if !defined(__OHOS__)
 std::shared_ptr<spiration::window> create_window() {
     spiration::window_parameters params;
     params.title = application::APPLICATION_NAME;
     params.width = 1080;
     params.height = 768;
-#ifdef __APPLE__
+#if defined(__APPLE__)
     params.decorated = true;
 #else
     params.decorated = false;
