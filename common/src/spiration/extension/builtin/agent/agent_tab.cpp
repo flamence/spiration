@@ -1325,20 +1325,20 @@ void agent_tab::restore_history_ui(const std::vector<chat_message>& msgs) {
     std::vector<container*> pending_output;
     for (const auto& m : msgs) {
         if (m.role == "user") {
-            add_message("user", m.content);
+            add_message("user", m.content.value());
         } else if (m.role == "assistant") {
-            if (!m.reasoning_content.empty()) {
+            if (m.reasoning_content.has_value()) {
                 thinking_capsule_ = create_capsule(i18n_manager::get().tr("agent:chat.thinking"));
                 thinking_scroll_ = static_cast<container*>(thinking_capsule_->content());
                 auto md = std::make_unique<markdown>();
                 md->font_size = 12.0f;
                 md->selectable = true;
-                md->text = m.reasoning_content;
+                md->text = m.reasoning_content.value();
                 thinking_label_ = md.get();
                 thinking_scroll_->add_child(std::move(md));
             }
-            if (!m.content.empty())
-                add_message("assistant", m.content);
+            if (m.content.has_value())
+                add_message("assistant", m.content.value());
             for (const auto& tc : m.tool_calls) {
                 auto* cap = append_tool_capsule(tool_display_name(tc.function_name), tc.arguments);
                 if (cap) pending_output.push_back(static_cast<container*>(cap->content()));
@@ -1352,7 +1352,7 @@ void agent_tab::restore_history_ui(const std::vector<chat_message>& msgs) {
                     md->font_size = 12.0f;
                     md->selectable = true;
                     md->text = tool_block_markdown(
-                        i18n_manager::get().tr("agent:chat.tool_output", "输出"), m.content);
+                        i18n_manager::get().tr("agent:chat.tool_output", "输出"), m.content.value());
                     sc->add_child(std::move(md));
                 }
             }
@@ -1533,13 +1533,13 @@ void agent_tab::tick(float dt_ms) {
 
             process_stream_events();
 
-            if (!resp.content.empty() && stream_label_) {
-                stream_label_->text = resp.content;
+            if (resp.content.has_value() && stream_label_) {
+                stream_label_->text = resp.content.value();
                 if (stream_msg_index_ < messages_.size())
-                    messages_[stream_msg_index_].content = resp.content;
+                    messages_[stream_msg_index_].content = resp.content.value();
                 relayout_scroll_repaint();
-            } else if (!resp.content.empty() && !stream_label_ && !streamed_content_) {
-                add_message("assistant", resp.content);
+            } else if (resp.content.has_value() && !stream_label_ && !streamed_content_) {
+                add_message("assistant", resp.content.value());
             }
 
             stream_label_ = nullptr;

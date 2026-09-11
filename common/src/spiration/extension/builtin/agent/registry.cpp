@@ -6,8 +6,6 @@
 
 #include <spiration/application.h>
 #include <spiration/extension/builtin/agent/registry.h>
-#include <spiration/extension/builtin/agent/anthropic_provider.h>
-#include <spiration/extension/builtin/agent/openai_provider.h>
 #include <spiration/utils/dispatcher.h>
 
 #include <exception>
@@ -22,9 +20,6 @@ agent_registry& agent_registry::instance() {
 }
 
 agent_registry::agent_registry() {
-    // 内置基于 HTTP/SSE 的 provider，与其它拓展通过服务注册的自定义 provider 统一管理。
-    register_provider("openai", []() { return std::make_unique<openai_provider>(); });
-    register_provider("anthropic", []() { return std::make_unique<anthropic_provider>(); });
 }
 
 void agent_registry::register_provider(

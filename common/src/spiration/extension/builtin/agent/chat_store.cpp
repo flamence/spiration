@@ -28,11 +28,11 @@ namespace {
 /// @brief 将 chat_message 序列化为 JSON。
 nlohmann::json message_to_json(const chat_message& m) {
     nlohmann::json j;
-    j["role"]             = m.role;
-    j["content"]          = m.content;
-    j["reasoning_content"] = m.reasoning_content;
-    j["tool_call_id"]     = m.tool_call_id;
-    j["name"]             = m.name;
+    j["role"] = m.role;
+    if (m.content.has_value()) j["content"] = m.content.value();
+    if (m.reasoning_content.has_value()) j["reasoning_content"] = m.reasoning_content.value();
+    if (m.tool_call_id.has_value()) j["tool_call_id"] = m.tool_call_id.value();
+    if (m.name.has_value()) j["name"] = m.name.value();
     nlohmann::json tcs = nlohmann::json::array();
     for (const auto& tc : m.tool_calls) {
         tcs.push_back({{"id", tc.id},

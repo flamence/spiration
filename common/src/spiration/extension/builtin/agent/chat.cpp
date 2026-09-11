@@ -100,12 +100,12 @@ chat_response chat_client::send() {
 }
 
 void chat_client::append_assistant(const chat_response& resp) {
-    if (!resp.content.empty() || !resp.tool_calls.empty() ||
-        !resp.reasoning_content.empty()) {
+    if (resp.content.has_value() || !resp.tool_calls.empty() ||
+        resp.reasoning_content.has_value()) {
         chat_message assistant;
         assistant.role            = "assistant";
-        assistant.content         = resp.content;
-        assistant.reasoning_content = resp.reasoning_content;
+        assistant.content         = resp.content.value();
+        assistant.reasoning_content = resp.reasoning_content.value();
         assistant.tool_calls      = resp.tool_calls;
         std::lock_guard<std::mutex> lk(history_mtx_);
         history_.push_back(assistant);
@@ -118,10 +118,10 @@ void chat_client::sanitize_history() {
                        [](const chat_message& m) {
                            if (m.role == "system") return false;
                            if (m.role == "assistant")
-                               return m.content.empty() && m.tool_calls.empty() &&
-                                      m.tool_call_id.empty() &&
-                                      m.reasoning_content.empty();
-                           return m.content.empty();
+                               return !m.content.has_value() && m.tool_calls.empty() &&
+                                      !m.tool_call_id.has_value() &&
+                                      !m.reasoning_content.has_value();
+                           return !m.content.has_value();
                        }),
         history_.end());
 
@@ -140,7 +140,7 @@ void chat_client::sanitize_history() {
             if (!found) { all_resolved = false; break; }
         }
         if (all_resolved) continue;
-        if (m.content.empty()) {
+        if (!m.content.has_value()) {
             history_.erase(history_.begin() + static_cast<std::ptrdiff_t>(i));
             --i;
         } else {
@@ -158,8 +158,8 @@ void chat_client::sanitize_history() {
         std::remove_if(history_.begin(), history_.end(),
                        [&](const chat_message& m) {
                            if (m.role != "tool") return false;
-                           return m.tool_call_id.empty() ||
-                                  valid_ids.count(m.tool_call_id) == 0;
+                           return !m.tool_call_id.has_value() ||
+                                  valid_ids.count(m.tool_call_id.value()) == 0;
                        }),
         history_.end());
 }
@@ -227,10 +227,10 @@ chat_response chat_client::finalize_response(provider_response pr, const chat_ev
     total_input_.fetch_add(pr.prompt_tokens, std::memory_order_relaxed);
     total_output_.fetch_add(pr.completion_tokens, std::memory_order_relaxed);
     if (on_tokens_updated) on_tokens_updated();
-    if (events.on_delta && !resp.content.empty())
-        events.on_delta(resp.content);
-    if (events.on_reasoning_delta && !resp.reasoning_content.empty())
-        events.on_reasoning_delta(resp.reasoning_content);
+    if (events.on_delta && resp.content.has_value())
+        events.on_delta(resp.content.value());
+    if (events.on_reasoning_delta && resp.reasoning_content.has_value())
+        events.on_reasoning_delta(resp.reasoning_content.value());
     append_assistant(resp);
     return resp;
 }
@@ -323,7 +323,7 @@ chat_response chat_client::run(const chat_events& events, tl::optional<int> max_
 
     constexpr size_t MAX_CONCURRENT = 4;
 
-    for (int round = 0; !max_rounds.has_value() || round < max_rounds; ++round) {
+    for (int round = 0; !max_rounds.has_value() || round < max_rounds.value(); ++round) {
         if (events.should_stop && events.should_stop()) break;
         if (events.should_yield && events.should_yield()) break;
         last = send_stream(events);

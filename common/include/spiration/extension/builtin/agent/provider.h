@@ -11,6 +11,7 @@
 #include <functional>
 #include <memory>
 #include <string>
+#include <tl/optional.hpp>
 #include <vector>
 
 namespace spiration {
@@ -71,8 +72,8 @@ inline reasoning_level reasoning_level_from_string(const std::string& s) {
 
 /// @brief 单次对话补全响应。
 struct chat_response {
-    std::string content;
-    std::string reasoning_content;
+    tl::optional<std::string> content;
+    tl::optional<std::string> reasoning_content;
     std::vector<tool_call> tool_calls;
     std::string finish_reason;
     std::vector<tool_execution> executions;
@@ -81,10 +82,10 @@ struct chat_response {
 /// @brief 对话消息。
 struct chat_message {
     std::string role;
-    std::string content;
-    std::string reasoning_content;
-    std::string tool_call_id;
-    std::string name;
+    tl::optional<std::string> content;
+    tl::optional<std::string> reasoning_content;
+    tl::optional<std::string> tool_call_id;
+    tl::optional<std::string> name;
     std::vector<tool_call> tool_calls;
 };
 
@@ -104,8 +105,8 @@ struct provider_request {
 
 /// @brief provider 解析出的补全响应。
 struct provider_response {
-    std::string content;
-    std::string reasoning_content;
+    tl::optional<std::string> content;
+    tl::optional<std::string> reasoning_content;
     std::vector<tool_call> tool_calls;
     std::string finish_reason;
     int prompt_tokens = 0;
