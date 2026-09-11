@@ -5,6 +5,7 @@ endif()
 
 project(spiration VERSION 0.1.0 LANGUAGES C CXX)
 
+include(cmake/ConfigureLocal.cmake OPTIONAL)
 include(cmake/ConfigureBranding.cmake)
 include(cmake/ConfigureCXX.cmake)
 include(cmake/PreConfigureCPack.cmake)
