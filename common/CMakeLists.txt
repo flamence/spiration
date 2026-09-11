@@ -1,6 +1,7 @@
 include(../cmake/ConfigureDependencies.cmake)
 
 set(SPIRATION_CORE_SOURCES
+    src/spiration/api.cpp
     src/spiration/application.cpp
     src/spiration/extension/extension_api.cpp
     src/spiration/extension/extension_manager.cpp
@@ -95,11 +96,12 @@ target_link_libraries(spiration.core PUBLIC
     nlohmann_json::nlohmann_json
     nonstd::string_view
     nothings::stb_image
+    spiration::api
     tl::optional
 )
 
 if (NOT OHOS)
-    target_link_libraries(spiration.core PRIVATE
+    target_link_libraries(spiration.core PUBLIC
         CURL::libcurl
     )
 endif()
@@ -130,20 +132,3 @@ target_include_directories(spiration.core PUBLIC
 )
 
 add_library(spiration::core ALIAS spiration.core)
-
-add_library(spiration.api INTERFACE)
-
-target_include_directories(spiration.api INTERFACE
-    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-    $<INSTALL_INTERFACE:include>
-)
-
-target_link_libraries(spiration.api INTERFACE
-    fmt::fmt
-    ghc::filesystem
-    nlohmann_json::nlohmann_json
-    tl::optional
-    nonstd::string_view
-)
-
-add_library(spiration::api ALIAS spiration.api)

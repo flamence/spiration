@@ -10,6 +10,13 @@ include(FetchContent)
 set(BUILD_TESTING OFF)
 
 FetchContent_Declare(
+    spiration.api
+    GIT_REPOSITORY https://github.com/flamence/spiration.api.git
+    GIT_TAG main
+)
+FetchContent_MakeAvailable(spiration.api)
+
+FetchContent_Declare(
     fmt
     URL https://codeload.github.com/fmtlib/fmt/tar.gz/refs/tags/10.2.1
 )
