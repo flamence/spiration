@@ -1,8 +1,20 @@
 include(../cmake/ConfigureDependencies.cmake)
 
 set(SPIRATION_CORE_SOURCES
-    src/spiration/api.cpp
-    src/spiration/api_ui.cpp
+    src/spiration/capi/core.cpp
+    src/spiration/capi/diagnostics.cpp
+    src/spiration/capi/events.cpp
+    src/spiration/capi/extension.cpp
+    src/spiration/capi/i18n.cpp
+    src/spiration/capi/loader.cpp
+    src/spiration/capi/memory.cpp
+    src/spiration/capi/path.cpp
+    src/spiration/capi/registry.cpp
+    src/spiration/capi/services.cpp
+    src/spiration/capi/tab.cpp
+    src/spiration/capi/thread.cpp
+    src/spiration/capi/ui.cpp
+    src/spiration/capi/widget.cpp
     src/spiration/application.cpp
     src/spiration/extension/extension_api.cpp
     src/spiration/extension/extension_manager.cpp
@@ -87,6 +99,7 @@ endif()
 file(GLOB_RECURSE SPIRATION_CORE_HEADERS CONFIGURE_DEPENDS
     "include/*.h"
     "include/*.hpp"
+    "src/spiration/capi/*.h"
 )
 
 add_library(spiration.core STATIC ${SPIRATION_CORE_HEADERS} ${SPIRATION_CORE_SOURCES})

@@ -35,7 +35,7 @@ SPIRATION_EXPORT const spiration_ui_api* ui_interface(uint32_t required_version)
 
 /**
  * @brief 释放某拓展创建的界面资源（关闭其标签页、移除其菜单项）。
- * @note 由 `forget` 调用，实现位于 `api_ui.cpp`。
+ * @note 由 `forget` 调用，实现位于 `capi/tab.cpp`。
  *       若不做此清理，用户在拓展卸载后点击其按钮或菜单项，
  *       就会跳转进已卸载的动态库。
  */
@@ -121,6 +121,94 @@ SPIRATION_EXPORT std::unique_ptr<extension> wrap(
 SPIRATION_EXPORT std::unique_ptr<extension> try_load(
     const manifest_data& manifest, const std::string& manifest_json,
     void* library, std::string* error);
+
+/**
+ * @name 宿主函数表条目
+ *
+ * `spiration_host_api` 中各个函数指针的实际实现，分散在
+ * `src/spiration/capi/` 下的多个翻译单元中；在此集中声明，使每一处定义
+ * 都能与声明互相校验，并由 `core.cpp` 统一组装成函数表。
+ *
+ * @note 这些符号只在 `spiration.core` 内部使用，不是对外 ABI 的一部分，
+ *       因此不加 `SPIRATION_EXPORT`。
+ * @{
+ */
+
+/** @brief 定义于 `capi/memory.cpp`。 */
+void* SPIRATION_CALL host_alloc(const spiration_extension_desc* self, size_t size);
+void* SPIRATION_CALL host_realloc(const spiration_extension_desc* self,
+                                 void* block, size_t size);
+void SPIRATION_CALL host_dealloc(const spiration_extension_desc* self,
+                                void* block);
+
+/** @brief 定义于 `capi/diagnostics.cpp`。 */
+void SPIRATION_CALL host_log(const spiration_extension_desc* self,
+                            spiration_log_level level,
+                            spiration_str_view message,
+                            spiration_str_view tag);
+spiration_str_view SPIRATION_CALL host_last_error(
+    const spiration_extension_desc* self);
+void SPIRATION_CALL host_reset_results(const spiration_extension_desc* self);
+
+/** @brief 定义于 `capi/thread.cpp`。 */
+spiration_bool SPIRATION_CALL host_is_host_thread(
+    const spiration_extension_desc* self);
+spiration_status SPIRATION_CALL host_dispatch(
+    const spiration_extension_desc* self, spiration_callback callback,
+    void* user_data);
+
+/** @brief 定义于 `capi/path.cpp`。 */
+spiration_str_view SPIRATION_CALL host_extension_path(
+    const spiration_extension_desc* self, spiration_str_view relative);
+spiration_str_view SPIRATION_CALL host_data_path(
+    const spiration_extension_desc* self, spiration_str_view relative);
+
+/** @brief 定义于 `capi/i18n.cpp`。 */
+spiration_str_view SPIRATION_CALL host_translate(
+    const spiration_extension_desc* self, spiration_str_view key,
+    const spiration_str_view* args, size_t arg_count);
+spiration_status SPIRATION_CALL host_load_translations(
+    const spiration_extension_desc* self, spiration_str_view path);
+
+/** @brief 定义于 `capi/events.cpp`。 */
+int64_t SPIRATION_CALL host_subscribe(const spiration_extension_desc* self,
+                                      spiration_str_view event,
+                                      spiration_event_callback callback,
+                                      void* user_data);
+void SPIRATION_CALL host_unsubscribe(const spiration_extension_desc* self,
+                                     int64_t subscription);
+spiration_status SPIRATION_CALL host_publish(
+    const spiration_extension_desc* self, spiration_str_view event,
+    spiration_str_view data);
+
+/** @brief 定义于 `capi/services.cpp`。 */
+spiration_status SPIRATION_CALL host_register_service(
+    const spiration_extension_desc* self, spiration_str_view name,
+    void* service);
+void* SPIRATION_CALL host_query_service(const spiration_extension_desc* self,
+                                        spiration_str_view extension_id,
+                                        spiration_str_view name);
+
+/** @brief 定义于 `capi/registry.cpp`。 */
+spiration_extension_desc* SPIRATION_CALL host_find_extension(
+    const spiration_extension_desc* self, spiration_str_view id);
+size_t SPIRATION_CALL host_enumerate_extensions(
+    const spiration_extension_desc* self,
+    const spiration_extension_desc** out, size_t capacity);
+
+/** @brief 定义于 `capi/loader.cpp`。 */
+spiration_status SPIRATION_CALL host_register_loader(
+    const spiration_extension_desc* self,
+    const spiration_loader_api* loader);
+const spiration_loader_api* SPIRATION_CALL host_query_loader(
+    const spiration_extension_desc* self, spiration_str_view loader_id);
+
+/** @brief 定义于 `capi/ui.cpp`。 */
+const void* SPIRATION_CALL host_query_interface(
+    const spiration_extension_desc* self, spiration_str_view name,
+    uint32_t required_version);
+
+/** @} */
 
 } // namespace capi
 } // namespace spiration
