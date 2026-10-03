@@ -366,13 +366,16 @@ std::unique_ptr<extension> try_load(const manifest_data& manifest,
         const ghc::filesystem::path entry =
             directory / manifest.main.value_or(std::string());
 
+        /* 注意：`view_of` 返回的视图**借用**入参字符串，因此必须先把
+           `.string()` 的结果落到具名变量里。直接写
+           `view_of(path.string())` 会让视图指向该行结束即析构的临时对象，
+           等到 `instantiate` 读取时已是失效的栈内存（表现为路径乱码）。 */
+        const std::string directory_text = directory.lexically_normal().string();
+        const std::string entry_text = entry.lexically_normal().string();
+
         const spiration_str_view id_view = view_of(manifest.id);
-        const ghc::filesystem::path directory_normalized =
-            directory.lexically_normal();
-        const ghc::filesystem::path entry_normalized = entry.lexically_normal();
-        const spiration_str_view dir_view =
-            view_of(directory_normalized.string());
-        const spiration_str_view entry_view = view_of(entry_normalized.string());
+        const spiration_str_view dir_view = view_of(directory_text);
+        const spiration_str_view entry_view = view_of(entry_text);
 
         /* 装载不属于回调作用域，仅清理上一次残留。 */
         clear_results();
