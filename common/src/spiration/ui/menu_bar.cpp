@@ -89,22 +89,60 @@ menu_desc& menu_bar::add_menu(const std::string& text) {
 
 bool menu_bar::add_sub_item(const std::string& menu_title,
                              const std::string& label,
-                             std::function<void()> callback) {
+                             std::function<void()> callback,
+                             const std::string& owner) {
     for (auto& menu : menus_) {
         if (menu.title == menu_title
             || i18n_manager::get().tr(menu.title) == menu_title) {
             if (menu.tail_index != menu_desc::NO_TAIL) {
                 menu.sub_items.insert(
                     menu.sub_items.begin() + static_cast<std::ptrdiff_t>(menu.tail_index),
-                    menu_desc::item{label, std::move(callback), false});
+                    menu_desc::item{label, std::move(callback), false, owner});
                 ++menu.tail_index;
             } else {
-                menu.sub_items.push_back({label, std::move(callback)});
+                menu.sub_items.push_back({label, std::move(callback), false, owner});
             }
             return true;
         }
     }
     return false;
+}
+
+size_t menu_bar::remove_owned_items(const std::string& owner) {
+    if (owner.empty()) return 0;
+
+    size_t removed = 0;
+    for (size_t index = 0; index < menus_.size();) {
+        menu_desc& menu = menus_[index];
+        const size_t before = menu.sub_items.size();
+        menu.sub_items.erase(
+            std::remove_if(menu.sub_items.begin(), menu.sub_items.end(),
+                           [&owner](const menu_desc::item& entry) {
+                               return entry.owner == owner;
+                           }),
+            menu.sub_items.end());
+        removed += before - menu.sub_items.size();
+
+        if (menu.tail_index != menu_desc::NO_TAIL &&
+            menu.tail_index > menu.sub_items.size()) {
+            menu.tail_index = menu.sub_items.size();
+        }
+
+        if (!menu.sub_items.empty()) {
+            ++index;
+            continue;
+        }
+
+        /* 该菜单已被清空：连同其控件一起移除。 */
+        if (index < items_.size() && items_[index] != nullptr) {
+            std::unique_ptr<widget> detached = remove_child(items_[index]);
+            detached.reset();
+            items_.erase(items_.begin() + static_cast<std::ptrdiff_t>(index));
+        }
+        menus_.erase(menus_.begin() + static_cast<std::ptrdiff_t>(index));
+        invalidate_layout();
+    }
+    return removed;
 }
 
 } // namespace spiration

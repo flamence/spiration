@@ -376,7 +376,8 @@ void root::init() {
 
 bool root::add_menu_item(const std::string& menu_name,
                           const std::string& label,
-                          std::function<void()> callback) {
+                          std::function<void()> callback,
+                          const std::string& owner) {
 #ifdef __APPLE__
     std::string name_local = menu_name;
     std::string label_local = label;
@@ -411,8 +412,13 @@ bool root::add_menu_item(const std::string& menu_name,
     return spiration_macos_menu_add_item(&item_spec) != 0;
 #else
     if (!menu_bar_) return false;
-    return menu_bar_->add_sub_item(menu_name, label, std::move(callback));
+    return menu_bar_->add_sub_item(menu_name, label, std::move(callback), owner);
 #endif
+}
+
+size_t root::remove_menu_items(const std::string& owner) {
+    if (!menu_bar_) return 0;
+    return menu_bar_->remove_owned_items(owner);
 }
 
 void root::open_tab(std::unique_ptr<tab> t) {

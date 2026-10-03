@@ -80,10 +80,21 @@ public:
 
     /**
      * @brief 在指定菜单中添加子项。
+     * @param menu_name 菜单标题或菜单键。
+     * @param label     子项标签。
+     * @param callback  点击回调。
+     * @param owner     归属者标识（拓展 ID），空串表示宿主内置。
      */
     bool add_menu_item(const std::string& menu_name,
                        const std::string& label,
-                       std::function<void()> callback);
+                       std::function<void()> callback,
+                       const std::string& owner = std::string());
+
+    /**
+     * @brief 移除某归属者添加的全部菜单项。
+     * @return 移除的数量。
+     */
+    size_t remove_menu_items(const std::string& owner);
 
     /**
      * @brief 在标签栏中打开一个新标签页。
