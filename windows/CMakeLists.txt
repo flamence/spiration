@@ -10,7 +10,7 @@ set(WINDOWS_RESOURCES
     res/resources.rc
 )
 
-add_executable(${PROJECT_NAME} WIN32 ${WINDOWS_SOURCES} ${WINDOWS_HEADERS} ${WINDOWS_RESOURCES})
+add_executable(${PROJECT_NAME} ${WINDOWS_SOURCES} ${WINDOWS_HEADERS} ${WINDOWS_RESOURCES})
 
 target_compile_definitions(${PROJECT_NAME} PRIVATE
     $<$<CONFIG:Debug>:_DEBUG>
