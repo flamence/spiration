@@ -9,9 +9,16 @@
 
 namespace {
 
+void prepare_console() {
+    ::SetConsoleOutputCP(CP_UTF8);
+    ::SetConsoleCP(CP_UTF8);
+}
+
 int run(HINSTANCE hInstance, int nCmdShow) {
     (void)hInstance;
     (void)nCmdShow;
+
+    prepare_console();
 
     auto instance = spiration::application::instance();
     if (instance->initialize()) {
