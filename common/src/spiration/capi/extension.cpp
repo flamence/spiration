@@ -238,13 +238,7 @@ public:
                          const spiration_loader_api* loader)
         : spiration::extension(manifest), desc_(desc), loader_(loader) {}
 
-    ~descriptor_extension() override {
-        /* 由加载器创建的描述符在此归还。 */
-        if (desc_ != nullptr && loader_ != nullptr &&
-            loader_->release != nullptr) {
-            loader_->release(desc_);
-        }
-    }
+    ~descriptor_extension() override { release_descriptor(); }
 
     tl::optional<std::string> name() const override {
         if (desc_ != nullptr && desc_->name.length > 0u) {
@@ -291,9 +285,18 @@ public:
         }
 
         forget(desc_);
+        release_descriptor();
     }
 
 private:
+    void release_descriptor() {
+        if (desc_ == nullptr) return;
+        if (loader_ != nullptr && loader_->release != nullptr) {
+            loader_->release(desc_);
+        }
+        desc_ = nullptr;
+    }
+
     spiration_extension_desc* desc_ = nullptr;
     const spiration_loader_api* loader_ = nullptr;
 };

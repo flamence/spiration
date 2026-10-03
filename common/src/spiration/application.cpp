@@ -75,7 +75,9 @@ task_dispatcher* application::dispatcher() const {
     return dispatcher_.get();
 }
 
-application::~application() = default;
+application::~application() {
+    shutdown();
+}
 
 bool application::initialize(tl::optional<init_phase> phase) {
     if (phase == tl::nullopt) {
@@ -139,8 +141,8 @@ void application::loop() {
 }
 
 void application::shutdown() {
-    window_->close();
-    extension_manager_->shutdown();
+    if (extension_manager_) extension_manager_->shutdown();
+    if (window_) window_->close();
     if (dispatcher_) dispatcher_->shutdown();
 }
 
