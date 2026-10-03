@@ -23,7 +23,9 @@
 
 namespace spiration {
 
-using extension_initialize_function = spiration::extension* (*)(spiration::manifest_data);
+using extension_initialize_function = spiration::extension* (*)(
+    const spiration_host_api*, const spiration_extension_desc*,
+    spiration_str_view);
 
 const std::string extension_manager::extension_manifest_name_ = "extension.json";
 const std::string extension_manager::extension_initialize_symbol_name_ = "spiration_initialize";
@@ -55,6 +57,39 @@ void extension_manager::shutdown() {
     }
     services_.clear();
     extensions_.clear();
+}
+
+/**
+ * @brief 按 C++ 入口符号创建拓展实例。
+ *
+ * 入口签名由 `extension_initialize_function` 定义，宿主负责备好函数表与
+ * 描述符；返回 `nullptr` 表示该拓展拒绝装载。
+ */
+std::unique_ptr<spiration::extension> extension_manager::create_native_extension(
+        library_handle* handle, const manifest_data& manifest,
+        const std::string& manifest_json) {
+    extension_initialize_function symbol =
+        reinterpret_cast<extension_initialize_function>(
+            find_symbol(handle, extension_initialize_symbol_name_));
+    if (symbol == nullptr) return nullptr;
+
+    /* 描述符借用 shim_holder 自己的存储，这里先备好 `self`。 */
+    spiration_extension_desc* self_desc =
+        capi::shim_descriptor(manifest.id, manifest.version);
+    if (self_desc == nullptr) return nullptr;
+
+    const spiration_str_view manifest_view =
+        spiration_str_view_of(manifest_json.data(), manifest_json.size());
+
+    spiration::extension* created = nullptr;
+    try {
+        created = symbol(capi::host_api(), self_desc, manifest_view);
+    } catch (...) {
+        /* 异常不得越过动态库边界。 */
+        return nullptr;
+    }
+    if (created == nullptr) return nullptr;
+    return std::unique_ptr<spiration::extension>(created);
 }
 
 bool extension_manager::load(const ghc::filesystem::path& path) {
@@ -133,38 +168,17 @@ bool extension_manager::load(const ghc::filesystem::path& path) {
                                   entry.handle->mod, &capi_error);
 
         if (!instance) {
-            extension_initialize_function symbol = reinterpret_cast<extension_initialize_function>(find_symbol(entry.handle.get(), extension_initialize_symbol_name_));
-            if (symbol == nullptr) {
+            instance = create_native_extension(entry.handle.get(),
+                                               manifest.value(), manifest_json);
+            if (!instance) {
                 logger_.log({
                     logging::level::trace,
-                    fmt::format("skipped extension by undiscovered symbol: {}", path.string()),
+                    fmt::format("skipped extension: no usable entry in {}",
+                                path.string()),
                     "extension/manager"
                 });
                 return false;
             }
-
-            spiration::extension* legacy = nullptr;
-            try {
-                legacy = symbol(manifest.value());
-            } catch (...) {
-                logger_.log({
-                    logging::level::trace,
-                    fmt::format("bad extension: {}", path.string()),
-                    "extension/manager"
-                });
-                return false;
-            }
-
-            if (legacy == nullptr) {
-                logger_.log({
-                    logging::level::trace,
-                    fmt::format("returns an empty extension instance: {}", path.string()),
-                    "extension/manager"
-                });
-                return false;
-            }
-
-            instance = std::unique_ptr<spiration::extension>(legacy);
         }
     }
 

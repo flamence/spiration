@@ -80,6 +80,21 @@ SPIRATION_EXPORT void forget(const spiration_extension_desc* desc);
 SPIRATION_EXPORT const spiration_extension_desc* shim(extension* ext);
 
 /**
+ * @brief 为原生 C++ 拓展构造**装载期**可用的描述符。
+ *
+ * 与 `shim` 的区别是它不依赖已存在的 `extension` 实例：宿主在调用
+ * `spiration_initialize` 之前先取得该描述符（其中 `host` 已写入），
+ * 于是入口处即可用 `host->log(self, ...)`，`self->id` 也已是本拓展的标识。
+ *
+ * @param id      拓展 ID（取自清单）。
+ * @param version 版本号字符串，可为空。
+ * @return 描述符指针，生命周期与进程一致；`id` 为空时返回 `nullptr`。
+ * @note 同一 `id` 重复调用返回同一描述符，仅刷新版本号。
+ */
+SPIRATION_EXPORT spiration_extension_desc* shim_descriptor(
+    const std::string& id, const std::string& version);
+
+/**
  * @brief 注册加载器函数表。
  * @param loader_id 加载器拓展 ID。
  * @param loader    函数表。

@@ -179,6 +179,46 @@ const spiration_extension_desc* shim(extension* ext) {
     return result;
 }
 
+spiration_extension_desc* shim_descriptor(const std::string& id,
+                                          const std::string& version) {
+    if (id.empty()) return nullptr;
+
+    auto it = shims().find(id);
+    if (it != shims().end()) {
+        /* 已登记：仅刷新版本，因为描述符字符串借用 `shim_holder` 的存储。 */
+        shim_holder& holder = *it->second;
+        holder.version = version;
+        holder.desc.version_string = view_of(holder.version);
+        return &holder.desc;
+    }
+
+    std::unique_ptr<shim_holder> holder(new shim_holder());
+    holder->id = id;
+    holder->name = id;
+    holder->version = version;
+    holder->description.clear();
+
+    std::memset(&holder->desc, 0, sizeof(holder->desc));
+    holder->desc.version = SPIRATION_STRUCT_VERSION;
+    holder->desc.size = static_cast<uint32_t>(sizeof(spiration_extension_desc));
+    holder->desc.phase = SPIRATION_PHASE_NORMAL;
+    holder->desc.api_version_required = SPIRATION_API_VERSION;
+    holder->desc.id = view_of(holder->id);
+    holder->desc.name = view_of(holder->name);
+    holder->desc.version_string = view_of(holder->version);
+    holder->desc.description = view_of(holder->description);
+    /* 描述符已带宿主函数表，故装载期即可 `host->log(self, ...)`。 */
+    holder->desc.host = host_api();
+    holder->desc.user_data = nullptr;
+    holder->desc.on_initialize = nullptr;
+    holder->desc.on_shutdown = nullptr;
+    holder->desc.on_event = nullptr;
+
+    spiration_extension_desc* result = &holder->desc;
+    shims()[id] = std::move(holder);
+    return result;
+}
+
 /* -------------------------------------------------------------------------
  * C++ 拓展包装
  * ---------------------------------------------------------------------- */

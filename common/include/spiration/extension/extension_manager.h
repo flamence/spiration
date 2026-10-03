@@ -12,6 +12,7 @@
 #include <memory>
 #include <spiration/application.h>
 #include <spiration/extension/extension.hpp>
+#include <spiration/extension/extension_manifest.h>
 #include <spiration/init_phase.h>
 #include <string>
 #include <vector>
@@ -173,6 +174,21 @@ private:
     
     static void* find_symbol(library_handle* handle, const std::string& name);
     static library_ptr load_library(const ghc::filesystem::path& path);
+
+    /**
+     * @brief 按 C++ 入口符号创建拓展实例。
+     *
+     * 入口固定为 `spiration_initialize`，宿主负责备好函数表与描述符，
+     * 因此入口处即可打日志、取拓展 ID。
+     *
+     * @param handle        动态库句柄。
+     * @param manifest      已解析的清单。
+     * @param manifest_json 清单原文。
+     * @return 拓展实例；无入口符号或拓展拒绝装载时返回 `nullptr`。
+     */
+    static std::unique_ptr<spiration::extension> create_native_extension(
+        library_handle* handle, const manifest_data& manifest,
+        const std::string& manifest_json);
 };
 
 } // namespace spiration
