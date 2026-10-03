@@ -5,6 +5,7 @@
  */
 
 #include <spiration/application.h>
+#include <spiration/capi.h>
 #include <spiration/extension/extension_manager.h>
 #include <spiration/extension/extension.hpp>
 #include <spiration/extension/extension_api.h>
@@ -70,6 +71,45 @@ bool extension_manager::load(const ghc::filesystem::path& path) {
         return false;
     }
 
+    if (manifest->loader.has_value() && !manifest->loader->empty()) {
+        std::string capi_error;
+        std::unique_ptr<spiration::extension> instance =
+                capi::try_load(manifest.value(), manifest_json, nullptr, &capi_error);
+        if (!instance) {
+            logger_.log({
+                logging::level::warning,
+                fmt::format("failed to load \"{}\" through loader \"{}\": {}",
+                            manifest->id, *manifest->loader, capi_error),
+                "extension/manager"
+            });
+            return false;
+        }
+
+        loaded_extension loader_entry;
+        loader_entry.path = path;
+
+        if (extensions_.find(instance->id()) != extensions_.end()) {
+            logger_.log({
+                logging::level::warning,
+                fmt::format("there's already a extension with id \"{}\": {}", instance->id(), path.string()),
+                "extension/manager"
+            });
+            return false;
+        }
+
+        const std::string loaded_id = instance->id();
+        loader_entry.instance = std::move(instance);
+        extensions_[loaded_id] = std::move(loader_entry);
+
+        logger_.log({
+            logging::level::trace,
+            fmt::format("loaded {} through loader \"{}\" in {}",
+                        loaded_id, *manifest->loader, path.string()),
+            "extension/manager"
+        });
+        return true;
+    }
+
     loaded_extension entry = loaded_extension({
         .path=path
     });
@@ -85,38 +125,51 @@ bool extension_manager::load(const ghc::filesystem::path& path) {
     }
 
     entry.handle = std::move(handle);
-    extension_initialize_function symbol = reinterpret_cast<extension_initialize_function>(find_symbol(entry.handle.get(), extension_initialize_symbol_name_));
-    if (symbol == nullptr) {
-        logger_.log({
-            logging::level::trace,
-            fmt::format("skipped extension by undiscovered symbol: {}", path.string()),
-            "extension/manager"
-        });
-        return false;
+
+    std::unique_ptr<spiration::extension> instance = nullptr;
+    {
+        std::string capi_error;
+        instance = capi::try_load(manifest.value(), manifest_json,
+                                  entry.handle->mod, &capi_error);
+
+        if (!instance) {
+            extension_initialize_function symbol = reinterpret_cast<extension_initialize_function>(find_symbol(entry.handle.get(), extension_initialize_symbol_name_));
+            if (symbol == nullptr) {
+                logger_.log({
+                    logging::level::trace,
+                    fmt::format("skipped extension by undiscovered symbol: {}", path.string()),
+                    "extension/manager"
+                });
+                return false;
+            }
+
+            spiration::extension* legacy = nullptr;
+            try {
+                legacy = symbol(manifest.value());
+            } catch (...) {
+                logger_.log({
+                    logging::level::trace,
+                    fmt::format("bad extension: {}", path.string()),
+                    "extension/manager"
+                });
+                return false;
+            }
+
+            if (legacy == nullptr) {
+                logger_.log({
+                    logging::level::trace,
+                    fmt::format("returns an empty extension instance: {}", path.string()),
+                    "extension/manager"
+                });
+                return false;
+            }
+
+            instance = std::unique_ptr<spiration::extension>(legacy);
+        }
     }
 
-    extension* extension = nullptr;
-    try {
-        extension = symbol(manifest.value());
-    } catch (...) {
-        logger_.log({
-            logging::level::trace,
-            fmt::format("bad extension: {}", path.string()),
-            "extension/manager"
-        });
-        return false;
-    }
-
-    if (extension == nullptr) {
-        logger_.log({
-            logging::level::trace,
-            fmt::format("returns an empty extension instance: {}", path.string()),
-            "extension/manager"
-        });
-        return false;
-    }
-
-    entry.instance = std::unique_ptr<spiration::extension>(extension);
+    extension* extension = instance.get();
+    entry.instance = std::move(instance);
 
     if (extensions_.find(entry.instance->id()) != extensions_.end()) {
         logger_.log({
@@ -208,6 +261,15 @@ size_t extension_manager::load_from(const ghc::filesystem::path& directory) {
             }
 
             bool deps_ok = true;
+
+            /* 清单声明的加载器是隐式依赖：必须等它先装载完成，
+               否则没有谁能为本拓展调用 instantiate()。 */
+            if (info.manifest.loader.has_value() &&
+                !info.manifest.loader->empty() &&
+                loaded_ids.find(*info.manifest.loader) == loaded_ids.end()) {
+                deps_ok = false;
+            }
+
             for (const auto& dep_entry : info.manifest.depends) {
                 const auto& dep_id = dep_entry.first;
                 const auto& constraint = dep_entry.second;

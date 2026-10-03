@@ -2,6 +2,7 @@ include(../cmake/ConfigureDependencies.cmake)
 
 set(SPIRATION_CORE_SOURCES
     src/spiration/api.cpp
+    src/spiration/api_ui.cpp
     src/spiration/application.cpp
     src/spiration/extension/extension_api.cpp
     src/spiration/extension/extension_manager.cpp

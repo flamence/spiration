@@ -113,7 +113,7 @@ void extension_api::add_menu_item(const std::string& menu_name,
                                         const std::string& label,
                                         std::function<void()> callback) {
     if (auto widget = dynamic_cast<spiration::root*>(spiration::application::instance()->widget())) {
-        widget->add_menu_item(menu_name, label, std::move(callback));
+        widget->add_menu_item(menu_name, label, std::move(callback), id_);
     }
 }
 

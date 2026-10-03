@@ -1,0 +1,126 @@
+/**
+ * @file capi.h
+ * @brief 宿主侧 C API 适配层。
+ * @author clk
+ *
+ * 本头文件是 **宿主内部** 接口，用于把 C API（`spiration/api.h`）接到既有的
+ * C++ 拓展体系上。拓展不应包含本文件。
+ */
+
+#pragma once
+
+#include <spiration/api.h>
+#include <spiration/export.h>
+#include <spiration/extension/extension.hpp>
+#include <spiration/extension/extension_manifest.h>
+
+#include <memory>
+#include <string>
+
+namespace spiration {
+
+class extension;
+
+namespace capi {
+
+/**
+ * @return 宿主实现的 C API 函数表（进程内唯一，首次调用时初始化）。
+ */
+SPIRATION_EXPORT const spiration_host_api* host_api();
+
+/**
+ * @return 界面可选接口；`required_version` 不被支持时返回 `nullptr`。
+ */
+SPIRATION_EXPORT const spiration_ui_api* ui_interface(uint32_t required_version);
+
+/**
+ * @brief 释放某拓展创建的界面资源（关闭其标签页、移除其菜单项）。
+ * @note 由 `forget` 调用，实现位于 `api_ui.cpp`。
+ *       若不做此清理，用户在拓展卸载后点击其按钮或菜单项，
+ *       就会跳转进已卸载的动态库。
+ */
+SPIRATION_EXPORT void release_ui_owned(const spiration_extension_desc* desc);
+
+/**
+ * @brief 清空当前线程的结果区。
+ */
+SPIRATION_EXPORT void clear_results();
+/**
+ * @brief 结果区作用域守卫：析构时清空结果区。
+ *
+ * 宿主每一次进入拓展回调（`on_initialize` / `on_shutdown` / 事件回调 …）
+ * 都应构造一个守卫，使该次回调期间取得的字符串在整个回调内保持有效，
+ * 回调返回后统一失效。
+ */
+class SPIRATION_EXPORT result_scope {
+public:
+    result_scope() = default;
+    ~result_scope();
+    result_scope(const result_scope&) = delete;
+    result_scope& operator=(const result_scope&) = delete;
+};
+
+/**
+ * @brief 登记描述符，使其可被 `find_extension` / `enumerate_extensions` 找到。
+ */
+SPIRATION_EXPORT void track(spiration_extension_desc* desc);
+
+/**
+ * @brief 注销描述符，并释放宿主为其保存的全部状态
+ *        （事件订阅、待执行的 `dispatch` 任务、菜单项与标签页等）。
+ */
+SPIRATION_EXPORT void forget(const spiration_extension_desc* desc);
+
+/**
+ * @brief 为原生 C++ 拓展构造“垫片描述符”。
+ * @param ext 拓展实例。
+ * @return 描述符指针，生命周期与进程一致；`ext` 为 `nullptr` 时返回 `nullptr`。
+ * @note 垫片描述符只有身份字段有效，回调恒为 `nullptr`。
+ */
+SPIRATION_EXPORT const spiration_extension_desc* shim(extension* ext);
+
+/**
+ * @brief 注册加载器函数表。
+ * @param loader_id 加载器拓展 ID。
+ * @param loader    函数表。
+ */
+SPIRATION_EXPORT spiration_status register_loader(
+    const std::string& loader_id, const spiration_loader_api* loader);
+
+/**
+ * @brief 查询已注册的加载器。
+ */
+SPIRATION_EXPORT const spiration_loader_api* find_loader(
+    const std::string& loader_id);
+
+/**
+ * @brief 以描述符包装出可被 `extension_manager` 管理的拓展实例。
+ * @param manifest 拓展清单。
+ * @param desc     描述符（所有权仍归其创建者）。
+ * @param loader   若描述符由加载器创建，传入该加载器以便在关闭后归还。
+ * @return 拓展实例；`desc` 非法时返回 `nullptr`。
+ */
+SPIRATION_EXPORT std::unique_ptr<extension> wrap(
+    const manifest_data& manifest, spiration_extension_desc* desc,
+    const spiration_loader_api* loader);
+
+/**
+ * @brief 尝试按 C API 装载一个拓展。
+ *
+ * 解析顺序：
+ * 1. 清单声明了 `loader` → 交给加载器的 `instantiate`；
+ * 2. 动态库导出 `spiration_extension_entry` → 调用入口函数；
+ * 3. 两者皆无 → 返回 `nullptr`（调用方回退到旧 C++ ABI）。
+ *
+ * @param manifest      已解析的清单。
+ * @param manifest_json 清单原文。
+ * @param library       动态库句柄；加载器路径可为 `nullptr`。
+ * @param error         失败原因（可为 `nullptr`）。
+ * @return 拓展实例；失败返回 `nullptr`。
+ */
+SPIRATION_EXPORT std::unique_ptr<extension> try_load(
+    const manifest_data& manifest, const std::string& manifest_json,
+    void* library, std::string* error);
+
+} // namespace capi
+} // namespace spiration

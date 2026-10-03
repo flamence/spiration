@@ -22,6 +22,7 @@ struct SPIRATION_EXPORT manifest_data {
     tl::optional<std::string> author;
     int api_version = 0;
     tl::optional<std::string> main;
+    tl::optional<std::string> loader;
     std::map<std::string, std::string> depends;
 };
 

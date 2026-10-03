@@ -15,7 +15,6 @@ namespace spiration {
 
 namespace {
 
-// 拆分版本号为整数段（忽略非数字后缀如 -beta / +build）。
 std::vector<int> version_parts(const std::string& s) {
     std::vector<int> parts;
     std::string cur;
@@ -28,7 +27,7 @@ std::vector<int> version_parts(const std::string& s) {
                 cur.clear();
             }
         } else {
-            break; // 非数字/分隔符终止解析
+            break;
         }
     }
     if (!cur.empty()) parts.push_back(std::atoi(cur.c_str()));
@@ -42,7 +41,6 @@ std::string trim(const std::string& s) {
     return s.substr(b, e - b);
 }
 
-// ~1.2 → 1.3；~1 → 2；^1.2.3 → 2；^0.2 → 0.3；^0.0.3 → 0.0.4
 std::string upper_bound(const std::string& ver, bool tilde) {
     auto parts = version_parts(ver);
     if (parts.empty()) return "999999";
@@ -100,7 +98,7 @@ bool version_matches(const std::string& version, const std::string& constraint) 
         return cmp >= 0 &&
                compare_versions(version, upper_bound(ver, op == "~")) < 0;
     }
-    return cmp == 0; // = / == 精确匹配
+    return cmp == 0;
 }
 
 tl::optional<manifest_data> parse_extension_manifest(const std::string& json) {
@@ -121,6 +119,9 @@ tl::optional<manifest_data> parse_extension_manifest(const std::string& json) {
 
         std::string main = root.value("main", std::string());
         if (!main.empty()) m.main = main;
+
+        std::string loader = root.value("loader", std::string());
+        if (!loader.empty()) m.loader = loader;
 
         auto dep_it = root.find("depends");
         if (dep_it != root.end() && dep_it->is_object()) {
