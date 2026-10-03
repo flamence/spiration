@@ -35,6 +35,18 @@ namespace {
  * 属性
  * ---------------------------------------------------------------------- */
 
+/**
+ * @brief 以状态码返回失败，并写明原因。
+ *
+ * @note 只在返回值里给状态码是不够的：`spiration/api/host.h` 约定“最近一次失败
+ *       的细节可通过 `last_error` 获取”，若失败路径不写它，调用方读到的会是
+ *       **上一次** 别的失败留下的文本（例如先前的路径越界），从而被误导。
+ */
+spiration_status unsupported(const char* property) {
+    return fail(SPIRATION_ERR_UNSUPPORTED,
+                std::string("widget property not supported: ") + property);
+}
+
 /** @brief 文本属性写入。 */
 spiration_status set_text_property(widget* inner, const std::string& text) {
     if (inner == nullptr) return SPIRATION_ERR_NOT_FOUND;
@@ -59,13 +71,14 @@ spiration_status set_text_property(widget* inner, const std::string& text) {
         box->invalidate_layout();
         return SPIRATION_OK;
     }
-    return SPIRATION_ERR_UNSUPPORTED;
+    return unsupported("text");
 }
 
 /** @brief 文本属性读取。 */
 spiration_status get_text_property(const widget* inner, spiration_value* out) {
     if (inner == nullptr || out == nullptr) {
-        return SPIRATION_ERR_INVALID_ARGUMENT;
+        return fail(SPIRATION_ERR_INVALID_ARGUMENT,
+                    "widget_get: missing widget or output");
     }
     if (const text_area* area = dynamic_cast<const text_area*>(inner)) {
         *out = spiration_value_string(spiration_str_view_of(
@@ -87,12 +100,12 @@ spiration_status get_text_property(const widget* inner, spiration_value* out) {
             spiration_str_view_of(box->text.data(), box->text.size()));
         return SPIRATION_OK;
     }
-    return SPIRATION_ERR_UNSUPPORTED;
+    return unsupported("text");
 }
 
 /** @brief 写入布局管理器。 */
 spiration_status set_layout_property(container* box, const std::string& layout) {
-    if (box == nullptr) return SPIRATION_ERR_UNSUPPORTED;
+    if (box == nullptr) return unsupported("layout");
     if (layout == "row") {
         box->set_layout_manager(std::unique_ptr<layout_manager>(new horizontal_layout(8.0f)));
         return SPIRATION_OK;
@@ -105,7 +118,7 @@ spiration_status set_layout_property(container* box, const std::string& layout) 
         box->set_layout_manager(nullptr);
         return SPIRATION_OK;
     }
-    return SPIRATION_ERR_UNSUPPORTED;
+    return unsupported("layout");
 }
 
 /** @brief 按种类创建真实控件。 */
@@ -250,7 +263,7 @@ spiration_status SPIRATION_CALL ui_widget_set(spiration_widget* handle,
             repaint();
             return SPIRATION_OK;
         }
-        return SPIRATION_ERR_UNSUPPORTED;
+        return unsupported("placeholder");
     }
 
     if (key == "selectable") {
@@ -261,7 +274,7 @@ spiration_status SPIRATION_CALL ui_widget_set(spiration_widget* handle,
             text_label->selectable = value.data.boolean == SPIRATION_TRUE;
             return SPIRATION_OK;
         }
-        return SPIRATION_ERR_UNSUPPORTED;
+        return unsupported("selectable");
     }
 
     if (key == "checked") {
@@ -273,7 +286,7 @@ spiration_status SPIRATION_CALL ui_widget_set(spiration_widget* handle,
             repaint();
             return SPIRATION_OK;
         }
-        return SPIRATION_ERR_UNSUPPORTED;
+        return unsupported("checked");
     }
 
     if (key == "value") {
@@ -294,7 +307,7 @@ spiration_status SPIRATION_CALL ui_widget_set(spiration_widget* handle,
             repaint();
             return SPIRATION_OK;
         }
-        return SPIRATION_ERR_UNSUPPORTED;
+        return unsupported("value");
     }
 
     if (key == "min" || key == "max") {
@@ -311,7 +324,7 @@ spiration_status SPIRATION_CALL ui_widget_set(spiration_widget* handle,
             repaint();
             return SPIRATION_OK;
         }
-        return SPIRATION_ERR_UNSUPPORTED;
+        return unsupported("min/max");
     }
 
     if (key == "layout") {
@@ -320,7 +333,7 @@ spiration_status SPIRATION_CALL ui_widget_set(spiration_widget* handle,
         }
         container* box_widget =
             dynamic_cast<container*>(inner != nullptr ? inner : box);
-        if (box_widget == nullptr) return SPIRATION_ERR_UNSUPPORTED;
+        if (box_widget == nullptr) return unsupported("layout");
         const spiration_status status =
             set_layout_property(box_widget, text_of(value.data.text));
         if (status == SPIRATION_OK) {
@@ -330,7 +343,7 @@ spiration_status SPIRATION_CALL ui_widget_set(spiration_widget* handle,
         return status;
     }
 
-    return SPIRATION_ERR_UNSUPPORTED;
+    return unsupported("unknown");
 }
 
 spiration_status SPIRATION_CALL ui_widget_get(const spiration_widget* handle,
@@ -338,7 +351,8 @@ spiration_status SPIRATION_CALL ui_widget_get(const spiration_widget* handle,
                                               spiration_value* out) {
     const widget_handle* box = as_handle(handle);
     if (box == nullptr || out == nullptr) {
-        return SPIRATION_ERR_INVALID_ARGUMENT;
+        return fail(SPIRATION_ERR_INVALID_ARGUMENT,
+                    "widget_get: missing widget or output");
     }
 
     const std::string key = text_of(property);
@@ -354,7 +368,7 @@ spiration_status SPIRATION_CALL ui_widget_get(const spiration_widget* handle,
 
     if (key == "checked") {
         const checkbox* box_widget = dynamic_cast<const checkbox*>(inner);
-        if (box_widget == nullptr) return SPIRATION_ERR_UNSUPPORTED;
+        if (box_widget == nullptr) return unsupported("checked");
         *out = spiration_value_bool(box_widget->checked ? SPIRATION_TRUE
                                                         : SPIRATION_FALSE);
         return SPIRATION_OK;
@@ -369,10 +383,10 @@ spiration_status SPIRATION_CALL ui_widget_get(const spiration_widget* handle,
             *out = spiration_value_float(bar->progress);
             return SPIRATION_OK;
         }
-        return SPIRATION_ERR_UNSUPPORTED;
+        return unsupported("value");
     }
 
-    return SPIRATION_ERR_UNSUPPORTED;
+    return unsupported("unknown");
 }
 
 /* -------------------------------------------------------------------------
@@ -384,7 +398,8 @@ spiration_status SPIRATION_CALL ui_widget_listen(
     spiration_widget_callback callback, void* user_data) {
     widget_handle* box = as_handle(handle);
     if (box == nullptr || callback == nullptr) {
-        return SPIRATION_ERR_INVALID_ARGUMENT;
+        return fail(SPIRATION_ERR_INVALID_ARGUMENT,
+                    "widget_listen: missing widget or callback");
     }
 
     widget* inner = box->inner();
@@ -392,7 +407,7 @@ spiration_status SPIRATION_CALL ui_widget_listen(
 
     if (key == "click") {
         button* push = dynamic_cast<button*>(inner);
-        if (push == nullptr) return SPIRATION_ERR_UNSUPPORTED;
+        if (push == nullptr) return unsupported("click");
         push->on_click = [callback, user_data, box]() {
             emit_widget_event(callback, user_data, box, "click",
                               spiration_value_none());
@@ -426,12 +441,12 @@ spiration_status SPIRATION_CALL ui_widget_listen(
             };
             return SPIRATION_OK;
         }
-        return SPIRATION_ERR_UNSUPPORTED;
+        return unsupported("changed");
     }
 
     if (key == "submit") {
         text_area* area = dynamic_cast<text_area*>(inner);
-        if (area == nullptr) return SPIRATION_ERR_UNSUPPORTED;
+        if (area == nullptr) return unsupported("submit");
         area->on_submit = [callback, user_data, box](const std::string& text) {
             emit_widget_event(callback, user_data, box, "submit",
                               spiration_value_string(spiration_str_view_of(
@@ -440,7 +455,7 @@ spiration_status SPIRATION_CALL ui_widget_listen(
         return SPIRATION_OK;
     }
 
-    return SPIRATION_ERR_UNSUPPORTED;
+    return unsupported("unknown");
 }
 
 } // namespace capi
