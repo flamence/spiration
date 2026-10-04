@@ -199,6 +199,8 @@ jobs:
           echo "archive-name=spiration-$VERSION-harmonyos" >> "$GITHUB_OUTPUT"
 
       - uses: chen-linkai/build-hap@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           workspace: ${{ steps.strings.outputs.workspace }}
 
