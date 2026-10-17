@@ -18,7 +18,6 @@
 #include <X11/keysym.h>
 #include <X11/Xlib.h>
 #include <X11/Xutil.h>
-#include <X11/XIM.h>
 
 namespace spiration {
 
@@ -110,7 +109,7 @@ private:
     /// @brief XIM preedit 结束回调。
     void on_xim_preedit_done();
 
-    static void xim_preedit_start_cb(XIC ic, XPointer client_data, XPointer call_data);
+    static int xim_preedit_start_cb(XIC ic, XPointer client_data, XPointer call_data);
     static void xim_preedit_draw_cb(XIC ic, XPointer client_data, XPointer call_data);
     static void xim_preedit_caret_cb(XIC ic, XPointer client_data, XPointer call_data);
     static void xim_preedit_done_cb(XIC ic, XPointer client_data, XPointer call_data);

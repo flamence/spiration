@@ -8,6 +8,7 @@
 #include <cctype>
 #include <chrono>
 #include <clocale>
+#include <cstring>
 #include <fmt/format.h>
 #include <iconv.h>
 #include <langinfo.h>
@@ -21,7 +22,6 @@
 #include <spiration/utils/platform.h>
 #include <thread>
 #include <X11/Xutil.h>
-#include <X11/XIM.h>
 #include <X11/cursorfont.h>
 
 namespace spiration {
@@ -1022,10 +1022,16 @@ void x11_window::handle_key_press(XKeyEvent* event) {
         if (xim_ && !xic_) {
             // 优先启用应用内 preedit 回调（组合文本由本应用绘制）；
             // 输入法不支持该风格时回退外置 preedit 窗口。
-            XIMCallback start_cb = { reinterpret_cast<XPointer>(this), xim_preedit_start_cb };
-            XIMCallback draw_cb  = { reinterpret_cast<XPointer>(this), xim_preedit_draw_cb };
-            XIMCallback caret_cb = { reinterpret_cast<XPointer>(this), xim_preedit_caret_cb };
-            XIMCallback done_cb  = { reinterpret_cast<XPointer>(this), xim_preedit_done_cb };
+            // XIMProc 的原型以 XIM 为首参，而 Xlib 实际以 XIC 调用这些回调，
+            // 故此处按 Xlib 惯例显式转换函数指针类型。
+            XIMCallback start_cb = { reinterpret_cast<XPointer>(this),
+                                     reinterpret_cast<XIMProc>(xim_preedit_start_cb) };
+            XIMCallback draw_cb  = { reinterpret_cast<XPointer>(this),
+                                     reinterpret_cast<XIMProc>(xim_preedit_draw_cb) };
+            XIMCallback caret_cb = { reinterpret_cast<XPointer>(this),
+                                     reinterpret_cast<XIMProc>(xim_preedit_caret_cb) };
+            XIMCallback done_cb  = { reinterpret_cast<XPointer>(this),
+                                     reinterpret_cast<XIMProc>(xim_preedit_done_cb) };
             xic_ = XCreateIC(xim_, XNInputStyle, XIMPreeditCallbacks | XIMStatusNothing,
                              XNClientWindow, window_, XNFocusWindow, window_,
                              XNPreeditStartCallback, &start_cb,
@@ -1106,55 +1112,6 @@ void x11_window::handle_key_release(XKeyEvent* event) {
 // 输入法组合文本（XIM preedit）
 // ---------------------------------------------------------------------------
 
-void x11_window::xim_preedit_start_cb(XIC ic, XPointer client_data, XPointer call_data) {
-    (void)ic;
-    (void)call_data;
-    auto* win = reinterpret_cast<x11_window*>(client_data);
-    if (win) win->set_composition("", -1);
-}
-
-void x11_window::xim_preedit_draw_cb(XIC ic, XPointer client_data, XPointer call_data) {
-    (void)ic;
-    auto* win = reinterpret_cast<x11_window*>(client_data);
-    if (win) win->on_xim_preedit_draw(static_cast<XIMPreeditDrawCallbackStruct*>(call_data));
-}
-
-void x11_window::xim_preedit_caret_cb(XIC ic, XPointer client_data, XPointer call_data) {
-    // 组合内光标移动：绘制时由 draw 回调的 caret 字段携带，无需单独处理。
-    (void)ic;
-    (void)client_data;
-    (void)call_data;
-}
-
-void x11_window::xim_preedit_done_cb(XIC ic, XPointer client_data, XPointer call_data) {
-    (void)ic;
-    (void)call_data;
-    auto* win = reinterpret_cast<x11_window*>(client_data);
-    if (win) win->on_xim_preedit_done();
-}
-
-void x11_window::on_xim_preedit_draw(XIMPreeditDrawCallbackStruct* data) {
-    if (!data) return;
-    if (data->text && data->text->string && !data->text->encoding_is_wchar) {
-        set_composition(locale_to_utf8(data->text->string, data->text->length), data->caret);
-    } else {
-        // wchar 编码的 preedit 少见：放弃预览，仅清空组合。
-        set_composition("", -1);
-    }
-}
-
-void x11_window::on_xim_preedit_done() {
-    set_composition("", -1);
-}
-
-void x11_window::set_composition(const std::string& text, int cursor) {
-    if (!widget_) return;
-    ime_composition_data data;
-    data.text = text;
-    data.cursor = cursor < 0 ? -1 : cursor;
-    widget_->handle_event(event_type::ime_composition, &data);
-}
-
 namespace {
 
 /// 将本地编码文本（XIMText.string 的编码）转为 UTF-8。
@@ -1192,6 +1149,62 @@ std::string locale_to_utf8(const char* s, int len) {
     iconv_close(cd);
     return out;
 }
+
+} // namespace
+
+int x11_window::xim_preedit_start_cb(XIC ic, XPointer client_data, XPointer call_data) {
+    (void)ic;
+    (void)call_data;
+    auto* win = reinterpret_cast<x11_window*>(client_data);
+    if (win) win->set_composition("", -1);
+    return -1;  // 不限制组合文本长度
+}
+
+void x11_window::xim_preedit_draw_cb(XIC ic, XPointer client_data, XPointer call_data) {
+    (void)ic;
+    auto* win = reinterpret_cast<x11_window*>(client_data);
+    if (win) win->on_xim_preedit_draw(reinterpret_cast<XIMPreeditDrawCallbackStruct*>(call_data));
+}
+
+void x11_window::xim_preedit_caret_cb(XIC ic, XPointer client_data, XPointer call_data) {
+    // 组合内光标移动：绘制时由 draw 回调的 caret 字段携带，无需单独处理。
+    (void)ic;
+    (void)client_data;
+    (void)call_data;
+}
+
+void x11_window::xim_preedit_done_cb(XIC ic, XPointer client_data, XPointer call_data) {
+    (void)ic;
+    (void)call_data;
+    auto* win = reinterpret_cast<x11_window*>(client_data);
+    if (win) win->on_xim_preedit_done();
+}
+
+void x11_window::on_xim_preedit_draw(XIMPreeditDrawCallbackStruct* data) {
+    if (!data) return;
+    if (data->text && !data->text->encoding_is_wchar && data->text->string.multi_byte) {
+        const char* preedit = data->text->string.multi_byte;
+        set_composition(locale_to_utf8(preedit, static_cast<int>(std::strlen(preedit))),
+                        data->caret);
+    } else {
+        // wchar 编码的 preedit 少见：放弃预览，仅清空组合。
+        set_composition("", -1);
+    }
+}
+
+void x11_window::on_xim_preedit_done() {
+    set_composition("", -1);
+}
+
+void x11_window::set_composition(const std::string& text, int cursor) {
+    if (!widget_) return;
+    ime_composition_data data;
+    data.text = text;
+    data.cursor = cursor < 0 ? -1 : cursor;
+    widget_->handle_event(event_type::ime_composition, &data);
+}
+
+namespace {
 
 struct clipboard_wait_ctx {
     ::Window window;
