@@ -1,9 +1,9 @@
 {
   "app": {
     "bundleName": "com.flamence.spiration",
-    "vendor": "example",
-    "versionCode": 1000000,
-    "versionName": "1.0.0",
+    "vendor": "Flamence Technology",
+    "versionCode": 0,
+    "versionName": "0.1.0",
     "icon": "$media:layered_image",
     "label": "$string:app_name"
   }
