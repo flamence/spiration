@@ -58,19 +58,27 @@ void root::remove_overlay(widget* w) {
 }
 
 void root::paint(std::shared_ptr<renderer> renderer) {
+    // 开启新一轮绘制：轮次号递增后，上一帧下发的裁剪上下文自动失效，
+    // 避免自定义 paint() 直接绘制子控件时误用陈旧裁剪区。
+    widget::begin_paint_pass();
+
     container::paint(renderer);
+    // 浮层不属于内容坐标体系，绘制前清除裁剪上下文（其子树退化为仅按自身矩形剔除）。
     if (m_popup) {
+        m_popup->clear_paint_clip();
         renderer->push_transform(m_popup->x, m_popup->y);
         m_popup->paint(renderer);
         renderer->pop_transform();
     }
     if (m_context_menu && m_context_menu->visible()) {
+        m_context_menu->clear_paint_clip();
         renderer->push_transform(m_context_menu->x, m_context_menu->y);
         m_context_menu->paint(renderer);
         renderer->pop_transform();
     }
     // 覆盖层（展开的下拉框等）最后绘制，保证不被后续兄弟控件遮挡。
     if (m_overlay) {
+        m_overlay->clear_paint_clip();
         point lp = m_overlay->to_screen(0.0f, 0.0f);
         renderer->push_transform(lp.x, lp.y);
         m_overlay->paint(renderer);

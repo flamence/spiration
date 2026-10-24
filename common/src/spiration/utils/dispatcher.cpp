@@ -33,8 +33,20 @@ void task_dispatcher::worker_loop() {
 }
 
 void task_dispatcher::post_to_ui(std::function<void()> fn) {
+    std::function<void()> wake;
+    {
+        std::lock_guard<std::mutex> lk(mtx_);
+        ui_tasks_.emplace_back(std::move(fn));
+        // 拷贝一份唤醒回调：调用时不能在持锁状态下执行外部代码。
+        wake = wake_cb_;
+    }
+    // 空闲消息循环阻塞等待，必须显式唤醒才能及时消费 UI 任务。
+    if (wake) wake();
+}
+
+void task_dispatcher::set_wake_callback(std::function<void()> cb) {
     std::lock_guard<std::mutex> lk(mtx_);
-    ui_tasks_.emplace_back(std::move(fn));
+    wake_cb_ = std::move(cb);
 }
 
 void task_dispatcher::drain_ui_queue() {
@@ -55,6 +67,7 @@ void task_dispatcher::shutdown() {
         stop_ = true;
         tasks_.clear();
         ui_tasks_.clear();
+        wake_cb_ = nullptr;
     }
     cv_.notify_all();
     for (auto& t : workers_) {

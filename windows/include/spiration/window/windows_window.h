@@ -95,6 +95,8 @@ private:
     bool m_NeedsRepaint = true;
     bool m_NeedsLayout = true;
     std::atomic<bool> m_RepaintRequested{false};
+    /// @brief 是否已投递过唤醒消息，避免跨线程频繁重绘请求刷屏消息队列。
+    std::atomic<bool> m_WakePosted{false};
 
     bool m_Resizing = false;
     std::chrono::steady_clock::time_point m_LastResizeLayoutTick{};

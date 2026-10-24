@@ -102,6 +102,31 @@ void text_area::rebuild_line_starts() {
     line_starts_.push_back(text.size());
     line_starts_dirty_ = false;
     max_width_dirty_ = true;
+    // 文本已变更：所有与行内容相关的前缀宽度缓存失效（行号宽度只与行号有关，保留）。
+    selection_metric_cache_.clear();
+    cursor_metric_cache_.clear();
+}
+
+float text_area::cached_prefix_width(std::unordered_map<size_t, prefix_metric>& cache,
+                                     size_t slot, const std::shared_ptr<renderer>& r,
+                                     const std::string& line, size_t start, size_t len,
+                                     float font_size, const std::string& font_family) {
+    prefix_metric& metric = cache[slot];
+    if (metric.valid && metric.line == line && metric.start == start && metric.len == len &&
+        metric.font_size == font_size && metric.font_family == font_family) {
+        return metric.width;
+    }
+    if (start > line.size()) start = line.size();
+    if (len > line.size() - start) len = line.size() - start;
+    metric.width = r ? r->measure_text_width(line.substr(start, len), font_size, font_family)
+                     : 0.0f;
+    metric.line = line;
+    metric.start = start;
+    metric.len = len;
+    metric.font_size = font_size;
+    metric.font_family = font_family;
+    metric.valid = true;
+    return metric.width;
 }
 
 size_t text_area::line_count() const {
@@ -874,11 +899,33 @@ void text_area::draw_gutter(std::shared_ptr<renderer> r) {
 
 void text_area::draw_line_numbers(std::shared_ptr<renderer> r, size_t line_idx, float line_y) {
     std::string num = std::to_string(line_idx + 1);
-    float text_width = r->measure_text_width(num, font_size - 1.0f, font_family);
+    const float num_font = font_size - 1.0f;
+    // 行号文本只由行号决定，宽度按行缓存；失效键：字号（font_size - 1）与字体族。
+    // 行号过大的超长文档不缓存（避免缓存按最大行号膨胀），直接测量。
+    if (line_idx >= LINE_NUMBER_CACHE_MAX_LINES) {
+        float text_width = r->measure_text_width(num, num_font, font_family);
+        float num_x = gutter_width - 10.0f - text_width;
+        r->draw_text(num, {num_x, line_y + 2.0f},
+                     theme_manager::get(theme_manager::TAB_INACTIVE_TEXT),
+                     num_font, font_family);
+        return;
+    }
+    if (line_number_cache_font_ != num_font || line_number_cache_family_ != font_family) {
+        line_number_width_cache_.clear();
+        line_number_cache_font_ = num_font;
+        line_number_cache_family_ = font_family;
+    }
+    if (line_idx >= line_number_width_cache_.size())
+        line_number_width_cache_.resize(line_idx + 1, -1.0f);
+    float text_width = line_number_width_cache_[line_idx];
+    if (text_width < 0.0f) {
+        text_width = r->measure_text_width(num, num_font, font_family);
+        line_number_width_cache_[line_idx] = text_width;
+    }
     float num_x = gutter_width - 10.0f - text_width;
     r->draw_text(num, {num_x, line_y + 2.0f},
                  theme_manager::get(theme_manager::TAB_INACTIVE_TEXT),
-                 font_size - 1.0f, font_family);
+                 num_font, font_family);
 }
 
 void text_area::draw_line_content(std::shared_ptr<renderer> r, size_t line_idx, float line_y) {
@@ -889,20 +936,24 @@ void text_area::draw_line_content(std::shared_ptr<renderer> r, size_t line_idx, 
 
     // 组合输入：光标所在行拆为 前缀 + 组合文本(下划线) + 后缀。
     if (has_composition() && line_idx == cursor_line_) {
-        size_t col = std::min(cursor_col_, sv.size());
-        std::string prefix(sv.data(), col);
-        std::string suffix(sv.data() + col, sv.size() - col);
+        std::string line_str(sv.data(), sv.size());
+        size_t col = std::min(cursor_col_, line_str.size());
+        std::string prefix = line_str.substr(0, col);
+        std::string suffix = line_str.substr(col);
 
         float x = text_x_pos;
         if (!prefix.empty()) {
             r->draw_text(prefix, {x, text_y}, theme_manager::get(theme_manager::INPUT_TEXT),
                          font_size, font_family, false);
-            x += r->measure_text_width(prefix, font_size, font_family);
+            // 前缀宽度缓存（键：行文本 / 起始列 / 长度 / 字号 / 字体族）。
+            x += cached_prefix_width(cursor_metric_cache_, 2, r, line_str, 0, col,
+                                     font_size, font_family);
         }
         if (!composition_text_.empty()) {
             r->draw_text(composition_text_, {x, text_y}, theme_manager::get(theme_manager::INPUT_TEXT),
                          font_size, font_family, false);
-            float cw = r->measure_text_width(composition_text_, font_size, font_family);
+            float cw = cached_prefix_width(cursor_metric_cache_, 3, r, composition_text_, 0,
+                                           composition_text_.size(), font_size, font_family);
             r->draw_rectangle({x, text_y + font_size + 3.0f, cw, 1.5f},
                               theme_manager::get(theme_manager::INPUT_CURSOR));
             x += cw;
@@ -923,14 +974,18 @@ void text_area::draw_cursor(std::shared_ptr<renderer> r) {
     if (!cursor_visible_) return;
 
     nonstd::string_view sv = line_text(cursor_line_);
-    std::string prefix(sv.data(), std::min(cursor_col_, sv.size()));
-    cursor_pixel_x_ = r->measure_text_width(prefix, font_size, font_family);
+    std::string line_str(sv.data(), sv.size());
+    const size_t col = std::min(cursor_col_, line_str.size());
+    // 光标前缀宽度按（行文本, 0, col, 字号, 字体族）缓存：
+    // 光标闪烁/滚动等重绘不再重复测量同一前缀。
+    cursor_pixel_x_ = cached_prefix_width(cursor_metric_cache_, 0, r, line_str, 0, col,
+                                          font_size, font_family);
 
     // 组合输入：光标停在组合文本内光标处。
     if (has_composition()) {
         size_t comp_bytes = utf16_offset_to_utf8_bytes(composition_text_, composition_cursor_);
-        cursor_pixel_x_ += r->measure_text_width(
-            composition_text_.substr(0, comp_bytes), font_size, font_family);
+        cursor_pixel_x_ += cached_prefix_width(cursor_metric_cache_, 1, r, composition_text_,
+                                               0, comp_bytes, font_size, font_family);
     }
 
     float cx = text_x() + cursor_pixel_x_ - scroll_x_;
@@ -959,11 +1014,26 @@ void text_area::draw_selection(std::shared_ptr<renderer> r) {
         size_t col_start = (line == sl) ? sc : 0;
         size_t col_end = (line == el) ? ec : sv.size();
 
-        std::string before(sv.data(), col_start);
-        std::string selected(sv.data() + col_start, col_end - col_start);
+        // 选区两段宽度按行缓存（槽位 = 行号 * 2、行号 * 2 + 1）：
+        // 选区不变时（如光标闪烁重绘、滚动）不再对每一行重复 measure。
+        // 行号超过缓存上限时退化为直接测量，避免超长文档全选时缓存无限膨胀。
+        std::string line_str(sv.data(), sv.size());
+        const size_t slot = line * 2;
+        float before_w;
+        float sel_w;
+        if (line < SELECTION_CACHE_MAX_LINES) {
+            before_w = cached_prefix_width(selection_metric_cache_, slot, r, line_str, 0,
+                                           col_start, font_size, font_family);
+            sel_w = cached_prefix_width(selection_metric_cache_, slot + 1, r, line_str,
+                                        col_start, col_end - col_start,
+                                        font_size, font_family);
+        } else {
+            before_w = r->measure_text_width(line_str.substr(0, col_start), font_size, font_family);
+            sel_w = r->measure_text_width(line_str.substr(col_start, col_end - col_start),
+                                          font_size, font_family);
+        }
 
-        float tx = text_x() + r->measure_text_width(before, font_size, font_family) - scroll_x_;
-        float sel_w = r->measure_text_width(selected, font_size, font_family);
+        float tx = text_x() + before_w - scroll_x_;
         float ly = text_pad_top + static_cast<float>(line) * line_height - scroll_y_;
 
         r->draw_rectangle({tx, ly, std::max(sel_w, 1.0f), line_height}, sel_color);

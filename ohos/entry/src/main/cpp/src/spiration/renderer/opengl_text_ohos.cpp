@@ -4,8 +4,6 @@
  * @author clk
  */
 
-#if defined(__OHOS__)
-
 #include <spiration/renderer/opengl_renderer.h>
 
 #include <native_drawing/drawing_bitmap.h>
@@ -38,6 +36,12 @@ void opengl_renderer::draw_text(const std::string& text, const point& position, 
     OH_Drawing_TextStyle* tStyle = OH_Drawing_CreateTextStyle();
     OH_Drawing_SetTextStyleColor(tStyle, OH_Drawing_ColorSetArgb(255, 255, 255, 255));
     OH_Drawing_SetTextStyleFontSize(tStyle, static_cast<double>(font_size * dpi));
+    // 与 measure_text_width 保持一致：测量时使用了 font_family，绘制时也必须使用，
+    // 否则自定义字体的测量宽度与实际渲染宽度不一致（布局/裁剪错位）。
+    if (!font_family.empty()) {
+        const char* fam = font_family.c_str();
+        OH_Drawing_SetTextStyleFontFamilies(tStyle, 1, &fam);
+    }
     OH_Drawing_TypographyHandlerPushTextStyle(handler, tStyle);
     OH_Drawing_TypographyHandlerAddText(handler, text.c_str());
     OH_Drawing_Typography* typo = OH_Drawing_CreateTypography(handler);
@@ -73,13 +77,17 @@ void opengl_renderer::draw_text(const std::string& text, const point& position, 
         glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, bw, bh, 0, GL_RGBA, GL_UNSIGNED_BYTE, pixels);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+        // 纹理尺寸与四边形的 UV 完全对应；显式 CLAMP，避免默认 REPEAT 在边缘采样时回绕。
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 
         flush_batch();
         float x = position.x, y = position.y;
         transform_point(x, y);
 
         glUseProgram(shape_shader_.program);
-        glUniformMatrix4fv(shape_shader_.u_mvp, 1, GL_FALSE, proj_matrix_);
+        // 与其它绘制路径一致使用 mvp_matrix_（当前内容即投影矩阵，避免两处状态不一致）。
+        glUniformMatrix4fv(shape_shader_.u_mvp, 1, GL_FALSE, mvp_matrix_);
         glUniform1i(shape_shader_.u_use_texture, 1);
         glUniform1i(shape_shader_.u_texture_sampler, 0);
         glActiveTexture(GL_TEXTURE0);
@@ -246,20 +254,46 @@ float opengl_renderer::measure_text_width(const std::string& text, float font_si
     OH_Drawing_DestroyTextStyle(tStyle);
     OH_Drawing_DestroyFontCollection(fc);
     OH_Drawing_DestroyTypographyStyle(style);
-    if (measure_cache_.size() >= MEASURE_CACHE_MAX) measure_cache_.clear();
-    measure_cache_.emplace(std::move(key), w);
+    cache_measure_result(std::move(key), w);
     return w;
 }
 
 float opengl_renderer::measure_text_height(const std::string& text, float font_size,
                                             const std::string& font_family,
                                             float wrap_width) {
-    (void)font_family; (void)wrap_width;
     if (text.empty()) return 0.0f;
-    return font_size;
+    float dpi = density_ > 0.0f ? density_ : 1.0f;
+
+    measure_cache_key key{text, font_family, font_size, wrap_width};
+    auto cit = measure_cache_.find(key);
+    if (cit != measure_cache_.end()) return cit->second;
+
+    // 旧实现直接返回 font_size，完全忽略换行：多行文本的高度被低估，
+    // 与 renderer.h 中“考虑给定宽度内自动换行”的约定不符。这里按同一套排版测量。
+    OH_Drawing_TypographyStyle* style = OH_Drawing_CreateTypographyStyle();
+    OH_Drawing_SetTypographyTextDirection(style, TEXT_DIRECTION_LTR);
+    OH_Drawing_SetTypographyTextAlign(style, TEXT_ALIGN_LEFT);
+    OH_Drawing_FontCollection* fc = OH_Drawing_CreateFontCollection();
+    OH_Drawing_TypographyCreate* handler = OH_Drawing_CreateTypographyHandler(style, fc);
+    OH_Drawing_TextStyle* tStyle = OH_Drawing_CreateTextStyle();
+    OH_Drawing_SetTextStyleFontSize(tStyle, static_cast<double>(font_size * dpi));
+    if (!font_family.empty()) {
+        const char* fam = font_family.c_str();
+        OH_Drawing_SetTextStyleFontFamilies(tStyle, 1, &fam);
+    }
+    OH_Drawing_TypographyHandlerPushTextStyle(handler, tStyle);
+    OH_Drawing_TypographyHandlerAddText(handler, text.c_str());
+    OH_Drawing_Typography* typo = OH_Drawing_CreateTypography(handler);
+    double layout_width = wrap_width > 0.0f ? static_cast<double>(wrap_width * dpi) : 2000.0 * dpi;
+    OH_Drawing_TypographyLayout(typo, layout_width);
+    float h = static_cast<float>(OH_Drawing_TypographyGetHeight(typo)) / dpi;
+    OH_Drawing_DestroyTypography(typo);
+    OH_Drawing_DestroyTypographyHandler(handler);
+    OH_Drawing_DestroyTextStyle(tStyle);
+    OH_Drawing_DestroyFontCollection(fc);
+    OH_Drawing_DestroyTypographyStyle(style);
+    cache_measure_result(std::move(key), h);
+    return h;
 }
 
 } // namespace spiration
-
-#endif // defined(__OHOS__)
-

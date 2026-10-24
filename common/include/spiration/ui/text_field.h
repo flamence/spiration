@@ -9,6 +9,7 @@
 #include <spiration/ui/text_area.h>
 #include <functional>
 #include <string>
+#include <unordered_map>
 
 namespace spiration {
 
@@ -76,6 +77,14 @@ private:
     bool cursor_visible_ = true;
     std::shared_ptr<renderer> cached_renderer_;
     static constexpr float cursor_blink_interval_ = 530.0f;
+
+    /**
+     * @brief 选区高亮两段的宽度缓存（槽位 = 行号 * 2、行号 * 2 + 1）。
+     * 失效键由 cached_prefix_width 逐项比较：行文本 / 起始列 / 长度 / 字号 / 字体族。
+     */
+    mutable std::unordered_map<size_t, text_area::prefix_metric> field_selection_metric_cache_;
+    /// @brief 光标前缀宽度缓存（槽位 0：行前缀；槽位 1：组合文本前缀）。
+    mutable std::unordered_map<size_t, text_area::prefix_metric> field_cursor_metric_cache_;
 
     float padding_h_ = 8.0f;
     float padding_v_ = 6.0f;

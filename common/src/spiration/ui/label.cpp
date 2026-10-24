@@ -29,7 +29,55 @@ float label::text_width() const {
     auto r = current_renderer();
     if (!r) return 0.0f;
     const float fs = font_size > 0.0f ? font_size : 14.0f;
-    return r->measure_text_width(text, fs, theme_manager::get_str(theme_manager::UI_FONT));
+    const std::string fam = theme_manager::get_str(theme_manager::UI_FONT);
+    // 缓存键：text / 字号 / 字体族；任一变化才重新测量。
+    if (cached_text_width_valid_ && cached_text_width_key_text_ == text &&
+        cached_text_width_key_font_ == font_size &&
+        cached_text_width_key_family_ == fam) {
+        return cached_text_width_value_;
+    }
+    cached_text_width_value_ = r->measure_text_width(text, fs, fam);
+    cached_text_width_key_text_ = text;
+    cached_text_width_key_font_ = font_size;
+    cached_text_width_key_family_ = fam;
+    cached_text_width_valid_ = true;
+    return cached_text_width_value_;
+}
+
+const std::string& label::display_text(const std::shared_ptr<renderer>& r) const {
+    // 无溢出处理或空文本时无需任何测量，直接绘制原文。
+    if (overflow == text_overflow::none || text.empty()) return text;
+
+    const float fs = font_size > 0.0f ? font_size : 14.0f;
+    const std::string fam = theme_manager::get_str(theme_manager::UI_FONT);
+    // 缓存键：text / 控件宽度 / font_size / 主题字体族 / overflow。
+    // 省略逻辑（text_utils::ellipsize）内部会反复 measure，故在其中任一变化时才重算。
+    if (cached_display_valid_ && cached_display_key_text_ == text &&
+        cached_display_key_width_ == width &&
+        cached_display_key_font_ == font_size &&
+        cached_display_key_family_ == fam &&
+        cached_display_key_overflow_ == overflow) {
+        return cached_display_text_;
+    }
+
+    std::string display = text;
+    const float avail = std::max(0.0f, width);
+    const float tw = r ? r->measure_text_width(display, fs, fam) : 0.0f;
+    if (tw > avail) {
+        if (overflow == text_overflow::hide) {
+            display.clear();
+        } else {
+            display = text_utils::ellipsize(r, display, font_size, avail);
+        }
+    }
+    cached_display_text_ = std::move(display);
+    cached_display_key_text_ = text;
+    cached_display_key_width_ = width;
+    cached_display_key_font_ = font_size;
+    cached_display_key_family_ = fam;
+    cached_display_key_overflow_ = overflow;
+    cached_display_valid_ = true;
+    return cached_display_text_;
 }
 
 bool label::hit_text_area(float x, float y) const {
@@ -143,22 +191,9 @@ void label::paint(std::shared_ptr<renderer> renderer) {
     cached_renderer_ = renderer;
 
     if (!selectable) {
-        std::string display = text;
-        if (overflow != text_overflow::none && !display.empty()) {
-            float avail = std::max(0.0f, width);
-            float tw = renderer->measure_text_width(
-                display, font_size > 0.0f ? font_size : 14.0f,
-                theme_manager::get_str(theme_manager::UI_FONT));
-            if (tw > avail) {
-                if (overflow == text_overflow::hide) {
-                    display.clear();
-                } else {
-                    display = text_utils::ellipsize(renderer, display, font_size, avail);
-                }
-            }
-        }
+        // 省略文本与其宽度测量均已在 display_text() 内缓存，命中时 paint 只做绘制。
         renderer->draw_text_aligned(
-            display,
+            display_text(renderer),
             {0, 0, width, height},
             theme_manager::get(theme_manager::LABEL_TEXT),
             h_align,
@@ -369,26 +404,46 @@ size label::layout_preferred_size() const {
         return {w, h};
     }
 
-    if (!text.empty()) {
-        auto r = cached_renderer_;
-        if (!r) r = current_renderer();
-        if (r) {
-            float measured_w = r->measure_text_width(text, font_size,
-                theme_manager::get_str(theme_manager::UI_FONT));
-            float measured_h = r->measure_text_height(text, font_size,
-                theme_manager::get_str(theme_manager::UI_FONT),
-                w > 0.0f ? w : 10000.0f);
-            if (w <= 0.0f) w = measured_w;
-            return {w > 0.0f ? w : font_size * 4.0f,
-                    measured_h > 0.0f ? measured_h : font_size * 1.4f};
-        }
+    // 本函数会被父布局（layout.cpp 的 preferred_size/arrange）在同一次 layout 中多次调用，
+    // 而 measure_text_width/measure_text_height 最终走平台 TextLayout，非常昂贵。
+    // 缓存键：text / font_size / 主题字体族 / 目标宽度 / 是否有可用 renderer。
+    const std::string fam = theme_manager::get_str(theme_manager::UI_FONT);
+    auto r = cached_renderer_;
+    if (!r) r = current_renderer();
+    const bool has_renderer = static_cast<bool>(r);
+    if (cached_pref_valid_ && cached_pref_key_text_ == text &&
+        cached_pref_key_font_ == font_size && cached_pref_key_family_ == fam &&
+        cached_pref_key_width_ == w && cached_pref_key_has_renderer_ == has_renderer) {
+        return cached_pref_size_;
     }
 
-    if (w <= 0.0f) w = font_size * 4.0f;
-    int lines = 1;
-    for (size_t pos = 0; (pos = text.find('\n', pos)) != std::string::npos; ++pos)
-        ++lines;
-    return {w, font_size * 1.4f * lines};
+    size result{};
+    bool measured = false;
+    if (!text.empty() && r) {
+        float measured_w = r->measure_text_width(text, font_size, fam);
+        float measured_h = r->measure_text_height(text, font_size, fam,
+                                                  w > 0.0f ? w : 10000.0f);
+        if (w <= 0.0f) w = measured_w;
+        result = {w > 0.0f ? w : font_size * 4.0f,
+                  measured_h > 0.0f ? measured_h : font_size * 1.4f};
+        measured = true;
+    }
+    if (!measured) {
+        if (w <= 0.0f) w = font_size * 4.0f;
+        int lines = 1;
+        for (size_t pos = 0; (pos = text.find('\n', pos)) != std::string::npos; ++pos)
+            ++lines;
+        result = {w, font_size * 1.4f * lines};
+    }
+
+    cached_pref_size_ = result;
+    cached_pref_key_text_ = text;
+    cached_pref_key_font_ = font_size;
+    cached_pref_key_family_ = fam;
+    cached_pref_key_width_ = width;
+    cached_pref_key_has_renderer_ = has_renderer;
+    cached_pref_valid_ = true;
+    return result;
 }
 
 void label::layout() {

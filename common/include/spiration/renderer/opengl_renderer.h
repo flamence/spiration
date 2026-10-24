@@ -148,6 +148,9 @@ private:
     glyph_info* get_glyph(font_face* face, char32_t codepoint);
     float get_glyph_advance(font_face* face, char32_t codepoint);
     bool init_glyph_atlas(glyph_atlas* atlas);
+    /// 清空以字体面指针为键的字形缓存并重建字形图集（丢弃旧 UV）。
+    /// 调用前会先提交当前批次，避免批次中的旧 UV 指向已删除的图集。
+    void reset_glyph_caches();
 
     /// 按顺序查找首个可读的字体文件（公共实现；字体路径由各平台提供）。
     static std::string find_font_file(const char* const* paths);
@@ -162,23 +165,28 @@ private:
     image_resource* load_image(const std::string& path);
 
     struct transform {
-        float m[16]; // 4x4
+        float m[16]; // 4x4（仅使用左上 2x3 的仿射部分，其余固定为单位阵）
     };
-
-    void apply_transform();
 
     void transform_point(float& x, float& y) const;
 
     static void mat4_identity(float* m);
-    static void mat4_multiply(float* result, const float* a, const float* b);
     static void mat4_ortho(float* m, float left, float right, float bottom, float top);
-    static void mat4_translate(float* m, float x, float y, float z);
-    static void mat4_rotate_z(float* m, float angle_deg);
-    static void mat4_scale(float* m, float sx, float sy, float sz);
+
+    /// 提交前保证批次容量：顶点数超过 MAX_BATCH_VERTICES 时先 flush。
+    /// 必须在 push 之前调用，避免“先 push 再判断”导致单次绘制越过 VBO 容量。
+    void ensure_batch_capacity(size_t extra_vertices);
+    /// 提交前保证批次纹理一致：纹理切换（纯色/字形图集/图片）时先 flush。
+    /// texture_id == 0 表示无纹理的纯色图元。
+    void ensure_batch_texture(GLuint texture_id);
+
+    /// 按半径自适应计算圆角/圆形的分段数，减少小半径图元的冗余顶点。
+    static int corner_segment_count(float radius);
+    static int circle_segment_count(float radius);
 
     void draw_rect_impl(float x, float y, float w, float h, const color& fill_color);
     void draw_rect_outline_impl(float x, float y, float w, float h, const color& stroke_color, float stroke_width);
-    void draw_circle_impl(float cx, float cy, float radius, const color& fill_color, bool filled);
+    void draw_circle_impl(float cx, float cy, float radius, const color& fill_color, bool filled, float stroke_width);
     void apply_clip();
 
 private:
@@ -222,6 +230,9 @@ private:
     };
     std::unordered_map<measure_cache_key, float, measure_cache_hash> measure_cache_;
 
+    /// 记录一次文本测量结果；缓存满时做有界淘汰，避免整表 clear() 造成周期性布局抖动。
+    void cache_measure_result(measure_cache_key&& key, float value);
+
     std::vector<transform> transform_stack_;
     std::vector<rectangle> clip_stack_;
     transform current_transform_;
@@ -232,6 +243,10 @@ private:
     bool blend_enabled_ = true;
     bool batch_has_texture_ = false;
     GLuint current_texture_ = 0;
+
+    /// 批次提交时的 GL 状态缓存：program 与 MVP 在一帧内不变，避免每次 flush 重复上传。
+    GLuint cached_program_ = 0;
+    bool mvp_uploaded_ = false;
 
 #if defined(__OHOS__)
     float density_ = 1.0f;
@@ -251,8 +266,18 @@ private:
 #endif
 
     static constexpr int CIRCLE_SEGMENTS = 48;
+    static constexpr int MAX_CORNER_SEGMENTS = 24;
     static constexpr int MAX_BATCH_VERTICES = 8192;
     static constexpr size_t MEASURE_CACHE_MAX = 16384;
+    /// 测量缓存满时一次淘汰的条目数（约 1/8），比整表清空平滑。
+    static constexpr size_t MEASURE_CACHE_EVICT = MEASURE_CACHE_MAX / 8;
+
+#if defined(__linux__) && !defined(__OHOS__)
+    /// 字形/字体面/度量缓存上限：避免长期运行下按字体、字号、字符组合无界增长。
+    static constexpr size_t GLYPH_CACHE_MAX = 4096;
+    static constexpr size_t GLYPH_ADVANCE_CACHE_MAX = 32768;
+    static constexpr size_t FONT_FACE_MAX = 32;
+#endif
 };
 
 } // namespace spiration

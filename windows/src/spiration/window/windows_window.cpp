@@ -54,6 +54,10 @@ std::string utf16_to_utf8(const wchar_t* s, size_t n) {
     return out;
 }
 
+/// @brief 内部唤醒消息：request_repaint() 用它唤醒可能阻塞的消息循环。
+///        仅用于唤醒，不产生绘制（绘制统一由 loop() 的帧调度提交）。
+constexpr UINT kWakeMessage = WM_APP + 0x51;
+
 HCURSOR load_cursor(cursor_style c) {
     switch (c) {
     case cursor_style::text:        return LoadCursorW(nullptr, IDC_IBEAM);
@@ -151,6 +155,12 @@ LRESULT CALLBACK Window::WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM 
 
 LRESULT Window::HandleMessage(UINT uMsg, WPARAM wParam, LPARAM lParam) {
     switch (uMsg) {
+    case kWakeMessage:
+        // 只用于唤醒消息循环，本身不绘制。
+        // 模态循环（拖动/缩放窗口）里可能被直接 Dispatch，这里也复位标志，
+        // 避免后续 request_repaint() 不再投递唤醒消息。
+        m_WakePosted.store(false);
+        return 0;
     case WM_NCHITTEST: {
         if (!m_hWnd) break;
         POINT pt = { static_cast<SHORT>(LOWORD(lParam)),
@@ -792,55 +802,108 @@ void* Window::native_handle() const { return m_hWnd; }
 
 
 void Window::loop() {
+    using clock = std::chrono::steady_clock;
+
+    // 目标帧间隔约 60Hz。旧实现空闲时用 1ms 超时忙轮询（约 1000 次唤醒/秒），
+    // 且只要有重绘请求就立刻 invalidate，动画期间帧率不受控（可达数百帧/秒），
+    // 控件繁多时每帧成本被成倍放大，表现为卡顿。
+    static constexpr auto kFrameInterval = std::chrono::microseconds(16667);
+    // 空闲阻塞等待上限：保证未显式请求重绘的定时逻辑（光标闪烁等）仍能推进。
+    static constexpr DWORD kIdleWaitMs = 50;
+
+    // 1) 消息泵：抽干当前消息队列（OS 驱动的 WM_PAINT 仍会立即重绘）。
     MSG msg;
-    bool processedInput = false;
+    bool visual_input = false;
     while (PeekMessage(&msg, nullptr, 0, 0, PM_REMOVE)) {
-        
+        if (msg.message == kWakeMessage) {
+            m_WakePosted.store(false);
+            continue;
+        }
+        if (msg.message == WM_QUIT) {
+            m_ShouldClose = true;
+            return;
+        }
         if (msg.message != WM_PAINT) {
-            processedInput = true;
+            // 纯鼠标移动/光标查询不再强制整窗重绘：悬停态变化由控件自身
+            // request_repaint() 驱动（见 widget::handle_event），否则高频鼠标
+            // 移动会持续触发全树重绘。
+            if (msg.message != WM_MOUSEMOVE && msg.message != WM_NCMOUSEMOVE &&
+                msg.message != WM_SETCURSOR) {
+                visual_input = true;
+            }
         }
         TranslateMessage(&msg);
         DispatchMessage(&msg);
-        if (msg.message == WM_QUIT) m_ShouldClose = true;
     }
 
-    if (m_Widget) {
-        if (m_NeedsLayout) {
-            m_Widget->layout();
-            m_NeedsLayout = false;
-        }
+    // 2) 布局：由控件树的脏标记驱动。
+    //    旧实现只看窗口层 m_NeedsLayout，而 request_layout() 全仓库无调用方，
+    //    控件树上的 invalidate_layout() 永远不会被消费 —— 内容/结构变化后可能
+    //    一直停留在旧几何，直到一次窗口尺寸变化才碰巧重排。这里改为同时检查
+    //    根控件的 needs_layout()，把“树脏”真正接到帧循环上。
+    bool laid_out = false;
+    if (m_Widget && (m_NeedsLayout || m_Widget->needs_layout())) {
+        m_Widget->layout();
+        m_NeedsLayout = false;
+        laid_out = true;
     }
 
+    // 3) 帧合并：把本帧内累积的重绘请求一次性消费掉。
+    //    发生过布局说明几何已变化，必须重绘一次（add_child/invalidate_layout
+    //    本身不保证会请求重绘）。
+    const bool requested = m_RepaintRequested.exchange(false);
+    const bool frame_due = m_NeedsRepaint || requested || visual_input || laid_out;
+
+    if (!frame_due) {
+        // 空闲：阻塞等待输入/唤醒消息，替代原来的 1ms 忙轮询。
+        MsgWaitForMultipleObjects(0, nullptr, FALSE, kIdleWaitMs, QS_ALLINPUT);
+        // 空闲恢复后首帧 dt 归一化，避免动画一次性跳变。
+        m_LastTick = clock::now();
+        return;
+    }
+
+    // 4) 推进动画/时间相关逻辑。
     if (m_Widget) {
-        if (m_LastTick == std::chrono::steady_clock::time_point{}) {
-            m_LastTick = std::chrono::steady_clock::now();
-        }
-        auto now = std::chrono::steady_clock::now();
+        const auto now = clock::now();
         float dt_ms = std::chrono::duration<float, std::milli>(now - m_LastTick).count();
         m_LastTick = now;
-        // 与 Linux 循环对齐：空闲后首帧 dt 钳位，避免动画跳变。
+        if (dt_ms <= 0.0f) dt_ms = 1.0f;
         if (dt_ms > 100.0f) dt_ms = 16.0f;
         m_Widget->tick(dt_ms);
     }
 
-    bool hadRepaintReq = m_RepaintRequested.exchange(false);
-
-    if (m_NeedsRepaint || processedInput || hadRepaintReq) {
-        if (m_hWnd) {
-            InvalidateRect(m_hWnd, nullptr, FALSE);
-            m_NeedsRepaint = false;
-        }
+    // 5) tick 可能再次置脏布局。
+    if (m_Widget && (m_NeedsLayout || m_Widget->needs_layout())) {
+        m_Widget->layout();
+        m_NeedsLayout = false;
     }
 
-    if (!processedInput && !m_NeedsRepaint && !hadRepaintReq) {
-        MsgWaitForMultipleObjects(0, nullptr, FALSE, 1, QS_ALLINPUT);
+    // 6) 提交一帧：仅在确有变化时重绘，并同步完成绘制以稳定帧间隔。
+    if (m_hWnd) {
+        InvalidateRect(m_hWnd, nullptr, FALSE);
+        UpdateWindow(m_hWnd);
+    }
+    m_NeedsRepaint = false;
+
+    // 7) 动画期间按目标帧率节流到下一帧边界；否则立即返回继续泵消息。
+    if (m_RepaintRequested.load()) {
+        const auto deadline = m_LastTick + kFrameInterval;
+        const auto now = clock::now();
+        if (deadline > now) {
+            const auto wait_ms = std::chrono::duration_cast<std::chrono::milliseconds>(deadline - now).count();
+            MsgWaitForMultipleObjects(0, nullptr, FALSE,
+                                      static_cast<DWORD>(wait_ms), QS_ALLINPUT);
+        }
     }
 }
 
 void Window::request_repaint() {
     m_RepaintRequested.store(true);
-    if (m_hWnd) {
-        InvalidateRect(m_hWnd, nullptr, FALSE);
+    // 唤醒可能阻塞在 MsgWaitForMultipleObjects 的消息循环（可跨线程调用）。
+    // 这里不再直接 InvalidateRect：绘制时机统一由 loop() 的帧调度决定，
+    // 避免在 paint 期间请求重绘造成立即重入与重绘风暴。
+    if (m_hWnd && !m_WakePosted.exchange(true)) {
+        PostMessageW(m_hWnd, kWakeMessage, 0, 0);
     }
 }
 

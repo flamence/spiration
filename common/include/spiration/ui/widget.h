@@ -7,6 +7,7 @@
 #pragma once
 
 #include <algorithm>
+#include <cstdint>
 #include <functional>
 #include <memory>
 #include <spiration/export.h>
@@ -31,6 +32,15 @@ private:
     float layout_x_ = 0.0f, layout_y_ = 0.0f;
     float layout_w_ = -1.0f, layout_h_ = -1.0f; // -1 哨兵：首次布局必执行
     bool layout_dirty_ = true;                  // 子树内容变更，需强制重排
+
+    /// @brief 绘制裁剪区（本控件局部坐标），由父级在 paint 前下发。
+    float paint_clip_l_ = 0.0f, paint_clip_t_ = 0.0f;
+    float paint_clip_r_ = 0.0f, paint_clip_b_ = 0.0f;
+    /// @brief 下发该裁剪区时的绘制轮次；与当前轮次不一致说明已过期，不得用于裁剪。
+    uint64_t paint_clip_pass_ = 0;
+
+    /// @brief 当前绘制轮次号（由 root 每帧递增）。
+    static uint64_t paint_pass_;
 
 public:
     
@@ -64,12 +74,72 @@ public:
     
     virtual void paint(std::shared_ptr<renderer> renderer) {
         for (auto& child : children_) {
+            if (!child->visible) continue;
+            // 绘制裁剪上下文：父级把可继承的裁剪区以子控件局部坐标下发，
+            // 子控件据此 O(1) 判断自身是否完全不可见，避免逐层回溯祖先链。
+            float cl, ct, cr, cb;
+            if (!compute_child_paint_clip(*child, cl, ct, cr, cb)) continue;
+            child->set_paint_clip(cl, ct, cr, cb);
             renderer->push_transform(child->x, child->y);
             child->paint(renderer);
             renderer->pop_transform();
         }
     }
     
+    /**
+     * @brief 开始一轮绘制。由 root 在每个绘制帧入口调用。
+     *
+     * 递增绘制轮次号用于校验控件上的裁剪上下文是否属于本轮：
+     * 自定义 paint() 直接绘制子控件（不经过基类遍历）时不会下发新的裁剪区，
+     * 此时子控件会检测到轮次不一致而退化为“不做裁剪”，保证不会误裁。
+     */
+    static void begin_paint_pass() { ++paint_pass_; }
+
+    /**
+     * @brief 父级在下发 paint 前设置本控件的可见裁剪区（本控件局部坐标）。
+     *        该信息仅用于绘制期快速剔除，不参与命中测试。
+     */
+    void set_paint_clip(float left, float top, float right, float bottom) {
+        paint_clip_l_ = left;
+        paint_clip_t_ = top;
+        paint_clip_r_ = right;
+        paint_clip_b_ = bottom;
+        paint_clip_pass_ = paint_pass_;
+    }
+
+    /**
+     * @brief 清除裁剪上下文（浮层等直接由 root 绘制的控件使用）。
+     */
+    void clear_paint_clip() { paint_clip_pass_ = 0; }
+
+    /**
+     * @brief 本控件是否被裁剪区完全隐藏，绘制可整体跳过。
+     */
+    bool is_paint_clipped() const {
+        return has_valid_paint_clip() &&
+               (paint_clip_r_ <= paint_clip_l_ || paint_clip_b_ <= paint_clip_t_);
+    }
+
+protected:
+    /**
+     * @brief 计算子控件在本轮绘制中的可见裁剪区（子控件局部坐标）。
+     *
+     * 综合三部分信息，全部为 O(1)（旧实现 widget::visible_rect() 需要回溯祖先链，
+     * 每个子控件 O(深度)，整帧 O(控件数 × 深度)）：
+     *  1. 子控件自身矩形；
+     *  2. 本控件矩形（与旧实现的祖先边界裁剪语义一致）；
+     *  3. 本控件从父级继承的裁剪区（滚动容器需按滚动偏移反向平移）。
+     *
+     * @return false 表示子控件完全不可见，调用方可跳过绘制。
+     */
+    bool compute_child_paint_clip(const widget& child, float& l, float& t, float& r, float& b) const;
+
+    /// @brief 本控件是否持有本轮的裁剪上下文。
+    bool has_valid_paint_clip() const {
+        return paint_clip_pass_ != 0 && paint_clip_pass_ == paint_pass_;
+    }
+
+public:
     /**
      * @brief 返回此 widget 的首选尺寸。
      *        布局管理器会参考此值来决定 widget 的分配空间。
@@ -143,7 +213,13 @@ public:
             bool was_hover = hovered_;
             hovered_ = (original.x >= 0.0f && original.x <= width &&
                          original.y >= 0.0f && original.y <= height);
-            if (hovered_ != was_hover) on_hover_change(hovered_);
+            if (hovered_ != was_hover) {
+                on_hover_change(hovered_);
+                // 悬停态属于控件自身视觉状态，变化时必须自行请求重绘。
+                // 窗口层因此不再对每条鼠标移动消息强制整窗重绘（见 Windows 消息循环帧调度），
+                // 否则高频鼠标移动会持续触发全树重绘。
+                if (request_repaint_) request_repaint_();
+            }
 
             for (auto& child : children_) {
                 if (!child->visible) continue;

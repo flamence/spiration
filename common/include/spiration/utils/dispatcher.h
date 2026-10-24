@@ -59,6 +59,15 @@ public:
     void post_to_ui(std::function<void()> fn);
 
     /**
+     * @brief 设置 UI 队列有新任务时的唤醒回调。
+     *
+     * 消息循环空闲时会阻塞等待，后台线程投递 UI 任务后必须显式唤醒，
+     * 否则任务要等到下一次输入事件才会被消费（表现为界面更新延迟）。
+     * 回调在投递线程上执行，实现必须线程安全且轻量。
+     */
+    void set_wake_callback(std::function<void()> cb);
+
+    /**
      * @brief 在 UI 线程消费待执行任务。
      */
     void drain_ui_queue();
@@ -76,6 +85,8 @@ private:
     std::condition_variable cv_;
     std::deque<std::function<void()>> tasks_;
     std::deque<std::function<void()>> ui_tasks_;
+    /// @brief UI 队列唤醒回调（受 mtx_ 保护）。
+    std::function<void()> wake_cb_;
     bool stop_ = false;
 };
 

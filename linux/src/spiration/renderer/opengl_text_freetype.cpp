@@ -29,12 +29,15 @@ void opengl_renderer::draw_text(const std::string& text, const point& position, 
         return;
     }
 
-    if (!batch_has_texture_ && !batch_.empty()) flush_batch();
-
     float r = text_color.r, g = text_color.g, b = text_color.b, a = text_color.a * alpha_;
     float ascent = static_cast<float>(fface->face->size->metrics.ascender) / 64.0f;
+
+    // 未变换的逻辑 y 用于换行后重新计算变换：旧实现直接对“已变换”的 cursor_y 再加行高并
+    // 再次 transform_point，会多叠加一次父级平移（滚动容器 push_transform），
+    // 导致多行文本从第二行起逐行向右下偏移。
+    float logical_pen_y = position.y + ascent;
     float cursor_x = position.x;
-    float cursor_y = position.y + ascent;
+    float cursor_y = logical_pen_y;
     transform_point(cursor_x, cursor_y);
     float line_start_x = cursor_x;
 
@@ -65,8 +68,9 @@ void opengl_renderer::draw_text(const std::string& text, const point& position, 
         }
 
         if (codepoint == '\n') {
+            logical_pen_y += font_size * 1.4f;
             cursor_x = position.x;
-            cursor_y += font_size * 1.4f;
+            cursor_y = logical_pen_y;
             transform_point(cursor_x, cursor_y);
             line_start_x = cursor_x;
             continue;
@@ -77,8 +81,9 @@ void opengl_renderer::draw_text(const std::string& text, const point& position, 
 
         if (word_wrap && cursor_x + gi->advance_x > line_start_x + static_cast<float>(width_) &&
             cursor_x > line_start_x) {
+            logical_pen_y += font_size * 1.4f;
             cursor_x = position.x;
-            cursor_y += font_size * 1.4f;
+            cursor_y = logical_pen_y;
             transform_point(cursor_x, cursor_y);
             line_start_x = cursor_x;
         }
@@ -88,19 +93,19 @@ void opengl_renderer::draw_text(const std::string& text, const point& position, 
         float x1 = x0 + gi->width;
         float y1 = y0 + gi->height;
 
+        // 批次按纹理分批：字形统一使用字形图集纹理；提交前一次性保证容量。
+        // 旧实现是在 push 之后才判断 MAX_BATCH_VERTICES，末尾批次可能越过 VBO 容量。
+        ensure_batch_texture(glyph_atlas_.texture_id);
+        ensure_batch_capacity(6);
+
         batch_.push_back({x0, y0, gi->s0, gi->t0, r, g, b, a});
         batch_.push_back({x1, y0, gi->s1, gi->t0, r, g, b, a});
         batch_.push_back({x0, y1, gi->s0, gi->t1, r, g, b, a});
         batch_.push_back({x1, y0, gi->s1, gi->t0, r, g, b, a});
         batch_.push_back({x1, y1, gi->s1, gi->t1, r, g, b, a});
         batch_.push_back({x0, y1, gi->s0, gi->t1, r, g, b, a});
-        batch_has_texture_ = true;
 
         cursor_x += gi->advance_x;
-
-        if (batch_.size() >= MAX_BATCH_VERTICES) {
-            flush_batch();
-        }
     }
 }
 
@@ -182,8 +187,7 @@ float opengl_renderer::measure_text_width(const std::string& text, float font_si
         width += (adv >= 0.0f) ? adv : font_size * 0.5f;
     }
 
-    if (measure_cache_.size() >= MEASURE_CACHE_MAX) measure_cache_.clear();
-    measure_cache_.emplace(std::move(key), width);
+    cache_measure_result(std::move(key), width);
     return width;
 }
 
@@ -246,8 +250,7 @@ float opengl_renderer::measure_text_height(const std::string& text, float font_s
     }
 
     float result = lines * font_size * 1.4f;
-    if (measure_cache_.size() >= MEASURE_CACHE_MAX) measure_cache_.clear();
-    measure_cache_.emplace(std::move(key), result);
+    cache_measure_result(std::move(key), result);
     return result;
 }
 
@@ -301,6 +304,16 @@ opengl_renderer::font_face* opengl_renderer::get_font_face(const std::string& fa
     if (it != font_faces_.end()) return &it->second;
 
     if (!ft_library_) return nullptr;
+
+    // 字体面缓存上限：UI 若使用大量“字体 + 字号”组合，font_faces_ 会无界增长。
+    // FT_Face 销毁后，以 Face 指针为键的字形缓存会变成脏数据，因此一并重建图集/缓存。
+    if (font_faces_.size() >= FONT_FACE_MAX) {
+        reset_glyph_caches();
+        for (auto& face_entry : font_faces_) {
+            if (face_entry.second.face) FT_Done_Face(face_entry.second.face);
+        }
+        font_faces_.clear();
+    }
 
     bool is_mono = (family == "DejaVuSansMono" || family == "Consolas" || family == "monospace");
     bool is_sans = !is_mono;
@@ -384,6 +397,12 @@ opengl_renderer::glyph_info* opengl_renderer::get_glyph(font_face* face, char32_
         if (!init_glyph_atlas(&glyph_atlas_)) return nullptr;
     }
 
+    // 字形缓存有界：字形数量超过上限时重建图集与缓存，避免长期运行下无界增长。
+    if (glyph_cache_.size() >= GLYPH_CACHE_MAX) {
+        reset_glyph_caches();
+        if (!glyph_atlas_.texture_id) return nullptr;
+    }
+
     if (FT_Load_Glyph(active_face, glyph_index, FT_LOAD_RENDER)) return nullptr;
 
     FT_Bitmap* bitmap = &active_face->glyph->bitmap;
@@ -396,15 +415,10 @@ opengl_renderer::glyph_info* opengl_renderer::get_glyph(font_face* face, char32_
         glyph_atlas_.row_height = 0;
     }
     if (glyph_atlas_.cursor_y + gh + 1 >= glyph_atlas_.height) {
-        // 先提交当前批次（其 UV 引用旧图集），再清缓存重建，避免同帧新旧 UV 混乱
-        flush_batch();
-        glyph_cache_.clear();
-        glDeleteTextures(1, &glyph_atlas_.texture_id);
-        glyph_atlas_.texture_id = 0;
-        glyph_atlas_.cursor_x = 1;
-        glyph_atlas_.cursor_y = 1;
-        glyph_atlas_.row_height = 0;
-        if (!init_glyph_atlas(&glyph_atlas_)) return nullptr;
+        // 图集已满：reset_glyph_caches() 会先提交当前批次（其 UV 引用旧图集），
+        // 再清空缓存并重建图集，避免同帧新旧 UV 混乱。
+        reset_glyph_caches();
+        if (!glyph_atlas_.texture_id) return nullptr;
     }
 
     if (gh > glyph_atlas_.row_height) {
@@ -471,9 +485,28 @@ float opengl_renderer::get_glyph_advance(font_face* face, char32_t codepoint) {
     // 仅取字形度量（advance）：不执行 FT_LOAD_RENDER，不做光栅化与纹理上传。
     if (FT_Load_Glyph(active_face, glyph_index, FT_LOAD_DEFAULT)) return -1.0f;
 
+    // 度量缓存有界：重建成本极低，超过上限直接整体清空即可。
+    if (glyph_advance_cache_.size() >= GLYPH_ADVANCE_CACHE_MAX) {
+        glyph_advance_cache_.clear();
+    }
     float advance = static_cast<float>(active_face->glyph->advance.x) / 64.0f;
     glyph_advance_cache_.emplace(cache_key, advance);
     return advance;
+}
+
+void opengl_renderer::reset_glyph_caches() {
+    // 批次中可能仍引用旧图集的 UV：必须先提交，再删除图集/清缓存。
+    flush_batch();
+    glyph_cache_.clear();
+    glyph_advance_cache_.clear();
+    if (glyph_atlas_.texture_id) {
+        glDeleteTextures(1, &glyph_atlas_.texture_id);
+        glyph_atlas_.texture_id = 0;
+    }
+    glyph_atlas_.cursor_x = 1;
+    glyph_atlas_.cursor_y = 1;
+    glyph_atlas_.row_height = 0;
+    init_glyph_atlas(&glyph_atlas_);
 }
 
 bool opengl_renderer::init_glyph_atlas(glyph_atlas* atlas) {

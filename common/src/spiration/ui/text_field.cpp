@@ -340,13 +340,28 @@ void text_field::paint(std::shared_ptr<renderer> renderer) {
 
         size_t cur_line = 0;
         size_t cur_line_start = 0;
+        size_t cur_line_end = 0;
         size_t li_start = 0;
         for (size_t li = 0; li < n; ++li) {
             size_t ls = li_start;
             size_t le = ls;
             while (le < text.size() && text[le] != '\n') ++le;
-            std::string lt = text.substr(ls, le - ls);
             const float ly = top + static_cast<float>(li) * line_h - scroll_y_;
+
+            if (cursor_pos_ >= ls && cursor_pos_ <= le) {
+                cur_line = li;
+                cur_line_start = ls;
+                cur_line_end = le;
+            }
+
+            // 整行落在裁剪矩形（纵向 0..height）之外时不可见：跳过本行的取子串/测量/绘制，
+            // 与 text_area 的可见行判断保持一致；多行内容较多时避免逐行无谓测量。
+            if (ly < -line_h || ly > height) {
+                li_start = le + 1;
+                continue;
+            }
+
+            std::string lt = text.substr(ls, le - ls);
 
             // 组合输入：光标所在行拆为 前缀 + 组合文本(下划线) + 后缀。
             const bool comp_line = has_composition() && cursor_pos_ >= ls && cursor_pos_ <= le;
@@ -377,20 +392,27 @@ void text_field::paint(std::shared_ptr<renderer> renderer) {
                                     theme_manager::get(theme_manager::INPUT_TEXT), font_size, fam, false);
             }
 
-            if (cursor_pos_ >= ls && cursor_pos_ <= le) {
-                cur_line = li;
-                cur_line_start = ls;
-            }
-
             if (sel && le > sela && ls < selb) {
                 const size_t ia = (sela > ls) ? sela : ls;
                 const size_t ib = (selb < le) ? selb : le;
+                // 选区两段前缀宽度按行缓存（键：行文本 / 起始列 / 长度 / 字号 / 字体族），
+                // 选区与文本不变时（光标闪烁重绘等）不再逐行测量。
+                const size_t slot = li * 2;
                 float xa = text_area_x - scroll_x_;
                 float xb = text_area_x - scroll_x_;
-                if (ia > ls)
-                    xa += renderer->measure_text_width(lt.substr(0, ia - ls), font_size, fam);
-                if (ib >= ls)
-                    xb += renderer->measure_text_width(lt.substr(0, ib - ls), font_size, fam);
+                if (li < SELECTION_CACHE_MAX_LINES) {
+                    if (ia > ls)
+                        xa += cached_prefix_width(field_selection_metric_cache_, slot, renderer,
+                                                  lt, 0, ia - ls, font_size, fam);
+                    if (ib >= ls)
+                        xb += cached_prefix_width(field_selection_metric_cache_, slot + 1, renderer,
+                                                  lt, 0, ib - ls, font_size, fam);
+                } else {
+                    if (ia > ls)
+                        xa += renderer->measure_text_width(lt.substr(0, ia - ls), font_size, fam);
+                    if (ib >= ls)
+                        xb += renderer->measure_text_width(lt.substr(0, ib - ls), font_size, fam);
+                }
                 color sel_c = {0.20f, 0.40f, 0.80f, 0.35f};
                 renderer->draw_rectangle({xa, ly, std::max(xb - xa, 1.0f), line_h}, sel_c);
             }
@@ -399,15 +421,18 @@ void text_field::paint(std::shared_ptr<renderer> renderer) {
         }
 
         if (focused_ && cursor_visible_) {
-            std::string before = text.substr(cur_line_start, cursor_pos_ - cur_line_start);
+            // 光标前缀宽度缓存（键：光标行文本 / 起始列 / 长度 / 字号 / 字体族）。
             float cursor_x = text_area_x - scroll_x_;
-            if (!before.empty())
-                cursor_x += renderer->measure_text_width(before, font_size, fam);
+            if (cursor_pos_ > cur_line_start) {
+                const std::string line_str = text.substr(cur_line_start, cur_line_end - cur_line_start);
+                cursor_x += cached_prefix_width(field_cursor_metric_cache_, 0, renderer, line_str,
+                                                0, cursor_pos_ - cur_line_start, font_size, fam);
+            }
             // 组合输入：光标停在组合文本内光标处。
             if (has_composition()) {
                 const size_t comp_bytes = utf16_offset_to_utf8_bytes(composition_text_, composition_cursor_);
-                cursor_x += renderer->measure_text_width(
-                    composition_text_.substr(0, comp_bytes), font_size, fam);
+                cursor_x += cached_prefix_width(field_cursor_metric_cache_, 1, renderer,
+                                                composition_text_, 0, comp_bytes, font_size, fam);
             }
             float cursor_y = top + static_cast<float>(cur_line) * line_h - scroll_y_;
             renderer->draw_rectangle({cursor_x, cursor_y, 1.5f, line_h},
@@ -597,14 +622,19 @@ void text_field::ensure_cursor_visible() {
             line_start = i + 1;
         }
     }
-    std::string line_prefix = text.substr(line_start, cursor_pos_ - line_start);
+    size_t line_end = line_start;
+    while (line_end < text.size() && text[line_end] != '\n') ++line_end;
+    const std::string line_str = text.substr(line_start, line_end - line_start);
+    const size_t prefix_len = cursor_pos_ - line_start;
+    const std::string fam = theme_manager::get_str(theme_manager::INPUT_FONT);
     float cursor_px = 0.0f;
     if (cached_renderer_) {
-        cursor_px = cached_renderer_->measure_text_width(
-            line_prefix, font_size, theme_manager::get_str(theme_manager::INPUT_FONT));
+        // 行前缀宽度按（行文本 / 起始列 / 长度 / 字号 / 字体族）缓存，与 paint 期光标共用。
+        cursor_px = cached_prefix_width(field_cursor_metric_cache_, 0, cached_renderer_,
+                                        line_str, 0, prefix_len, font_size, fam);
     } else {
         float char_w = font_size * 0.60f;
-        cursor_px = static_cast<float>(line_prefix.size()) * char_w;
+        cursor_px = static_cast<float>(prefix_len) * char_w;
     }
     float avail_w = width - padding_h_ * 2.0f - scroll_margin;
     if (avail_w < 10.0f) avail_w = 10.0f;
@@ -615,16 +645,12 @@ void text_field::ensure_cursor_visible() {
     }
     // 横向滚动上限取当前行宽度（多行时各行独立）。
     float line_w = cursor_px;
-    {
-        size_t le = line_start;
-        while (le < text.size() && text[le] != '\n') ++le;
-        std::string lt = text.substr(line_start, le - line_start);
-        if (cached_renderer_) {
-            line_w = cached_renderer_->measure_text_width(
-                lt, font_size, theme_manager::get_str(theme_manager::INPUT_FONT));
-        } else {
-            line_w = static_cast<float>(lt.size()) * font_size * 0.60f;
-        }
+    if (cached_renderer_) {
+        // 整行宽度同样走前缀宽度缓存（槽位 2），避免与光标前缀重复测量。
+        line_w = cached_prefix_width(field_cursor_metric_cache_, 2, cached_renderer_,
+                                     line_str, 0, line_str.size(), font_size, fam);
+    } else {
+        line_w = static_cast<float>(line_str.size()) * font_size * 0.60f;
     }
     float max_scroll = std::max(0.0f, line_w - avail_w);
     if (scroll_x_ > max_scroll) scroll_x_ = max_scroll;
@@ -655,14 +681,19 @@ void text_field::report_ime_caret() {
             line_start = i + 1;
         }
     }
-    std::string line_prefix = text.substr(line_start, cursor_pos_ - line_start);
+    size_t line_end = line_start;
+    while (line_end < text.size() && text[line_end] != '\n') ++line_end;
+    const std::string line_str = text.substr(line_start, line_end - line_start);
+    const size_t prefix_len = cursor_pos_ - line_start;
     float line_w = 0.0f;
-    if (!line_prefix.empty()) {
+    if (prefix_len > 0) {
         if (cached_renderer_) {
-            line_w = cached_renderer_->measure_text_width(
-                line_prefix, font_size, theme_manager::get_str(theme_manager::INPUT_FONT));
+            // 复用光标前缀宽度缓存（键：行文本 / 起始列 / 长度 / 字号 / 字体族）。
+            line_w = cached_prefix_width(field_cursor_metric_cache_, 0, cached_renderer_,
+                                         line_str, 0, prefix_len, font_size,
+                                         theme_manager::get_str(theme_manager::INPUT_FONT));
         } else {
-            line_w = static_cast<float>(line_prefix.size()) * font_size * 0.6f;
+            line_w = static_cast<float>(prefix_len) * font_size * 0.6f;
         }
     }
     float line_h = font_size * 1.4f;

@@ -124,17 +124,27 @@ size vertical_layout::preferred_size(
         float mr = static_cast<float>(m.right);
         float mt = static_cast<float>(m.top);
         float mb = static_cast<float>(m.bottom);
+        // 同一 child 的 layout_preferred_size() 内部可能触发文本测量（label/markdown 等），
+        // 一次布局里最多只调用一次，高度与宽度都复用同一结果（懒求值，固定尺寸时不测）。
+        size pref = {0.0f, 0.0f};
+        bool pref_ready = false;
+        auto get_pref = [&]() -> const size& {
+            if (!pref_ready) {
+                pref = child->layout_preferred_size();
+                pref_ready = true;
+            }
+            return pref;
+        };
         float dh;
         if (child->widget_style.height > 0) {
             dh = static_cast<float>(child->widget_style.height);
         } else {
-            size pref = child->layout_preferred_size();
-            dh = pref.height;
+            dh = get_pref().height;
         }
         h += dh + mt + mb;
         float cw = (child->widget_style.width > 0)
                     ? static_cast<float>(child->widget_style.width)
-                    : child->layout_preferred_size().width;
+                    : get_pref().width;
         cw += ml + mr;
         if (first) {
             w = cw;

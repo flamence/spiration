@@ -102,8 +102,11 @@ void container::paint(std::shared_ptr<renderer> renderer) {
 void container::paint_children_culled(std::shared_ptr<renderer> renderer) {
     for (auto& child : children()) {
         if (!child->visible || child->width <= 0.0f || child->height <= 0.0f) continue;
-        float vx, vy, vw, vh;
-        if (!child->visible_rect(vx, vy, vw, vh)) continue;
+        // O(1) 可见性判断：由父级下发裁剪区，替代旧实现逐层回溯祖先链的
+        // widget::visible_rect()（后者每个子控件 O(深度)，整帧 O(控件数 × 深度)）。
+        float cl, ct, cr, cb;
+        if (!compute_child_paint_clip(*child, cl, ct, cr, cb)) continue;
+        child->set_paint_clip(cl, ct, cr, cb);
         renderer->push_transform(child->x, child->y);
         child->paint(renderer);
         renderer->pop_transform();

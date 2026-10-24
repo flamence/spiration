@@ -178,19 +178,31 @@ float approx_width(const std::string& s, float font_size) {
     return static_cast<float>(s.size()) * font_size * 0.5f;
 }
 
+/**
+ * @brief 逐词折行。
+ * @param widths_out 非空时输出每行各片段的宽度（与折行时测得的值同源，绘制期直接复用，避免重测）
+ * @param space_w_out 非空时输出单个空格的测量宽度
+ */
 std::vector<std::vector<markdown::run>> wrap_words(
         const std::vector<markdown::run>& runs, float width, float font_size,
-        std::shared_ptr<renderer> r, const std::string& base_family) {
+        std::shared_ptr<renderer> r, const std::string& base_family,
+        std::vector<std::vector<float>>* widths_out = nullptr,
+        float* space_w_out = nullptr) {
     std::vector<std::vector<markdown::run>> lines;
     std::vector<markdown::run> line;
+    std::vector<float> line_widths;
     float line_w = 0.0f;
     float space_w = r ? r->measure_text_width(" ", font_size, base_family)
                       : font_size * 0.28f;
+    if (space_w_out) *space_w_out = space_w;
+    if (widths_out) widths_out->clear();
 
     auto flush = [&]() {
         if (!line.empty()) {
             lines.push_back(std::move(line));
             line.clear();
+            if (widths_out) widths_out->push_back(std::move(line_widths));
+            line_widths.clear();
         }
         line_w = 0.0f;
     };
@@ -204,6 +216,7 @@ std::vector<std::vector<markdown::run>> wrap_words(
             if (!line.empty() && line_w + space_w + ww > width) flush();
             line_w += (line.empty() ? 0.0f : space_w) + ww;
             line.push_back(run);
+            line_widths.push_back(ww);
             continue;
         }
         std::string family = family_for(run.style, base_family);
@@ -239,6 +252,7 @@ std::vector<std::vector<markdown::run>> wrap_words(
                         wr.href = run.href;
                         wr.src = run.src + segs[s].second + wp.second + pos;
                         line.push_back(std::move(wr));
+                        line_widths.push_back(cw);
                         pos = end;
                     }
                     continue;
@@ -250,6 +264,7 @@ std::vector<std::vector<markdown::run>> wrap_words(
                 wr.href = run.href;
                 wr.src = run.src + segs[s].second + wp.second;
                 line.push_back(std::move(wr));
+                line_widths.push_back(ww);
             }
         }
     }
@@ -286,6 +301,8 @@ void markdown::ensure_parsed() const {
         block_rects_.assign(blocks_.size(), rectangle{0.0f, 0.0f, 0.0f, 0.0f});
         cached_h_width_ = -1.0f;
         cached_h_height_ = 0.0f;
+        // 解析结果已变化：所有逐块排版缓存失效。
+        block_layouts_.clear();
     }
 }
 
@@ -796,11 +813,254 @@ float markdown::block_scroll_max(size_t bindex, float avail_w) const {
     return std::max(0.0f, block_natural_width(measure_renderer(), blocks_[bindex]) - avail_w);
 }
 
+markdown::placed_line markdown::make_placed_line(const std::vector<run>& runs,
+                                                 const std::vector<float>& widths,
+                                                 float font_size,
+                                                 const std::string& base_family,
+                                                 float space_w) const {
+    placed_line line;
+    const size_t n = std::min(runs.size(), widths.size());
+    line.runs.reserve(n);
+    line.space_w = space_w;
+    float cursor = 0.0f;
+    for (size_t i = 0; i < n; ++i) {
+        placed_run pr;
+        pr.x = cursor;
+        pr.w = widths[i];
+        pr.text = runs[i].text;
+        pr.href = runs[i].href;
+        pr.src = runs[i].src;
+        pr.style = runs[i].style;
+        pr.font_size = font_size;
+        pr.family = family_for(runs[i].style, base_family);
+        cursor += widths[i] + space_w;
+        line.runs.push_back(std::move(pr));
+    }
+    // 行宽口径与原 line_width() 一致：各片段宽 + 片段间空格（不含末尾空格）。
+    line.width = (n > 0) ? (cursor - space_w) : 0.0f;
+    return line;
+}
+
+std::vector<markdown::placed_line> markdown::layout_inline(std::shared_ptr<renderer> r,
+                                                           const std::vector<run>& runs,
+                                                           float wrap_w, float font_size,
+                                                           const std::string& base_family) const {
+    std::vector<std::vector<float>> widths;
+    float space_w = 0.0f;
+    auto wrapped = wrap_words(runs, wrap_w, font_size, r, base_family, &widths, &space_w);
+    std::vector<placed_line> out;
+    out.reserve(wrapped.size());
+    const std::vector<float> no_widths;
+    for (size_t i = 0; i < wrapped.size(); ++i) {
+        const std::vector<float>& ws = (i < widths.size()) ? widths[i] : no_widths;
+        placed_line pl = make_placed_line(wrapped[i], ws, font_size, base_family, space_w);
+        // 含图片的行：对齐宽度仍按原口径（只测 alt 文本，不含图片内边距）重算，
+        // 保证居中/右对齐时的 x 偏移与改动前一致；图片行很少，此处不做缓存优化。
+        bool has_image = false;
+        for (const auto& rn : wrapped[i]) {
+            if (rn.style == run_style::image) { has_image = true; break; }
+        }
+        if (has_image) pl.width = line_width(r, wrapped[i], font_size, base_family);
+        out.push_back(std::move(pl));
+    }
+    return out;
+}
+
+markdown::placed_line markdown::layout_single_line(std::shared_ptr<renderer> r,
+                                                   const std::vector<run>& runs,
+                                                   float font_size,
+                                                   const std::string& base_family) const {
+    std::vector<float> widths;
+    widths.reserve(runs.size());
+    for (const auto& run : runs) {
+        std::string family = family_for(run.style, base_family);
+        widths.push_back(r ? r->measure_text_width(run.text, font_size, family)
+                           : approx_width(run.text, font_size));
+    }
+    const float space_w = r ? r->measure_text_width(" ", font_size, base_family)
+                            : font_size * 0.28f;
+    return make_placed_line(runs, widths, font_size, base_family, space_w);
+}
+
+void markdown::build_block_layout(std::shared_ptr<renderer> r, const block& b, float avail_w,
+                                  const std::string& family, const std::string& mono,
+                                  block_layout& out) const {
+    const float base_size = font_size > 0.0f ? font_size : 14.0f;
+    out.lines.clear();
+    out.items.clear();
+    out.item_marker_w.clear();
+    out.table_cells.clear();
+    out.col_w.clear();
+    out.code_line_w.clear();
+    out.natural_w = 0.0f;
+
+    switch (b.k) {
+        case block::kind::heading:
+            // 标题字号随级别放大，逐词折行与测宽只做一次。
+            out.lines = layout_inline(r, b.runs, avail_w, heading_size(base_size, b.level), family);
+            out.font_size = heading_size(base_size, b.level);
+            break;
+        case block::kind::paragraph:
+            out.lines = layout_inline(r, b.runs, avail_w, base_size, family);
+            out.font_size = base_size;
+            break;
+        case block::kind::quote:
+            // 引用块内容左侧缩进 12px。
+            out.lines = layout_inline(r, b.runs, avail_w - 12.0f, base_size, family);
+            out.font_size = base_size;
+            break;
+        case block::kind::code: {
+            const float cfont = base_size * 0.95f;
+            float cw = 0.0f;
+            out.code_line_w.reserve(b.code_lines.size());
+            for (const auto& cl : b.code_lines) {
+                float lw = r ? r->measure_text_width(cl, cfont, mono) : 0.0f;
+                out.code_line_w.push_back(lw);
+                cw = std::max(cw, lw);
+            }
+            out.natural_w = cw + 12.0f;  // 左右各 6px 内边距
+            out.font_size = cfont;
+            break;
+        }
+        case block::kind::list: {
+            const float marker_w = b.ordered
+                ? (r ? r->measure_text_width("88. ", base_size, family) : base_size * 2.5f)
+                : (r ? r->measure_text_width("\xE2\x80\xA2 ", base_size, family) : base_size * 1.2f);
+            const float content_w = avail_w - marker_w;
+            int num = b.level;
+            out.items.reserve(b.items.size());
+            out.item_marker_w.reserve(b.items.size());
+            for (const auto& item : b.items) {
+                std::string marker = b.ordered ? (std::to_string(num) + ". ") : "\xE2\x80\xA2 ";
+                out.item_marker_w.push_back(r ? r->measure_text_width(marker, base_size, family)
+                                              : marker_w);
+                out.items.push_back(layout_inline(r, item, content_w, base_size, family));
+                if (b.ordered) ++num;
+            }
+            out.font_size = base_size;
+            break;
+        }
+        case block::kind::table: {
+            // 单遍完成：每个单元格的排版行与列宽共用同一次测量（与原 table_natural_width 口径一致）。
+            const float cell_pad = 8.0f;
+            size_t cols = 0;
+            for (const auto& row : b.table) cols = std::max(cols, row.size());
+            out.col_w.assign(cols, 0.0f);
+            out.table_cells.reserve(b.table.size() * std::max<size_t>(cols, 1));
+            for (const auto& row : b.table) {
+                for (size_t c = 0; c < row.size(); ++c) {
+                    // 表格单元格不折行，逐段测宽生成一行排版结果。
+                    placed_line pl = layout_single_line(r, row[c], base_size, family);
+                    out.col_w[c] = std::max(out.col_w[c], pl.width + cell_pad * 2.0f);
+                    out.table_cells.push_back(std::move(pl));
+                }
+            }
+            float total = 0.0f;
+            for (float cw : out.col_w) total += cw;
+            out.natural_w = total;
+            out.font_size = base_size;
+            break;
+        }
+        case block::kind::hr:
+            break;
+    }
+}
+
+const markdown::block_layout& markdown::ensure_block_layout(
+        std::shared_ptr<renderer> r, const block& b, size_t bindex, float avail_w,
+        const std::string& family, const std::string& mono_family) const {
+    if (bindex >= block_layouts_.size()) block_layouts_.resize(bindex + 1);
+    block_layout& out = block_layouts_[bindex];
+    const float base_size = font_size > 0.0f ? font_size : 14.0f;
+    const float expect_font = (b.k == block::kind::heading)
+        ? heading_size(base_size, b.level)
+        : (b.k == block::kind::code ? base_size * 0.95f : base_size);
+    // 失效键：排版宽度 avail_w / 该块实际字号 / UI 字体族 / 等宽字体族。
+    // text 变化会重建 blocks_，ensure_parsed() 已把整表清空。
+    if (out.valid && out.avail_w == avail_w && out.font_size == expect_font &&
+        out.family == family && out.mono_family == mono_family) {
+        return out;
+    }
+    out.avail_w = avail_w;
+    out.font_size = expect_font;
+    out.family = family;
+    out.mono_family = mono_family;
+    build_block_layout(r, b, avail_w, family, mono_family, out);
+    out.valid = true;
+    return out;
+}
+
+void markdown::draw_placed_line(std::shared_ptr<renderer> r, const placed_line& line,
+                                float x, float y, float line_height,
+                                const color& base_color, const color& code_bg,
+                                const color& link_color) const {
+    const size_t n = line.runs.size();
+    if (n == 0) return;
+    // 片段间空格宽度：排版期已测得（与绘制用的字号/字体相同），这里直接复用，
+    // 单片段行也保持与原实现一致的尾部空格宽度（影响命中测试区域）。
+    const float space_w = line.space_w;
+    bool has_image = false;
+    for (size_t i = 0; i < n; ++i) {
+        if (line.runs[i].style == run_style::image) { has_image = true; break; }
+    }
+
+    float cx = x;
+    for (size_t i = 0; i < n; ++i) {
+        const placed_run& pr = line.runs[i];
+        const float fs = pr.font_size;
+        // 不含图片的行位置全部来自排版缓存；含图片时按原逻辑动态累加
+        //（图片实际绘制宽度取决于磁盘文件，不能缓存为固定值）。
+        if (!has_image) cx = x + pr.x;
+        if (pr.style == run_style::image) {
+            run img;
+            img.text = pr.text;
+            img.style = pr.style;
+            img.href = pr.href;
+            img.src = pr.src;
+            float bw = draw_image_run(r, img, cx, y, fs, line_height);
+            word_rects_.push_back({cx, y, bw, line_height, pr.src,
+                                   pr.src + pr.text.size(), pr.href,
+                                   pr.text, pr.style, fs});
+            cx += bw + space_w;
+            continue;
+        }
+        const float w = pr.w;
+        color c = base_color;
+        if (!pr.href.empty() || pr.style == run_style::link) c = link_color;
+
+        if (pr.style == run_style::code && code_bg.a > 0.0f)
+            r->draw_rectangle({cx - 3.0f, y - 1.0f, w + 6.0f, line_height - 1.0f}, code_bg);
+
+        if (pr.style == run_style::bold || pr.style == run_style::bold_italic)
+            r->draw_text(pr.text, {cx + 0.5f, y}, c, fs, pr.family, false);
+        r->draw_text(pr.text, {cx, y}, c, fs, pr.family, false);
+
+        if (!pr.href.empty() || pr.style == run_style::link) {
+            float line_end = cx + w;
+            if (i + 1 < n &&
+                (!line.runs[i + 1].href.empty() ||
+                 line.runs[i + 1].style == run_style::link) &&
+                line.runs[i + 1].href == pr.href) {
+                line_end += space_w;
+            }
+            r->draw_line({cx, y + fs + 1.0f}, {line_end, y + fs + 1.0f}, link_color, 1.0f);
+        }
+
+        word_rects_.push_back({cx, y, w + space_w, line_height, pr.src,
+                               pr.src + pr.text.size(), pr.href,
+                               pr.text, pr.style, fs});
+        cx += w + space_w;
+    }
+}
+
 void markdown::draw_block(std::shared_ptr<renderer> r, const block& b, size_t bindex,
                           float x, float y, float avail_w, float& y_out) const {
     const float base_size = font_size > 0.0f ? font_size : 14.0f;
     const float line_h = base_size * 1.4f;
-    std::string bf = ui_font();
+    const std::string bf = ui_font();
+    const std::string mf = mono_font();
+    // 取（必要时重建）本块的排版缓存：命中时下面的绘制路径不再做任何文本测量。
+    const block_layout& bl = ensure_block_layout(r, b, bindex, avail_w, bf, mf);
     color base    = theme_manager::get(theme_manager::LABEL_TEXT);
     color heading = theme_manager::get(theme_manager::HEADING_TEXT);
     color code_bg = theme_manager::get(theme_manager::CODE_BG);
@@ -814,24 +1074,21 @@ void markdown::draw_block(std::shared_ptr<renderer> r, const block& b, size_t bi
             float hs = heading_size(base_size, b.level);
             float hh = hs * 1.4f;
             y += hh * 0.5f;
-            auto lines = wrap_words(b.runs, avail_w, hs, r, bf);
-            for (const auto& l : lines) {
-                draw_word_line(r, l, x, y, hs, bf, heading, code_bg, hh, link);
+            for (const auto& l : bl.lines) {
+                draw_placed_line(r, l, x, y, hh, heading, code_bg, link);
                 y += hh;
             }
             y += hh * 0.35f;
             break;
         }
         case block::kind::paragraph: {
-            auto lines = wrap_words(b.runs, avail_w, base_size, r, bf);
-            for (const auto& l : lines) {
-                float lw = line_width(r, l, base_size, bf);
+            for (const auto& l : bl.lines) {
                 float lx = x;
                 if (h_align == text_alignment::center)
-                    lx = x + std::max(0.0f, (avail_w - lw) * 0.5f);
+                    lx = x + std::max(0.0f, (avail_w - l.width) * 0.5f);
                 else if (h_align == text_alignment::right)
-                    lx = x + std::max(0.0f, avail_w - lw);
-                draw_word_line(r, l, lx, y, base_size, bf, base, code_bg, line_h, link);
+                    lx = x + std::max(0.0f, avail_w - l.width);
+                draw_placed_line(r, l, lx, y, line_h, base, code_bg, link);
                 y += line_h;
             }
             y += base_size * 0.35f;
@@ -842,12 +1099,7 @@ void markdown::draw_block(std::shared_ptr<renderer> r, const block& b, size_t bi
             size_t rows = std::max<size_t>(b.code_lines.size(), 1);
             float ch = pad * 2.0f + static_cast<float>(rows) * line_h;
             float cfont = base_size * 0.95f;
-            float nat_w = 0.0f;
-            for (const auto& cl : b.code_lines) {
-                float lw = r ? r->measure_text_width(cl, cfont, mono_font()) : 0.0f;
-                nat_w = std::max(nat_w, lw);
-            }
-            nat_w += pad * 2.0f;
+            float nat_w = bl.natural_w;  // 排版缓存：最长代码行宽 + 左右内边距
             float bg_w = std::max(avail_w, nat_w);
 
             block_rects_[bindex] = {x, y, avail_w, ch};
@@ -867,8 +1119,8 @@ void markdown::draw_block(std::shared_ptr<renderer> r, const block& b, size_t bi
             float cy = y + pad;
             for (size_t ci = 0; ci < b.code_lines.size(); ++ci) {
                 const auto& cl = b.code_lines[ci];
-                r->draw_text(cl, {x + pad - bscroll, cy}, code_col, cfont, mono_font(), false);
-                float lw = r ? r->measure_text_width(cl, cfont, mono_font()) : 0.0f;
+                r->draw_text(cl, {x + pad - bscroll, cy}, code_col, cfont, mf, false);
+                float lw = (ci < bl.code_line_w.size()) ? bl.code_line_w[ci] : 0.0f;
                 size_t loff = (ci < b.code_offsets.size()) ? b.code_offsets[ci] : 0;
                 word_rects_.push_back({x + pad - bscroll, cy, lw, line_h, loff,
                                        loff + cl.size(), "", cl,
@@ -893,30 +1145,27 @@ void markdown::draw_block(std::shared_ptr<renderer> r, const block& b, size_t bi
         }
         case block::kind::quote: {
             const float indent = 12.0f;
-            auto lines = wrap_words(b.runs, avail_w - indent, base_size, r, bf);
-            float qh = static_cast<float>(lines.size()) * line_h;
+            float qh = static_cast<float>(bl.lines.size()) * line_h;
             r->draw_rectangle({x, y, 3.0f, qh}, bar);
-            for (const auto& l : lines) {
-                draw_word_line(r, l, x + indent, y, base_size, bf, muted, code_bg, line_h, link);
+            for (const auto& l : bl.lines) {
+                draw_placed_line(r, l, x + indent, y, line_h, muted, code_bg, link);
                 y += line_h;
             }
             y += base_size * 0.35f;
             break;
         }
         case block::kind::list: {
-            std::string probe = b.ordered ? "88. " : "\xE2\x80\xA2 ";
-            float marker_w = r ? r->measure_text_width(probe, base_size, bf)
-                               : (b.ordered ? base_size * 2.5f : base_size * 1.2f);
-            float content_w = avail_w - marker_w;
             int num = b.level;
-            for (const auto& item : b.items) {
+            for (size_t ii = 0; ii < b.items.size(); ++ii) {
                 std::string marker = b.ordered ? (std::to_string(num) + ". ") : "\xE2\x80\xA2 ";
-                float mw = r ? r->measure_text_width(marker, base_size, bf) : marker_w;
-                auto lines = wrap_words(item, content_w, base_size, r, bf);
+                // 标记宽度取自排版缓存，不再每帧测量每个序号。
+                float mw = (ii < bl.item_marker_w.size()) ? bl.item_marker_w[ii] : 0.0f;
                 r->draw_text(marker, {x, y}, base, base_size, bf, false);
-                for (const auto& l : lines) {
-                    draw_word_line(r, l, x + mw, y, base_size, bf, base, code_bg, line_h, link);
-                    y += line_h;
+                if (ii < bl.items.size()) {
+                    for (const auto& l : bl.items[ii]) {
+                        draw_placed_line(r, l, x + mw, y, line_h, base, code_bg, link);
+                        y += line_h;
+                    }
                 }
                 y += base_size * 0.15f;
                 if (b.ordered) ++num;
@@ -932,8 +1181,8 @@ void markdown::draw_block(std::shared_ptr<renderer> r, const block& b, size_t bi
         }
         case block::kind::table: {
             const float cell_pad = 8.0f;
-            std::vector<float> col_w;
-            float total = table_natural_width(r, b.table, base_size, bf, &col_w);
+            const std::vector<float>& col_w = bl.col_w;
+            float total = bl.natural_w;  // 排版缓存：按自然列宽展开后的总宽
             if (total <= 0.0f || col_w.empty()) break;
             color tbl_border = theme_manager::get(theme_manager::SEPARATOR);
             color tbl_hdr    = theme_manager::get(theme_manager::CODE_BG);
@@ -954,13 +1203,17 @@ void markdown::draw_block(std::shared_ptr<renderer> r, const block& b, size_t bi
             const float cx0 = x - bscroll;
             r->draw_rectangle({cx0, y, total, row_h}, tbl_hdr);
             float ry = y;
+            size_t cell_idx = 0;  // 与 build_block_layout() 的行优先单元格顺序对应
             for (size_t ri = 0; ri < b.table.size(); ++ri) {
                 const auto& row = b.table[ri];
                 float cx = cx0;
                 for (size_t ci = 0; ci < col_w.size(); ++ci) {
-                    if (ci < row.size())
-                        draw_word_line(r, row[ci], cx + cell_pad, ry,
-                                       base_size, bf, base, code_bg, line_h, link);
+                    if (ci < row.size()) {
+                        if (cell_idx < bl.table_cells.size())
+                            draw_placed_line(r, bl.table_cells[cell_idx], cx + cell_pad, ry,
+                                             row_h, base, code_bg, link);
+                        ++cell_idx;
+                    }
                     if (ci + 1 < col_w.size())
                         r->draw_line({cx + col_w[ci], ry}, {cx + col_w[ci], ry + row_h},
                                      tbl_border, 1.0f);
@@ -990,54 +1243,6 @@ void markdown::draw_block(std::shared_ptr<renderer> r, const block& b, size_t bi
         }
     }
     y_out = y;
-}
-
-void markdown::draw_word_line(std::shared_ptr<renderer> r, const std::vector<run>& line,
-                              float x, float y, float font_size, const std::string& base_family,
-                              const color& base_color, const color& code_bg, float line_height,
-                              const color& link_color) const {
-    float cx = x;
-    float space_w = r ? r->measure_text_width(" ", font_size, base_family)
-                      : font_size * 0.28f;
-    for (size_t li = 0; li < line.size(); ++li) {
-        const auto& run = line[li];
-        if (run.style == run_style::image) {
-            float bw = draw_image_run(r, run, cx, y, font_size, line_height);
-            word_rects_.push_back({cx, y, bw, line_height, run.src,
-                                   run.src + run.text.size(), run.href,
-                                   run.text, run.style, font_size});
-            cx += bw + space_w;
-            continue;
-        }
-        std::string family = family_for(run.style, base_family);
-        float w = r ? r->measure_text_width(run.text, font_size, family)
-                    : approx_width(run.text, font_size);
-        color c = base_color;
-        if (!run.href.empty() || run.style == run_style::link) c = link_color;
-
-        if (run.style == run_style::code && code_bg.a > 0.0f)
-            r->draw_rectangle({cx - 3.0f, y - 1.0f, w + 6.0f, line_height - 1.0f}, code_bg);
-
-        if (run.style == run_style::bold || run.style == run_style::bold_italic)
-            r->draw_text(run.text, {cx + 0.5f, y}, c, font_size, family, false);
-        r->draw_text(run.text, {cx, y}, c, font_size, family, false);
-
-        if (!run.href.empty() || run.style == run_style::link) {
-            float line_end = cx + w;
-            if (li + 1 < line.size() &&
-                (!line[li + 1].href.empty() || line[li + 1].style == run_style::link) &&
-                line[li + 1].href == run.href) {
-                line_end += space_w;
-            }
-            r->draw_line({cx, y + font_size + 1.0f}, {line_end, y + font_size + 1.0f},
-                         link_color, 1.0f);
-        }
-
-        word_rects_.push_back({cx, y, w + space_w, line_height, run.src,
-                               run.src + run.text.size(), run.href,
-                               run.text, run.style, font_size});
-        cx += w + space_w;
-    }
 }
 
 float markdown::draw_image_run(std::shared_ptr<renderer> r, const run& img, float x, float y,

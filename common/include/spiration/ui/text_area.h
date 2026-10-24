@@ -12,6 +12,7 @@
 #include <functional>
 #include <string>
 #include <nonstd/string_view.hpp>
+#include <unordered_map>
 #include <vector>
 
 namespace spiration {
@@ -116,6 +117,44 @@ public:
 
 protected:
     float cursor_pixel_x_ = -1.0f;
+
+    /**
+     * @brief 前缀宽度缓存项：避免 paint 期对同一段文本反复 measure。
+     * 失效键：行文本快照 line / 起始字节 start / 长度 len / 字号 font_size / 字体族 font_family。
+     * 文本编辑会经 rebuild_line_starts() 清空缓存；字号/字体变化则由键比较自然失效。
+     */
+    struct prefix_metric {
+        std::string line;
+        size_t start = 0;
+        size_t len = 0;
+        float width = 0.0f;
+        float font_size = -1.0f;
+        std::string font_family;
+        bool valid = false;
+    };
+
+    /**
+     * @brief 取 line[start, start+len) 这段文本的像素宽度；键一致时直接复用缓存值。
+     * @param cache 缓存表；@param slot 该段文本在缓存表中的槽位
+     */
+    static float cached_prefix_width(std::unordered_map<size_t, prefix_metric>& cache,
+                                     size_t slot, const std::shared_ptr<renderer>& r,
+                                     const std::string& line, size_t start, size_t len,
+                                     float font_size, const std::string& font_family);
+
+    /// @brief 选中行高亮的两段宽度缓存（槽位 = 行号 * 2 和 行号 * 2 + 1）。
+    mutable std::unordered_map<size_t, prefix_metric> selection_metric_cache_;
+    /// @brief 光标行前缀宽度 / 输入法组合文本前缀宽度缓存（槽位 0、1）。
+    mutable std::unordered_map<size_t, prefix_metric> cursor_metric_cache_;
+    /// @brief 行号文本宽度缓存（下标 = 行号 - 1，值为 -1 表示未测量）。
+    /// 失效键：font_size - 1、font_family；行号文本只由行号决定，与文本内容无关。
+    mutable std::vector<float> line_number_width_cache_;
+    mutable float line_number_cache_font_ = -2.0f;
+    mutable std::string line_number_cache_family_;
+    /// @brief 行号宽度缓存的最大行数（超出后改为逐帧测量，避免超长文档占用过多内存）。
+    static constexpr size_t LINE_NUMBER_CACHE_MAX_LINES = 65536;
+    /// @brief 选区宽度缓存的最大行数（防止超长文档全选时缓存按行无限膨胀）。
+    static constexpr size_t SELECTION_CACHE_MAX_LINES = 8192;
 
     ///< 输入法组合文本（preedit）与组合内光标（UTF-16 码元数，-1=末尾）。
     std::string composition_text_;

@@ -118,6 +118,9 @@ private:
     float align_x(float line_width, float wrap_width) const;
     float layout_lines(std::shared_ptr<renderer> r, std::vector<line_info>& out) const;
 
+    /// @brief 非 selectable 分支实际要绘制的文本（含省略处理），带缓存。
+    const std::string& display_text(const std::shared_ptr<renderer>& r) const;
+
     /// @brief 沿父链通知 root：本控件开始新的文本选择。
     void notify_root_selection_started();
 
@@ -137,6 +140,39 @@ private:
     mutable float cached_lines_font_ = -1.0f;
     mutable float cached_lines_height_ = -1.0f;
     mutable bool cached_lines_valid_ = false;
+
+    /**
+     * @brief 省略/隐藏后的绘制文本缓存。
+     * 失效键：text、控件宽度 width、font_size、主题字体族、overflow。
+     * 上述任一项变化才重新测量并省略；否则 paint 直接复用（省略逻辑内部会反复 measure）。
+     */
+    mutable std::string cached_display_text_;
+    mutable std::string cached_display_key_text_;
+    mutable std::string cached_display_key_family_;
+    mutable float cached_display_key_width_ = -1.0f;
+    mutable float cached_display_key_font_ = -1.0f;
+    mutable text_overflow cached_display_key_overflow_ = text_overflow::none;
+    mutable bool cached_display_valid_ = false;
+
+    /**
+     * @brief layout_preferred_size() 的测量结果缓存。
+     * 失效键：text、font_size、主题字体族、目标宽度、是否有可用 renderer。
+     * 该函数会被父布局在同一次 layout 中多次调用，缓存后只有首次真正测量。
+     */
+    mutable size cached_pref_size_;
+    mutable std::string cached_pref_key_text_;
+    mutable std::string cached_pref_key_family_;
+    mutable float cached_pref_key_width_ = -1.0f;
+    mutable float cached_pref_key_font_ = -1.0f;
+    mutable bool cached_pref_key_has_renderer_ = false;
+    mutable bool cached_pref_valid_ = false;
+
+    /// @brief text_width() 的结果缓存（失效键：text、font_size、主题字体族）。
+    mutable float cached_text_width_value_ = 0.0f;
+    mutable std::string cached_text_width_key_text_;
+    mutable std::string cached_text_width_key_family_;
+    mutable float cached_text_width_key_font_ = -1.0f;
+    mutable bool cached_text_width_valid_ = false;
 };
 
 }

@@ -5,8 +5,6 @@
  * @author clk
  */
 
-#if defined(__APPLE__)
-
 #include <spiration/renderer/opengl_renderer.h>
 
 #import <Cocoa/Cocoa.h>
@@ -19,10 +17,6 @@ namespace spiration {
 
 namespace {
 
-/// 将 UTF-8 字节串安全转为 NSString。
-/// stringWithUTF8String: 遇到非法 UTF-8（如流式输出被分块截断的多字节序列）返回 nil，
-/// 若直接用于 NSAttributedString 会崩溃（NSInvalidArgumentException nil value）。
-/// 这里逐字节校验，非法字节以 U+FFFD 替换，保证返回值永不为 nil。
 NSString* ns_string_from_utf8(const std::string& text) {
     NSString* ns = [NSString stringWithUTF8String:text.c_str()];
     if (ns) return ns;
@@ -110,8 +104,7 @@ float opengl_renderer::measure_text_width(const std::string& text, float font_si
         CFRelease(font);
     }
 
-    if (measure_cache_.size() >= MEASURE_CACHE_MAX) measure_cache_.clear();
-    measure_cache_.emplace(std::move(key), width);
+    cache_measure_result(std::move(key), width);
     return width;
 }
 
@@ -141,8 +134,7 @@ float opengl_renderer::measure_text_height(const std::string& text, float font_s
         CFRelease(font);
     }
 
-    if (measure_cache_.size() >= MEASURE_CACHE_MAX) measure_cache_.clear();
-    measure_cache_.emplace(std::move(key), height);
+    cache_measure_result(std::move(key), height);
     return height;
 }
 
@@ -177,9 +169,13 @@ void opengl_renderer::draw_text(const std::string& text, const point& position, 
 
             // RGBA（非预乘字节序下的内存布局），行 0 为图像顶部
             CGBitmapInfo bitmap_info = (CGBitmapInfo)kCGImageAlphaPremultipliedLast;
+            // CGColorSpaceCreateDeviceRGB 返回 +1 引用；CGBitmapContextCreate 会 retain 它，
+            // 旧实现没有 release，每帧每个文本都会泄漏一个颜色空间对象。
+            CGColorSpaceRef color_space = CGColorSpaceCreateDeviceRGB();
             bitmap_ctx = CGBitmapContextCreate(
                 nullptr, (size_t)text_width, (size_t)text_height, 8,
-                (size_t)text_width * 4, CGColorSpaceCreateDeviceRGB(), bitmap_info);
+                (size_t)text_width * 4, color_space, bitmap_info);
+            CGColorSpaceRelease(color_space);
 
             if (bitmap_ctx) {
                 CGMutablePathRef path = CGPathCreateMutable();
@@ -202,9 +198,12 @@ void opengl_renderer::draw_text(const std::string& text, const point& position, 
             if (text_height < 1.0f) text_height = 1.0f;
 
             CGBitmapInfo bitmap_info = (CGBitmapInfo)kCGImageAlphaPremultipliedLast;
+            // 同上：显式释放颜色空间，避免每帧绘制文本时泄漏。
+            CGColorSpaceRef color_space = CGColorSpaceCreateDeviceRGB();
             bitmap_ctx = CGBitmapContextCreate(
                 nullptr, (size_t)std::ceil(text_width), (size_t)std::ceil(text_height), 8,
-                (size_t)std::ceil(text_width) * 4, CGColorSpaceCreateDeviceRGB(), bitmap_info);
+                (size_t)std::ceil(text_width) * 4, color_space, bitmap_info);
+            CGColorSpaceRelease(color_space);
 
             if (bitmap_ctx) {
                 // 默认（未翻转）CTM：基线位于 y=descent，内存行 0 对应文本顶部
@@ -306,5 +305,3 @@ void opengl_renderer::draw_text_aligned(const std::string& text, const rectangle
 }
 
 } // namespace spiration
-
-#endif // defined(__APPLE__)

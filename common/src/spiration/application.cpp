@@ -109,6 +109,13 @@ bool application::initialize(tl::optional<init_phase> phase) {
 #endif
         widget_ = widget.get();
         window_->set_widget(std::move(widget));
+        // 后台线程投递 UI 任务后唤醒消息循环：消息循环空闲时会阻塞等待，
+        // 不唤醒会导致 UI 更新延迟（旧实现依靠 1ms 忙轮询兜底）。
+        if (dispatcher_) {
+            dispatcher_->set_wake_callback([this]() {
+                if (window_) window_->request_repaint();
+            });
+        }
         extension_manager_->initialize(init_phase::normal);
 #if !defined(__OHOS__)
         window_->show();
@@ -141,6 +148,8 @@ void application::loop() {
 }
 
 void application::shutdown() {
+    // 先摘除唤醒回调，避免窗口销毁后后台线程仍触发重绘请求。
+    if (dispatcher_) dispatcher_->set_wake_callback(nullptr);
     if (extension_manager_) extension_manager_->shutdown();
     if (window_) window_->close();
     if (dispatcher_) dispatcher_->shutdown();
