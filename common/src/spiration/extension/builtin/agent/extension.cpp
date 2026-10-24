@@ -91,8 +91,6 @@ bool extension::initialize() {
 
     store_ = std::make_shared<chat_store>(data_dir_);
 
-    api->add_menu_item("menu.help", i18n_manager::get().tr("agent:chat.new_chat"),
-                       [this]() { open_new_chat(); });
     api->add_menu_item("menu.help", i18n_manager::get().tr("agent:menu.help.configure_models"),
                        [this]() { configure_models(); });
 
@@ -276,13 +274,8 @@ void extension::open_tab_for(const std::string& uuid, const std::string& name) {
 }
 
 void extension::open_new_chat() {
-    if (!store_) return;
-    std::string uuid = store_->create("");
-    if (uuid.empty()) {
-        if (api) api->log_warning("create conversation failed");
-        return;
-    }
-    open_tab_for(uuid, "");
+    // 空白对话不落盘：首次保存时才创建会话目录，新建标签因此不受 IO 失败影响。
+    open_tab_for(chat_store::new_uuid(), "");
 }
 
 void extension::open_conversation(const std::string& uuid, const std::string& name) {
@@ -324,14 +317,16 @@ void extension::show_history(float x, float y) {
         if (meta.message_count > 0) convos.push_back(std::move(meta));
     }
     auto menu = std::make_unique<context_menu>();
-    menu->add_item(i18n_manager::get().tr("agent:chat.new_chat"), [this]() { open_new_chat(); });
-    if (!convos.empty()) menu->add_separator();
-    const size_t limit = std::min<size_t>(convos.size(), 12);
-    for (size_t i = 0; i < limit; ++i) {
-        menu->add_item(convos[i].name,
-                       [this, uuid = convos[i].uuid, name = convos[i].name]() {
-                           open_conversation(uuid, name);
-                       });
+    if (convos.empty()) {
+        menu->add_item(i18n_manager::get().tr("agent:chat.no_history"), nullptr, false);
+    } else {
+        const size_t limit = std::min<size_t>(convos.size(), 12);
+        for (size_t i = 0; i < limit; ++i) {
+            menu->add_item(convos[i].name,
+                           [this, uuid = convos[i].uuid, name = convos[i].name]() {
+                               open_conversation(uuid, name);
+                           });
+        }
     }
     history_btn_->request_context_menu(x, y, std::move(menu));
 }

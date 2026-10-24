@@ -57,12 +57,8 @@ public:
      */
     explicit chat_store(ghc::filesystem::path base_dir);
 
-    /**
-     * @brief 创建新会话。
-     * @param name 会话名，空则自动生成。
-     * @return 会话 UUID，失败返回空串。
-     */
-    std::string create(const std::string& name);
+    /// @brief 生成一个新的会话 UUID；不写磁盘，首次保存时才创建目录。
+    static std::string new_uuid();
 
     /// @brief 保存会话，成功返回 true。
     bool save(const chat_archive& archive);
@@ -82,10 +78,6 @@ public:
     /// @brief 写入会话的 memory.md。
     bool save_memory(const std::string& uuid, const std::string& content);
 
-    /// @brief 当前会话 UUID。
-    std::string current_uuid() const;
-    void set_current_uuid(const std::string& uuid);
-
     /// @brief 数据目录。
     const ghc::filesystem::path& base_dir() const { return base_dir_; }
 
@@ -97,13 +89,8 @@ public:
 
 private:
     ghc::filesystem::path base_dir_;
-    mutable std::mutex uuid_mtx_;
-    std::string current_uuid_;
     /// @brief 串行化全部文件操作。
     mutable std::mutex io_mtx_;
-
-    /// @brief 生成 UUID v4 字符串。
-    static std::string make_uuid();
 };
 
 } // namespace agent

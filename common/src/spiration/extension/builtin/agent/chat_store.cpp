@@ -99,7 +99,7 @@ chat_store::chat_store(ghc::filesystem::path base_dir) : base_dir_(std::move(bas
     ghc::filesystem::create_directories(chat_dir());
 }
 
-std::string chat_store::make_uuid() {
+std::string chat_store::new_uuid() {
     static std::random_device rd;
     static std::mt19937_64 gen(rd());
     std::uniform_int_distribution<uint64_t> dist;
@@ -126,50 +126,6 @@ ghc::filesystem::path chat_store::conversation_dir(const std::string& uuid) cons
     return chat_dir() / uuid;
 }
 
-std::string chat_store::current_uuid() const {
-    std::lock_guard<std::mutex> lk(uuid_mtx_);
-    return current_uuid_;
-}
-
-void chat_store::set_current_uuid(const std::string& uuid) {
-    std::lock_guard<std::mutex> lk(uuid_mtx_);
-    current_uuid_ = uuid;
-}
-
-std::string chat_store::create(const std::string& name) {
-    std::lock_guard<std::mutex> lk(io_mtx_);
-    std::string uuid = make_uuid();
-    ghc::filesystem::path dir = conversation_dir(uuid);
-    std::error_code ec;
-    ghc::filesystem::create_directories(dir, ec);
-    if (ec) {
-        application::instance()->logger()->log({logging::level::error, fmt::format("create conversation dir failed: {} ec={}", dir.string(), ec.message()), "extension/agent/chat_store"});
-        return {};
-    }
-
-    nlohmann::json meta;
-    meta["uuid"]       = uuid;
-    meta["name"]       = name.empty() ? default_name() : name;
-    meta["created_at"] = now_string();
-    meta["updated_at"] = meta["created_at"];
-    meta["provider"]   = "";
-    meta["model"]      = "";
-    meta["message_count"] = 0;
-    meta["can_continue"]  = false;
-    meta["auto_approve"]  = false;
-    meta["tokens_in"]     = 0;
-    meta["tokens_out"]    = 0;
-    meta["todos"]         = nlohmann::json::array();
-
-    if (!io::write_file_content(dir / "meta.json",
-                         meta.dump(2, ' ', false, nlohmann::json::error_handler_t::replace))) {
-        application::instance()->logger()->log({logging::level::error, fmt::format("create meta.json failed: {}", uuid), "extension/agent/chat_store"});
-        return {};
-    }
-    application::instance()->logger()->log({logging::level::info, fmt::format("created conversation '{}' ({})", meta["name"].get<std::string>(), uuid), "extension/agent/chat_store"});
-    return uuid;
-}
-
 bool chat_store::save(const chat_archive& archive) {
     std::lock_guard<std::mutex> lk(io_mtx_);
     if (archive.uuid.empty()) return false;
@@ -188,7 +144,7 @@ bool chat_store::save(const chat_archive& archive) {
     nlohmann::json meta;
     meta["uuid"]       = archive.uuid;
     meta["name"]       = archive.name.empty() ? default_name() : archive.name;
-    meta["created_at"] = archive.created_at;
+    meta["created_at"] = archive.created_at.empty() ? now_string() : archive.created_at;
     // updated_at 始终更新为当前时间（最后修改时间，会话列表按此排序）；
     // 原实现保留旧值导致会话永远不刷新排序。
     meta["updated_at"] = now_string();
@@ -241,6 +197,13 @@ bool chat_store::save(const chat_archive& archive) {
 bool chat_store::load(const std::string& uuid, chat_archive& archive) const {
     std::lock_guard<std::mutex> lk(io_mtx_);
     ghc::filesystem::path dir = conversation_dir(uuid);
+
+    // 新对话在首次保存前没有目录，按空存档返回。
+    if (!ghc::filesystem::exists(dir)) {
+        archive = chat_archive{};
+        archive.uuid = uuid;
+        return true;
+    }
 
     // 新建会话只写过 meta.json（尚未保存任何消息），按空会话打开。
     if (!ghc::filesystem::exists(dir / "messages.json")) {
@@ -324,13 +287,13 @@ bool chat_store::remove(const std::string& uuid) {
     std::lock_guard<std::mutex> lk(io_mtx_);
     if (uuid.empty()) return false;
     std::error_code ec;
+    const bool existed = ghc::filesystem::exists(conversation_dir(uuid));
     ghc::filesystem::remove_all(conversation_dir(uuid), ec);
     bool ok = !ec;
-    if (ok) {
-        std::lock_guard<std::mutex> lk(uuid_mtx_);
-        if (current_uuid_ == uuid) current_uuid_.clear();
+    // 空白对话从未落盘，不必记录“已删除”日志。
+    if (existed) {
+        application::instance()->logger()->log({logging::level::info, fmt::format("removed conversation {}", uuid), "extension/agent/chat_store"});
     }
-    application::instance()->logger()->log({logging::level::info, fmt::format("removed conversation {}", uuid), "extension/agent/chat_store"});
     return ok;
 }
 

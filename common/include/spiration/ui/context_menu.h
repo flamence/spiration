@@ -31,7 +31,11 @@ public:
         widget_style.cursor = cursor_style::pointer;
     }
 
-    void add_item(const std::string& text, std::function<void()> callback);
+    /**
+     * @brief 追加一个菜单项。
+     * @param enabled false 时该项仅作提示，不可点击。
+     */
+    void add_item(const std::string& text, std::function<void()> callback, bool enabled = true);
     void add_separator();
 
     bool hit_test(float x, float y) const override;

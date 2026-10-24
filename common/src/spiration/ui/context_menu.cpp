@@ -9,8 +9,9 @@
 
 namespace spiration {
 
-void context_menu::add_item(const std::string& text, std::function<void()> callback) {
-    items_.push_back({text, std::move(callback), false, true});
+void context_menu::add_item(const std::string& text, std::function<void()> callback,
+                            bool enabled) {
+    items_.push_back({text, std::move(callback), false, enabled});
     recalc_size();
 }
 
