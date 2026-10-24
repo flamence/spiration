@@ -77,6 +77,9 @@ public:
      */
     int on_models_changed(std::function<void()> cb);
 
+    /// @brief 取消模型来源变更订阅。
+    void off_models_changed(int id);
+
     /**
      * @brief 发布"模型来源变更"通知（模型来源在增删模型后调用）。
      */

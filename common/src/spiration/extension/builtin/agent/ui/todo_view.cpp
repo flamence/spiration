@@ -33,7 +33,7 @@ float todo_view::desired_height() const {
 }
 
 void todo_view::refresh() {
-    items_ = todo_store::instance().items();
+    items_ = todo_store::instance().items(uuid_ ? uuid_() : "");
     hovered_row_ = -1;
     height = std::min(desired_height(), max_height);
     scroll_y_ = std::max(0.0f, std::min(scroll_y_, scroll_max_y()));
@@ -109,14 +109,14 @@ void todo_view::handle_event(const event_type& type, void* data) {
                 if (row >= 0 && row < static_cast<int>(items_.size())) {
                     md->consumed = true;
                     focus_manager::instance().request_focus(this);
-                    auto items = todo_store::instance().items();
+                    auto items = todo_store::instance().items(uuid_ ? uuid_() : "");
                     if (row < static_cast<int>(items.size())) {
                         switch (items[row].status) {
                             case todo_status::pending:    items[row].status = todo_status::in_progress; break;
                             case todo_status::in_progress: items[row].status = todo_status::completed;  break;
                             case todo_status::completed:   items[row].status = todo_status::pending;    break;
                         }
-                        todo_store::instance().set(items);
+                        todo_store::instance().set(uuid_ ? uuid_() : "", items);
                     }
                     if (request_repaint_) request_repaint_();
                     return;

@@ -6,25 +6,29 @@
 
 #pragma once
 
+#include <spiration/extension/builtin/agent/agent_tab.h>
 #include <spiration/extension/builtin/agent/chat.h>
 #include <spiration/extension/builtin/agent/chat_store.h>
 #include <spiration/extension/builtin/agent/registry.h>
-#include <spiration/extension/builtin/agent/agent_tab.h>
-#include <spiration/extension/builtin/agent/tool/terminal_tool.h>
-#include <spiration/extension/builtin/agent/tool/edit_tool.h>
-#include <spiration/extension/builtin/agent/tool/web_tool.h>
-#include <spiration/extension/builtin/agent/tool/todo_tool.h>
-#include <spiration/extension/builtin/agent/tool/sleep_tool.h>
-#include <spiration/extension/builtin/agent/tool/memory_tool.h>
+#include <spiration/extension/builtin/agent/tool/tool.hpp>
 #include <spiration/extension/builtin/i18n/i18n.h>
 #include <spiration/extension/extension.hpp>
+#include <spiration/ui/button.h>
 
 #include <ghc/filesystem.hpp>
 #include <memory>
+#include <string>
+#include <vector>
 
 namespace spiration {
 namespace agent {
 
+/**
+ * @brief 智能体拓展。
+ *
+ * 每个智能体标签页承载一个独立对话（独立 chat_client / 工具集 / 会话 UUID），
+ * 拓展只负责创建、关闭与模型配置。
+ */
 class extension : public spiration::extension {
 public:
     extension() : spiration::extension(manifest_data({
@@ -38,42 +42,46 @@ public:
     void shutdown() override;
 
 private:
-    void open_agent_tab();
-    /// @brief 将当前对话保存到当前会话的 UUID 目录。
-    void save_conversation(agent_tab* tab);
+    /// @brief 新建一个空白对话标签页。
+    void open_new_chat();
+    /// @brief 在标签页中打开已有对话；已打开则直接激活。
+    void open_conversation(const std::string& uuid, const std::string& name);
+    /// @brief 关闭承载指定标签页的标签栏项。
+    void close_tab_for(agent_tab* tab);
+    /// @brief 头部“历史”按钮：列出最近对话。
+    void show_history(float x, float y);
+    /// @brief 标签头右键菜单（重命名 / 删除 / 关闭）。
+    void show_tab_menu(int index, float x, float y);
     /// @brief 在编辑器中打开 cnf/models.json 以配置模型。
     void configure_models();
     /// @brief 将外部模型来源（注册表）提供的模型合并进模型选项。
     void merge_external_models(std::vector<model_option>& models) const;
-    /// @brief 模型来源变更回调：刷新已打开的智能体标签页下拉框。
+    /// @brief 模型来源变更回调：刷新已打开标签页的下拉框。
     void on_models_changed();
+    /// @brief 为一个会话创建工具集（工具需比客户端存活更久）。
+    std::vector<std::unique_ptr<tool>> build_tools(const std::string& uuid) const;
+    /// @brief 为一个会话创建已注册工具的对话客户端。
+    std::shared_ptr<chat_client> make_client(const std::string& uuid,
+                                             std::vector<std::unique_ptr<tool>>& tools) const;
+    /// @brief 把当前模型列表同步到标签页。
+    void apply_models(agent_tab& tab);
+    /// @brief 打开一个标签页（新对话或已有对话共用）。
+    void open_tab_for(const std::string& uuid, const std::string& name);
+    /// @brief 从 tabs_ 中移除已销毁的标签页指针。
+    void forget_tab(agent_tab* tab);
+    /// @brief 按会话 UUID 查找当前打开的标签页。
+    agent_tab* find_tab_by_uuid(const std::string& uuid) const;
 
-    std::shared_ptr<chat_client> client_;
     std::shared_ptr<chat_store> store_;
     ghc::filesystem::path data_dir_;
-    /// 模型选项。
     std::vector<model_option> models_;
-    /// 当前打开的智能体标签页。
-    agent_tab* agent_tab_ = nullptr;
-    /// 是否正在关闭（shutdown 时同步保存，避免任务被 dispatcher 清空丢弃）。
-    bool shutting_down_ = false;
-
-#if !defined(__OHOS__)
-    std::unique_ptr<create_terminal_tool> create_terminal_;
-    std::unique_ptr<write_terminal_tool> write_terminal_;
-    std::unique_ptr<read_terminal_tool> read_terminal_;
-    std::unique_ptr<kill_terminal_tool> kill_terminal_;
-#endif
-    std::unique_ptr<create_file_tool> create_file_;
-    std::unique_ptr<read_file_tool> read_file_;
-    std::unique_ptr<create_directory_tool> create_directory_;
-    std::unique_ptr<edit_file_tool> edit_file_;
-    std::unique_ptr<rename_tool> rename_;
-    std::unique_ptr<delete_tool> delete_;
-    std::unique_ptr<fetch_tool> fetch_;
-    std::unique_ptr<todo_tool> todo_;
-    std::unique_ptr<sleep_tool> sleep_;
-    std::unique_ptr<memory_tool> memory_;
+    /// @brief 最近一次使用的模型配置，作为新建标签页的默认模型。
+    chat_client::config default_cfg_;
+    button* history_btn_ = nullptr;
+    /// @brief 模型来源变更订阅 ID。
+    int models_subscription_ = 0;
+    /// @brief 当前打开的智能体标签页（顺序与标签栏无关，仅用于广播模型变更）。
+    std::vector<agent_tab*> tabs_;
 };
 
 } // namespace agent

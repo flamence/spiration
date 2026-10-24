@@ -28,6 +28,9 @@ public:
     /// @brief 内容变化时回调。
     std::function<void()> on_content_changed;
 
+    /// @brief 绑定所属会话 UUID 获取器（多标签页各显示各的待办）。
+    void bind_uuid(std::function<std::string()> getter) { uuid_ = std::move(getter); }
+
     /// @brief 最大可视高度。
     float max_height = 200.0f;
 
@@ -39,6 +42,7 @@ public:
 
 private:
     std::vector<todo_item> items_;
+    std::function<std::string()> uuid_;
     uint64_t seen_version_ = 0;
     int hovered_row_ = -1;
     /// @brief 内部垂直滚动偏移。

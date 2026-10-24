@@ -20,25 +20,34 @@ terminal_manager& terminal_manager::instance() {
     return inst;
 }
 
-std::string terminal_manager::create(const ghc::filesystem::path& shell, const ghc::filesystem::path& cwd) {
+std::string terminal_manager::create(const ghc::filesystem::path& shell,
+                                     const ghc::filesystem::path& cwd,
+                                     const std::string& scope) {
     std::shared_ptr<terminal_session> s = create_terminal_session(shell, cwd);
     if (!s) return "[error] failed to create terminal session";
     std::lock_guard<std::mutex> lk(mtx_);
     std::string id = "t" + std::to_string(next_id_++);
-    sessions_[id] = std::move(s);
-    shells_[id] = shell;
-    application::instance()->logger()->log({logging::level::info, fmt::format("created session {}", id), "extension/agent/terminal"});
+    sessions_[id] = entry{std::move(s), shell, scope};
+    application::instance()->logger()->log({logging::level::info, fmt::format("created session {} in {}", id, scope), "extension/agent/terminal"});
     return id;
 }
 
-std::string terminal_manager::write(const std::string& id, const std::string& data, bool newline) {
+std::shared_ptr<terminal_session> terminal_manager::find(const std::string& id,
+                                                         const std::string& scope) const {
+    auto it = sessions_.find(id);
+    if (it == sessions_.end()) return nullptr;
+    if (!scope.empty() && it->second.scope != scope) return nullptr;
+    return it->second.session;
+}
+
+std::string terminal_manager::write(const std::string& id, const std::string& data, bool newline,
+                                    const std::string& scope) {
     std::shared_ptr<terminal_session> s;
     {
         std::lock_guard<std::mutex> lk(mtx_);
-        auto it = sessions_.find(id);
-        if (it == sessions_.end()) return "[error] terminal not found: " + id;
-        s = it->second;
+        s = find(id, scope);
     }
+    if (!s) return "[error] terminal not found: " + id;
     if (!s->is_alive()) return "[error] terminal " + id + " is not alive: " + s->error();
     std::string payload = data;
     if (newline) payload += "\n";
@@ -46,14 +55,14 @@ std::string terminal_manager::write(const std::string& id, const std::string& da
     return "ok";
 }
 
-std::string terminal_manager::read(const std::string& id, size_t from_bottom, size_t to_bottom) {
+std::string terminal_manager::read(const std::string& id, size_t from_bottom, size_t to_bottom,
+                                   const std::string& scope) {
     std::shared_ptr<terminal_session> s;
     {
         std::lock_guard<std::mutex> lk(mtx_);
-        auto it = sessions_.find(id);
-        if (it == sessions_.end()) return "[error] terminal not found: " + id;
-        s = it->second;
+        s = find(id, scope);
     }
+    if (!s) return "[error] terminal not found: " + id;
     if (s->line_count() == 0) return "[empty]";
     std::vector<std::string> lines = s->read_window(from_bottom, to_bottom);
     if (lines.empty()) return "[empty]";
@@ -66,38 +75,43 @@ std::string terminal_manager::read(const std::string& id, size_t from_bottom, si
     return out;
 }
 
-void terminal_manager::kill(const std::string& id) {
+void terminal_manager::kill(const std::string& id, const std::string& scope) {
     std::lock_guard<std::mutex> lk(mtx_);
     auto it = sessions_.find(id);
-    if (it == sessions_.end()) {
+    if (it == sessions_.end() || (!scope.empty() && it->second.scope != scope)) {
         application::instance()->logger()->log({logging::level::warning, fmt::format("kill: session not found: {}", id), "extension/agent/terminal"});
         return;
     }
     sessions_.erase(it);
-    shells_.erase(id);
     application::instance()->logger()->log({logging::level::info, fmt::format("killed session {}", id), "extension/agent/terminal"});
 }
 
-std::vector<terminal_snapshot> terminal_manager::snapshots() const {
+std::vector<terminal_snapshot> terminal_manager::snapshots(const std::string& scope) const {
     std::lock_guard<std::mutex> lk(mtx_);
     std::vector<terminal_snapshot> out;
-    out.reserve(sessions_.size());
     for (const auto& sess : sessions_) {
+        if (!scope.empty() && sess.second.scope != scope) continue;
         terminal_snapshot snap;
         snap.id = sess.first;
-        auto sit = shells_.find(sess.first);
-        snap.shell = (sit != shells_.end()) ? sit->second : "";
-        size_t n = sess.second->line_count();
-        if (n > 0) snap.lines = sess.second->read_window(1, n);
+        snap.shell = sess.second.shell;
+        size_t n = sess.second.session->line_count();
+        if (n > 0) snap.lines = sess.second.session->read_window(1, n);
         out.push_back(std::move(snap));
     }
     return out;
 }
 
+void terminal_manager::close_scope(const std::string& scope) {
+    std::lock_guard<std::mutex> lk(mtx_);
+    for (auto it = sessions_.begin(); it != sessions_.end();) {
+        if (it->second.scope == scope) it = sessions_.erase(it);
+        else ++it;
+    }
+}
+
 void terminal_manager::close_all() {
     std::lock_guard<std::mutex> lk(mtx_);
     sessions_.clear();
-    shells_.clear();
 }
 
 std::string create_terminal_tool::description() const {
@@ -129,7 +143,7 @@ std::string create_terminal_tool::execute(const std::string& args_json) {
         return "[error] invalid arguments: " + std::string(e.what());
     }
     ghc::filesystem::path cwd = workdir_getter_ ? workdir_getter_() : "";
-    return terminal_manager::instance().create(shell, cwd);
+    return terminal_manager::instance().create(shell, cwd, scope());
 }
 
 std::string write_terminal_tool::description() const {
@@ -171,7 +185,7 @@ std::string write_terminal_tool::execute(const std::string& args_json) {
         return "[error] invalid arguments: " + std::string(e.what());
     }
     if (id.empty() || input.empty()) return "[error] missing 'terminal_id' or 'input'";
-    return terminal_manager::instance().write(id, input, newline);
+    return terminal_manager::instance().write(id, input, newline, scope());
 }
 
 std::string read_terminal_tool::description() const {
@@ -215,7 +229,7 @@ std::string read_terminal_tool::execute(const std::string& args_json) {
         return "[error] invalid arguments: " + std::string(e.what());
     }
     if (id.empty()) return "[error] missing 'terminal_id'";
-    return terminal_manager::instance().read(id, from_line, to_line);
+    return terminal_manager::instance().read(id, from_line, to_line, scope());
 }
 
 std::string kill_terminal_tool::description() const {
@@ -246,7 +260,7 @@ std::string kill_terminal_tool::execute(const std::string& args_json) {
         return "[error] invalid arguments: " + std::string(e.what());
     }
     if (id.empty()) return "[error] missing 'terminal_id'";
-    terminal_manager::instance().kill(id);
+    terminal_manager::instance().kill(id, scope());
     return "ok";
 }
 

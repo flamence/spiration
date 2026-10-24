@@ -103,6 +103,11 @@ int agent_registry::on_models_changed(std::function<void()> cb) {
     return id;
 }
 
+void agent_registry::off_models_changed(int id) {
+    std::lock_guard<std::mutex> lk(mtx_);
+    models_changed_cbs_.erase(id);
+}
+
 void agent_registry::notify_models_changed() {
     std::vector<std::function<void()>> cbs;
     {

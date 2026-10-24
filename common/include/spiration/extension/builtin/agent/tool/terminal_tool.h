@@ -63,35 +63,65 @@ std::unique_ptr<terminal_session> create_terminal_session(const ghc::filesystem:
 
 /**
  * @brief 终端管理器。
+ *
+ * 会话按 scope（会话 UUID）隔离：多标签页各自管理自己的终端，互不可见。
  */
 class terminal_manager {
 public:
     static terminal_manager& instance();
 
     /// @brief 创建终端会话，返回会话 id。
-    std::string create(const ghc::filesystem::path& shell, const ghc::filesystem::path& cwd = "");
+    std::string create(const ghc::filesystem::path& shell,
+                       const ghc::filesystem::path& cwd = "",
+                       const std::string& scope = "");
     /// @brief 向指定终端写入内容。
-    std::string write(const std::string& id, const std::string& data, bool newline);
+    std::string write(const std::string& id, const std::string& data, bool newline,
+                      const std::string& scope = "");
     /// @brief 读取指定终端的输出窗口。
-    std::string read(const std::string& id, size_t from_bottom, size_t to_bottom);
+    std::string read(const std::string& id, size_t from_bottom, size_t to_bottom,
+                     const std::string& scope = "");
     /// @brief 关闭指定终端会话。
-    void kill(const std::string& id);
-    /// @brief 导出全部会话快照。
-    std::vector<terminal_snapshot> snapshots() const;
+    void kill(const std::string& id, const std::string& scope = "");
+    /// @brief 导出指定会话的终端快照；scope 为空时导出全部。
+    std::vector<terminal_snapshot> snapshots(const std::string& scope = "") const;
+    /// @brief 关闭指定会话的全部终端。
+    void close_scope(const std::string& scope);
     /// @brief 关闭全部会话。
     void close_all();
 
 private:
     terminal_manager() = default;
+
+    struct entry {
+        std::shared_ptr<terminal_session> session;
+        ghc::filesystem::path shell;
+        std::string scope;
+    };
+
     mutable std::mutex mtx_;
-    /// @brief 会话表。使用 shared_ptr 以便锁外安全使用。
-    std::map<std::string, std::shared_ptr<terminal_session>> sessions_;
-    std::map<std::string, ghc::filesystem::path> shells_;
+    std::map<std::string, entry> sessions_;
     size_t next_id_ = 1;
+
+    /// @brief 查找会话；scope 非空时校验归属。
+    std::shared_ptr<terminal_session> find(const std::string& id,
+                                           const std::string& scope) const;
+};
+
+/// @brief 带会话归属的终端工具基类。
+class terminal_tool_base : public tool {
+public:
+    /// @brief 绑定所属会话 UUID 获取器。
+    void set_scope(std::function<std::string()> getter) { scope_ = std::move(getter); }
+
+protected:
+    std::string scope() const { return scope_ ? scope_() : ""; }
+
+private:
+    std::function<std::string()> scope_;
 };
 
 /// @brief 创建可持续交互的终端。
-class create_terminal_tool : public tool {
+class create_terminal_tool : public terminal_tool_base {
 public:
     std::string name() const override { return "create_terminal"; }
     std::string description() const override;
@@ -101,7 +131,7 @@ public:
 };
 
 /// @brief 向指定终端发送内容。
-class write_terminal_tool : public tool {
+class write_terminal_tool : public terminal_tool_base {
 public:
     std::string name() const override { return "write_terminal"; }
     std::string description() const override;
@@ -112,7 +142,7 @@ public:
 };
 
 /// @brief 按窗口读取终端输出。
-class read_terminal_tool : public tool {
+class read_terminal_tool : public terminal_tool_base {
 public:
     std::string name() const override { return "read_terminal"; }
     std::string description() const override;
@@ -122,7 +152,7 @@ public:
 };
 
 /// @brief 关闭/释放指定终端。
-class kill_terminal_tool : public tool {
+class kill_terminal_tool : public terminal_tool_base {
 public:
     std::string name() const override { return "kill_terminal"; }
     std::string description() const override;

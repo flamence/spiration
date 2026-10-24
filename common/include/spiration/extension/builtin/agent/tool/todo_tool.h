@@ -39,14 +39,14 @@ todo_status todo_status_from_string(const std::string& s);
 std::string todo_status_to_string(todo_status s);
 
 /**
- * @brief 线程安全的待办列表存储。
+ * @brief 线程安全的待办列表存储（按会话 UUID 隔离）。
  */
 class todo_store {
 public:
     static todo_store& instance();
 
-    /// @brief 获取当前会话的待办列表。
-    std::vector<todo_item> items() const;
+    /// @brief 获取指定会话的待办列表。
+    std::vector<todo_item> items(const std::string& uuid) const;
 
     /// @brief 变更版本号（原子读取，供 UI 线程轮询）。
     uint64_t version() const {
@@ -54,16 +54,14 @@ public:
     }
 
     /**
-     * @brief 用全量列表替换当前会话的列表。
+     * @brief 用全量列表替换指定会话的列表。
+     * @param uuid    会话 UUID
      * @param incoming 模型下发的列表；按 content 匹配以保持既有 id 稳定。
      */
-    void set(const std::vector<todo_item>& incoming);
+    void set(const std::string& uuid, const std::vector<todo_item>& incoming);
 
-    /// @brief 清空当前会话的待办列表。
-    void clear();
-
-    /// @brief 切换当前会话。
-    void set_current_uuid(const std::string& uuid);
+    /// @brief 清空指定会话的待办列表。
+    void clear(const std::string& uuid);
 
     /// @brief 删除某会话的待办列表。
     void remove(const std::string& uuid);
@@ -72,7 +70,6 @@ private:
     todo_store() = default;
     mutable std::mutex mtx_;
     std::map<std::string, std::vector<todo_item>> lists_;
-    std::string current_;
     std::atomic<uint64_t> version_{0};
     size_t next_id_ = 1;
 };
@@ -84,6 +81,12 @@ public:
     std::string description() const override;
     nlohmann::json parameters() const override;
     std::string execute(const std::string& args_json) override;
+
+    /// @brief 绑定所属会话 UUID 获取器（多标签页各用各的列表）。
+    void bind_uuid(std::function<std::string()> getter) { uuid_ = std::move(getter); }
+
+private:
+    std::function<std::string()> uuid_;
 };
 
 } // namespace agent

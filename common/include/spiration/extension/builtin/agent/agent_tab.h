@@ -1,6 +1,6 @@
 /**
  * @file agent_tab.h
- * @brief 智能体标签页控件。
+ * @brief 智能体标签页控件（一个标签页即一个对话）。
  * @author clk
  */
 
@@ -20,14 +20,12 @@
 #include <spiration/ui/label.h>
 #include <spiration/ui/layout.h>
 #include <spiration/ui/markdown.h>
-#include <spiration/ui/rectangle.h>
-#include <spiration/ui/split_pane.h>
 #include <spiration/ui/tab_bar.h>
 #include <spiration/ui/text_area.h>
 #include <spiration/ui/theme_manager.h>
 
-#include <cstddef>
 #include <atomic>
+#include <cstddef>
 #include <deque>
 #include <functional>
 #include <future>
@@ -44,28 +42,24 @@ struct display_message {
     std::string content;
 };
 
-/// @brief 后台初始加载结果。
+/// @brief 后台加载会话存档的结果。
 struct initial_load_result {
-    std::vector<conversation_meta> convos;  ///< 全部会话元信息。
-    std::string uuid;                       ///< 需要打开的会话 UUID，空表示无会话。
-    chat_archive archive;                   ///< 该会话的完整存档。
-    bool loaded = false;                    ///< 会话存档是否加载成功。
+    chat_archive archive;
+    bool loaded = false;
 };
 
 /**
- * @brief 智能体标签页。
+ * @brief 智能体标签页：一个标签页承载一个对话，不再内嵌会话列表。
+ *
+ * 会话切换由标签栏（+ / 历史菜单 / 右键菜单）完成，本控件只专注聊天区。
  */
 class agent_tab : public tab {
 public:
-    explicit agent_tab(std::shared_ptr<chat_client> client,
-                       std::shared_ptr<chat_store> store = nullptr);
-    ~agent_tab() override {
-        *alive_ = false;
-        if (pending_.valid()) pending_.wait();
-        if (initial_load_.valid()) initial_load_.wait();
-        if (on_conversation_done) on_conversation_done(this);
-        if (on_destroyed) on_destroyed();
-    }
+    agent_tab(std::shared_ptr<chat_client> client,
+              std::shared_ptr<chat_store> store,
+              std::string conversation_uuid,
+              std::string conversation_name = {});
+    ~agent_tab() override;
 
     void paint(std::shared_ptr<renderer> renderer) override;
     void handle_event(const event_type& type, void* data) override;
@@ -74,23 +68,38 @@ public:
     void on_activate() override;
     widget* hit_test_hover(float x, float y) const override;
 
-    /** @brief 添加一条消息到显示列表。 */
-    void add_message(const std::string& role, const std::string& content);
-
-    /**
-     * @brief 一轮对话完成后的回调。
-     * @param tab 回调发起方的标签页。
-     */
-    std::function<void(agent_tab*)> on_conversation_done;
-
-    /// @brief 标签页被关闭时回调，供持有者清理自身对该标签页的引用。
-    std::function<void()> on_destroyed;
+    /// @brief 接管客户端已注册工具的所有权（客户端只持有裸指针）。
+    void set_tools(std::vector<std::unique_ptr<tool>> tools) { tools_ = std::move(tools); }
 
     /// @brief 设置可选模型列表。
     void set_models(std::vector<model_option> models);
 
-    /// @brief 等待后台初始加载完成（释放存储前调用，避免访问已释放的存储）。
+    /// @brief 模型/思考挡位变更回调，供拓展记住下次新建标签的默认配置。
+    std::function<void(const chat_client::config&)> on_config_changed;
+
+    /// @brief 标签页被关闭时回调，供持有者清理自身对该标签页的引用。
+    std::function<void()> on_destroyed;
+
+    /// @brief 删除对话后请求关闭本标签页。
+    std::function<void(agent_tab*)> on_delete_requested;
+
+    const std::string& conversation_uuid() const { return conversation_uuid_; }
+    const std::string& conversation_name() const { return name_; }
+
+    /// @brief 等待后台初始加载完成（释放存储前调用）。
     void wait_initial_load();
+
+    /// @brief 同步保存当前对话（关闭标签页/退出应用时使用）。
+    void save_now();
+
+    /// @brief 重命名对话（弹出输入框）。
+    void begin_rename();
+
+    /// @brief 请求删除当前对话（输入对话名确认后删除）。
+    void begin_delete();
+
+    /// @brief 删除当前对话（由拓展在确认后调用）。
+    void delete_conversation();
 
     /// @brief 是否可以继续生成。
     bool can_continue() const { return continue_btn_ != nullptr; }
@@ -99,54 +108,47 @@ public:
     bool auto_approve() const { return auto_approve_on_.load(); }
 
 private:
-    // 共享所有权：后台 run 线程在扩展关闭（client_/store_ 释放）后仍安全使用。
+    // 共享所有权：后台线程在拓展关闭后仍可安全使用。
+    std::shared_ptr<chat_store> store_;
+    std::vector<std::unique_ptr<tool>> tools_;
     std::shared_ptr<chat_client> client_;
-    std::shared_ptr<chat_store>  store_;
 
-    split_pane* split_pane_  = nullptr; 
-    container* list_pane_   = nullptr;
-    container* list_header_ = nullptr;
-    container* list_scroll_ = nullptr;
-    container* chat_pane_   = nullptr;
-    container* back_bar_    = nullptr;
-    container* scroll_      = nullptr;
+    std::string conversation_uuid_;
+    std::string name_;
+    std::string created_at_;
+    bool auto_title_ = false;
+    /// @brief 对话已被删除：析构时不得再次写盘。
+    bool deleted_ = false;
+
+    container* scroll_ = nullptr;
     container* settings_bar_ = nullptr;
-    container* input_bar_   = nullptr;
-    container* msg_list_    = nullptr;
-    todo_view* todo_view_   = nullptr;
+    container* input_bar_ = nullptr;
+    container* msg_list_ = nullptr;
+    todo_view* todo_view_ = nullptr;
 
-    button*     back_btn_     = nullptr;
-    button*     toggle_list_  = nullptr;
-    button*     new_btn_      = nullptr;
-    combo_box*  model_combo_  = nullptr;
-    combo_box*  reasoning_combo_ = nullptr;
-    checkbox*   auto_approve_ = nullptr;
-    label*      token_label_  = nullptr;
+    combo_box* model_combo_ = nullptr;
+    combo_box* reasoning_combo_ = nullptr;
+    checkbox* auto_approve_ = nullptr;
+    label* token_label_ = nullptr;
 
     collapsible* todo_capsule_ = nullptr;
     size_t todo_count_ = 0;
     bool todo_has_ = false;
 
-    /// @brief 输入框（多行 text_area，动态高度，达到最大高度后内部滚动）。
     text_area* input_ = nullptr;
-    button*     send_btn_ = nullptr;
+    button* send_btn_ = nullptr;
 
-    /// @brief 输入框最大高度。
     static constexpr float MAX_INPUT_H = 120.0f;
-    /// @brief 按输入内容更新输入栏高度。
     void update_input_height();
 
     std::vector<display_message> messages_;
-    std::string current_uuid_;
-    bool list_rebuild_pending_ = false;
-    bool layout_batch_ = false;  ///< 批量布局期间抑制逐条 relayout。
-
-    bool landscape_      = true;
-    bool list_collapsed_ = false;
-    bool show_chat_      = true;
-    float list_expand_ratio_ = 0.3f;
+    bool layout_batch_ = false;
+    bool scroll_bottom_pending_ = false;
+    /// @brief 激活后等布局完成再聚焦输入框（此时光标位置才有意义）。
+    bool focus_input_pending_ = false;
 
     reasoning_level reasoning_ = reasoning_level::medium;
+
     collapsible* tool_capsule_ = nullptr;
     container* tool_capsule_scroll_ = nullptr;
     markdown* tool_label_ = nullptr;
@@ -157,14 +159,9 @@ private:
     std::future<chat_response> pending_;
     std::future<initial_load_result> initial_load_;
     bool waiting_ = false;
-    /// @brief 会话打开序号，用于丢弃过期异步加载结果。
-    size_t open_seq_ = 0;
 
     std::shared_ptr<std::atomic<bool>> alive_ = std::make_shared<std::atomic<bool>>(true);
-
-    /// @brief 停止标志（共享原子）：后台线程只读共享指针指向的原子，避免析构后访问成员。
     std::shared_ptr<std::atomic<bool>> stop_flag_ = std::make_shared<std::atomic<bool>>(false);
-    // C++14 注意：std::atomic 拷贝构造已删除，此处用 {} 直接初始化（= 形式的拷贝初始化在 C++14 不保证复制省略）。
     std::atomic<bool> supplement_requested_{false};
     std::deque<std::string> queued_inputs_;
     button* continue_btn_ = nullptr;
@@ -181,10 +178,9 @@ private:
     std::mutex stream_mutex_;
     std::deque<stream_event> stream_events_;
     markdown* stream_label_ = nullptr;
-    markdown* last_label_   = nullptr;
+    markdown* last_label_ = nullptr;
     size_t stream_msg_index_ = 0;
     bool streamed_content_ = false;
-    /// @brief 流式追加时暂存的末尾不完整 UTF-8 字节（思考/正文各一份）。
     std::string utf8_hold_reasoning_;
     std::string utf8_hold_delta_;
 
@@ -199,80 +195,45 @@ private:
     button* approval_allow_btn_ = nullptr;
     button* approval_deny_btn_ = nullptr;
 
-    void new_conversation(bool to_chat = true);
-    void open_conversation(const std::string& uuid, bool to_chat = true);
-    /** @brief 将后台加载的会话应用到 UI（UI 线程调用）。 */
-    void apply_open_conversation(const std::string& uuid, const chat_archive& archive, bool to_chat);
-    void delete_conversation(const std::string& uuid);
-    /** @brief 重建会话列表。preset 非空时直接使用该列表，避免重复读盘。 */
-    void rebuild_conversation_list(const std::vector<conversation_meta>* preset = nullptr);
-    /** @brief 将后台初始加载结果应用到 UI（UI 线程调用）。 */
-    void apply_initial_load(const initial_load_result& res);
-    /** @brief 请求在下一帧 tick 重建会话列表。 */
-    void request_list_rebuild();
-    void clear_messages();
-    void save_current();
-
-    std::string rename_uuid_;
     input_dialog* rename_dialog_ = nullptr;
-    void begin_rename(const std::string& uuid, const std::string& name);
-    void commit_rename_text(const std::string& text);
 
-    /** @brief 在工具胶囊内展示内联 允许/拒绝 审批。 */
+    /** @brief 只标脏并请求重绘；布局由帧循环合并执行。 */
+    void schedule_layout();
+    /** @brief 下一帧滚动到底部（内容增长后调用）。 */
+    void schedule_scroll_bottom();
+
+    void apply_initial_load(const initial_load_result& res);
+    void clear_messages();
+    void save_async();
+    void build_archive(chat_archive& archive) const;
+    /** @brief 根据首条用户消息生成标签标题。 */
+    void auto_name_from(const std::string& text);
+
     void show_inline_approval();
-    /** @brief 审批结束后移除胶囊内的审批按钮。 */
     void remove_inline_approval();
 
-    /** @brief 布局会话列表面板内部。 */
-    void layout_list_internal();
-    /** @brief 布局聊天面板内部。 */
-    void layout_chat_internal();
-
-    /** @brief 创建一条消息气泡并添加到列表，返回气泡控件指针。 */
+    /** @brief 追加一条消息（角色 + 内容）。 */
+    void add_message(const std::string& role, const std::string& content);
     markdown* append_bubble(const display_message& msg);
-    /**
-     * @brief 处理积压的流式事件。
-     * @param max_events 每帧最多处理的事件数。
-     */
     void process_stream_events(size_t max_events = 0);
-    void relayout_scroll_repaint();
-    /** @brief 消息列表链有界重排。 */
-    void relayout_msg_chain(bool force_bottom = false);
-    /** @brief 发送当前输入内容。 */
     void send();
-    /** @brief 启动一次对话。 */
     void start_send(const std::string& text, bool show_user);
-    /** @brief 基于当前历史启动一轮生成。 */
     void begin_run();
-    /** @brief 继续生成。 */
     void continue_generation();
-    /** @brief 在消息列表末尾添加“继续生成”按钮。 */
     void add_continue_button();
-    /** @brief 移除“继续生成”按钮。 */
     void remove_continue_button();
-    /** @brief 根据 waiting_ 更新发送/停止按钮文字。 */
     void update_send_button();
-    /** @brief 刷新 token 用量标签。 */
     void update_token_label();
 
-    /** @brief 设置思考等级并更新下拉框高亮。 */
     void set_reasoning_level(reasoning_level l);
-    /** @brief 依据当前 provider 支持能力刷新思考挡位下拉框。 */
     void refresh_reasoning_combo();
-    /** @brief 刷新待办胶囊。 */
     void update_todo_capsule();
-    /** @brief 创建一个胶囊，返回其指针。 */
     collapsible* create_capsule(const std::string& summary);
-    /** @brief 追加一个工具调用胶囊，返回其指针。 */
     collapsible* append_tool_capsule(const std::string& summary, const std::string& args);
-    /** @brief 把工具结果填入当前胶囊内容。 */
     void append_tool_result(const std::string& text);
-    /** @brief 从历史记录重建思考/工具胶囊。 */
     void restore_history_ui(const std::vector<chat_message>& msgs);
 
-    /** @brief 后台线程回调：征询用户批准，阻塞直到 UI 决定或停止。 */
     bool approve_request(const tool_call& tc);
-    /** @brief UI 线程：用户已决定，解除后台阻塞。 */
     void resolve_approval(bool ok);
 };
 

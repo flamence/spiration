@@ -36,16 +36,16 @@ todo_store& todo_store::instance() {
     return inst;
 }
 
-std::vector<todo_item> todo_store::items() const {
+std::vector<todo_item> todo_store::items(const std::string& uuid) const {
     std::lock_guard<std::mutex> lk(mtx_);
-    auto it = lists_.find(current_);
+    auto it = lists_.find(uuid);
     if (it == lists_.end()) return {};
     return it->second;
 }
 
-void todo_store::set(const std::vector<todo_item>& incoming) {
+void todo_store::set(const std::string& uuid, const std::vector<todo_item>& incoming) {
     std::lock_guard<std::mutex> lk(mtx_);
-    std::vector<todo_item> prev = lists_[current_];
+    std::vector<todo_item> prev = lists_[uuid];
     std::vector<todo_item> next;
     next.reserve(incoming.size());
     for (const auto& in : incoming) {
@@ -59,27 +59,19 @@ void todo_store::set(const std::vector<todo_item>& incoming) {
         }
         next.push_back(std::move(item));
     }
-    lists_[current_] = std::move(next);
+    lists_[uuid] = std::move(next);
     version_.fetch_add(1, std::memory_order_relaxed);
 }
 
-void todo_store::clear() {
+void todo_store::clear(const std::string& uuid) {
     std::lock_guard<std::mutex> lk(mtx_);
-    lists_[current_].clear();
-    version_.fetch_add(1, std::memory_order_relaxed);
-}
-
-void todo_store::set_current_uuid(const std::string& uuid) {
-    std::lock_guard<std::mutex> lk(mtx_);
-    if (current_ == uuid) return;
-    current_ = uuid;
+    lists_[uuid].clear();
     version_.fetch_add(1, std::memory_order_relaxed);
 }
 
 void todo_store::remove(const std::string& uuid) {
     std::lock_guard<std::mutex> lk(mtx_);
     lists_.erase(uuid);
-    if (current_ == uuid) current_.clear();
     version_.fetch_add(1, std::memory_order_relaxed);
 }
 
@@ -138,7 +130,9 @@ std::string todo_tool::execute(const std::string& args_json) {
         return "[error] invalid arguments: " + std::string(e.what());
     }
 
-    todo_store::instance().set(items);
+    const std::string uuid = uuid_ ? uuid_() : "";
+    if (uuid.empty()) return "[error] no active conversation";
+    todo_store::instance().set(uuid, items);
 
     size_t pending = 0, in_progress = 0, completed = 0;
     for (const auto& it : items) {
