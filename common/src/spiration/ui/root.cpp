@@ -301,6 +301,18 @@ void root::handle_event(const event_type& type, void* data) {
 
     container::handle_event(type, data);
 
+    if (type == event_type::keyboard) {
+        auto* kd = static_cast<key_event_data*>(data);
+        // 标签快捷键在焦点控件之后兜底处理：输入框不消费 Ctrl+W/Ctrl+Tab，
+        // 模态对话框会消费全部按键，因此不会误关标签。
+        if (!kd->consumed && tab_bar_ && tab_bar_->handle_shortcut(*kd)) {
+            kd->consumed = true;
+            // 浮层可能引用即将随标签销毁的控件，先关闭。
+            dismiss_popup();
+            dismiss_context_menu();
+        }
+    }
+
     if (type == event_type::mouse) {
         auto* md = static_cast<mouse_event_data*>(data);
         if (md->action == mouse_action::down && !md->consumed) {

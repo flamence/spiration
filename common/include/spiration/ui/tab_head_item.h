@@ -26,20 +26,30 @@ public:
     void set_on_activate(std::function<void()> cb) { on_activate_ = std::move(cb); }
     void set_on_close(std::function<void()> cb) { on_close_ = std::move(cb); }
 
+    /// @brief 右键菜单回调，参数为窗口坐标。
+    std::function<void(float, float)> on_context_menu;
+
     void paint(std::shared_ptr<renderer> renderer) override;
     void handle_event(const event_type& type, void* data) override;
     void tick(float dt_ms) override;
 
-    void set_active(bool active) { active_ = active; }
+    void set_active(bool active);
     bool is_active() const { return active_; }
-    void set_title(const std::string& t) { title_ = t; }
+    void set_title(const std::string& t);
     const std::string& get_title() const { return title_; }
+
+protected:
+    void on_hover_change(bool hovered) override;
 
 private:
     std::string title_;
     bool active_ = false;
-    bool hovering_ = false;
     bool close_hovering_ = false;
+
+    /// @brief 标题截断缓存：仅 title/宽度变化时重新测量。
+    mutable std::string display_title_;
+    mutable float display_key_width_ = -1.0f;
+    mutable std::string display_key_title_;
 
     color_transition bg_;
     color_transition text_;

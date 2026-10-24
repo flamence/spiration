@@ -7,6 +7,7 @@
 #pragma once
 
 #include <spiration/ui/container.h>
+#include <algorithm>
 
 namespace spiration {
 
@@ -27,6 +28,14 @@ public:
     float child_width() const { return child_width_; }
 
     float scroll_offset() const { return scroll_offset_; }
+
+    /// @brief 设置水平滚动偏移（自动夹取到有效范围）。
+    void set_scroll_offset(float x) {
+        scroll_offset_ = std::max(0.0f, std::min(x, scroll_max_));
+    }
+
+    /// @brief 供父级坐标换算/命中测试使用（子控件坐标已含滚动偏移）。
+    float scroll_offset_x_for_children() const override { return scroll_offset_; }
 
     /**
      * @brief 获取内容总宽度。

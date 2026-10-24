@@ -70,7 +70,10 @@ void scroll_row::handle_event(const event_type& type, void* data) {
             return;
         }
 
-        for (auto& child : children()) {
+        // 按下标遍历：子控件可能在自己的事件处理中关闭标签页而被移除，
+        // 范围 for 的迭代器会失效。
+        for (size_t i = 0; i < children().size();) {
+            widget* child = children()[i].get();
             md->position.x = original.x + scroll_offset_ - child->x;
             md->position.y = original.y - child->y;
             child->handle_event(type, data);
@@ -78,6 +81,10 @@ void scroll_row::handle_event(const event_type& type, void* data) {
                 md->position = original;
                 return;
             }
+            if (i < children().size() && children()[i].get() == child) {
+                ++i;
+            }
+            // 否则当前子控件已被移除：同一位置继续处理新的子控件。
         }
         md->position = original;
         return;
