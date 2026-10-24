@@ -131,7 +131,7 @@ jobs:
             wix extension add --global WixToolset.UI.wixext/4.0.4
           elif [ "${{ runner.os }}" == "Linux" ]; then
             sudo apt-get update
-            sudo apt-get install -y libx11-dev libgl1-mesa-dev libfreetype-dev libxcb1-dev libxcb-randr0-dev
+            sudo apt-get install -y pkg-config libssl-dev libx11-dev libgl1-mesa-dev libfreetype-dev libxcb1-dev libxcb-randr0-dev
           fi
 
       - id: pre-strings
