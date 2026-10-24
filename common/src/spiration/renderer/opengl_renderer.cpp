@@ -21,8 +21,8 @@
 
 
 #if defined(__OHOS__)
-static const char* SHAPE_VERTEX_SOURCE = R"glsl(
-#version 300 es
+// 注意：#version 指令必须是着色器源码的第一个字节，部分 GLES 实现不接受其前的空行。
+static const char* SHAPE_VERTEX_SOURCE = R"glsl(#version 300 es
 layout(location = 0) in vec2 aPos;
 layout(location = 1) in vec2 aTexCoord;
 layout(location = 2) in vec4 aColor;
@@ -39,8 +39,7 @@ void main() {
 }
 )glsl";
 
-static const char* SHAPE_FRAGMENT_SOURCE = R"glsl(
-#version 300 es
+static const char* SHAPE_FRAGMENT_SOURCE = R"glsl(#version 300 es
 precision mediump float;
 in vec2 vTexCoord;
 in vec4 vColor;
