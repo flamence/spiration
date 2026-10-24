@@ -19,6 +19,9 @@ const std::string application::APPLICATION_NAME = "Spiration";
 const std::string application::APPLICATION_LOWER_NAME = "spiration";
 const std::string application::APPLICATION_PACKAGE = "com.flamence.spiration";
 
+application::application()
+    : logger_(std::make_shared<logging::logger>()), widget_(nullptr) {}
+
 #if defined(__OHOS__)
 void application::bind_window(std::shared_ptr<spiration::window> window) {
     window_ = window;
@@ -85,7 +88,8 @@ bool application::initialize(tl::optional<init_phase> phase) {
     } else if (phase == init_phase::early) {
         auto file = make_log_path();
         spiration::crash_log::install(file);
-        logger_ = std::make_shared<logging::logger>();
+        // 复用构造时已创建的日志器：鸿蒙 NAPI 模块注册阶段（早于本阶段）会向其中添加 hilog 接收器，
+        // 在此重建日志器实例会丢弃该接收器，导致设备侧日志丢失。
         logger_->level = logging::level::trace;
         logger_->add_sink(std::make_unique<logging::console_sink>());
         logger_->add_sink(std::make_unique<logging::file_sink>(file));
@@ -132,7 +136,8 @@ std::unique_ptr<application> application::instance_ = nullptr;
 
 application* application::instance() {
     if (!instance_) {
-        instance_ = std::make_unique<application>();
+        // 构造函数为私有，此处不能用 std::make_unique（其内部 new 无访问权限）。
+        instance_.reset(new application());
     }
     return instance_.get();
 }

@@ -97,6 +97,13 @@ public:
     spiration::window* window() const;
     
 private:
+    /**
+     * @brief 构造应用实例。
+     * @note 日志器随实例一同创建，确保在早期初始化阶段之前访问日志器时不会得到空指针
+     *       （鸿蒙 NAPI 模块注册阶段即会添加 hilog 接收器）。
+     */
+    application();
+
     std::shared_ptr<extension_manager> extension_manager_;
     std::unique_ptr<task_dispatcher> dispatcher_;
     static std::unique_ptr<application> instance_;
