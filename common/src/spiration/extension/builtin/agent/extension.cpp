@@ -310,13 +310,26 @@ void extension::close_tab_for(agent_tab* tab) {
 
 void extension::show_history(float x, float y) {
     if (!history_btn_) return;
+    auto menu = std::make_unique<context_menu>();
+
+    // 顶部列出当前打开的全部标签页：标签过多滚出视野时也能直接切换。
+    if (auto* tb = current_tab_bar()) {
+        for (int i = 0; i < tb->tab_count(); ++i) {
+            tab* t = tb->get_tab(i);
+            if (!t) continue;
+            menu->add_item(t->title(), [tb, i, t]() {
+                if (tb->get_tab(i) == t) tb->activate_tab(i);
+            });
+        }
+        if (tb->tab_count() > 0) menu->add_separator();
+    }
+
     auto all = store_ ? store_->list() : std::vector<conversation_meta>{};
     // 只列出有内容的对话，避免空会话堆积。
     std::vector<conversation_meta> convos;
     for (auto& meta : all) {
         if (meta.message_count > 0) convos.push_back(std::move(meta));
     }
-    auto menu = std::make_unique<context_menu>();
     if (convos.empty()) {
         menu->add_item(i18n_manager::get().tr("agent:chat.no_history"), nullptr, false);
     } else {
