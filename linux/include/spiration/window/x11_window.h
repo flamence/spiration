@@ -104,6 +104,9 @@ private:
     /// @brief 向控件派发输入法组合文本更新（text 为空表示组合结束）。
     void set_composition(const std::string& text, int cursor);
 
+    /// @brief 用最近一次光标位置更新输入法候选窗锚点。
+    void update_ime_spot();
+
     /// @brief XIM preedit 绘制回调（组合文本变化时由输入法调用）。
     void on_xim_preedit_draw(XIMPreeditDrawCallbackStruct* data);
     /// @brief XIM preedit 结束回调。
@@ -163,6 +166,10 @@ private:
     uint32_t window_id_ = 0;
 
     std::unordered_map<KeySym, bool> key_state_;
+
+    /// @brief 输入法候选窗锚点（窗口坐标）。
+    float ime_caret_x_ = 0.0f;
+    float ime_caret_y_ = 0.0f;
 
     int32_t last_mouse_x_ = 0;
     int32_t last_mouse_y_ = 0;

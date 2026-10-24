@@ -352,6 +352,8 @@ static int cocoa_key_to_vk(unsigned short keyCode) {
     ked.ctrl = (mods & NSEventModifierFlagControl) != 0;
     ked.shift = (mods & NSEventModifierFlagShift) != 0;
     ked.alt = (mods & NSEventModifierFlagOption) != 0;
+    ked.meta = (mods & NSEventModifierFlagCommand) != 0;
+    ked.down = true;
 
     if (win->get_widget()) {
         win->get_widget()->handle_event(event_type::keyboard, &ked);
@@ -496,6 +498,8 @@ static int cocoa_key_to_vk(unsigned short keyCode) {
     ked.ctrl = (mods & NSEventModifierFlagControl) != 0;
     ked.shift = (mods & NSEventModifierFlagShift) != 0;
     ked.alt = (mods & NSEventModifierFlagOption) != 0;
+    ked.meta = (mods & NSEventModifierFlagCommand) != 0;
+    ked.down = false;
 
     if (win->get_widget()) {
         win->get_widget()->handle_event(event_type::keyboard, &ked);

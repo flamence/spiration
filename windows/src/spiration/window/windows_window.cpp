@@ -54,6 +54,17 @@ std::string utf16_to_utf8(const wchar_t* s, size_t n) {
     return out;
 }
 
+/// @brief UTF-8 → UTF-16（中文/emoji 标题不能按字节逐字加宽）。
+std::wstring utf8_to_wide(const std::string& s) {
+    if (s.empty()) return {};
+    const int n = MultiByteToWideChar(CP_UTF8, 0, s.data(),
+                                      static_cast<int>(s.size()), nullptr, 0);
+    if (n <= 0) return {};
+    std::wstring out(static_cast<size_t>(n), L'\0');
+    MultiByteToWideChar(CP_UTF8, 0, s.data(), static_cast<int>(s.size()), &out[0], n);
+    return out;
+}
+
 /// @brief 内部唤醒消息：request_repaint() 用它唤醒可能阻塞的消息循环。
 ///        仅用于唤醒，不产生绘制（绘制统一由 loop() 的帧调度提交）。
 constexpr UINT kWakeMessage = WM_APP + 0x51;
@@ -354,6 +365,8 @@ LRESULT Window::HandleMessage(UINT uMsg, WPARAM wParam, LPARAM lParam) {
             ked.ctrl  = (GetKeyState(VK_CONTROL) & 0x8000) != 0;
             ked.shift = (GetKeyState(VK_SHIFT) & 0x8000) != 0;
             ked.alt   = (GetKeyState(VK_MENU) & 0x8000) != 0;
+            ked.meta  = ((GetKeyState(VK_LWIN) & 0x8000) != 0) ||
+                        ((GetKeyState(VK_RWIN) & 0x8000) != 0);
             m_Widget->handle_event(event_type::keyboard, &ked);
         }
         break;
@@ -572,7 +585,7 @@ bool Window::CreateActualWindow(const window_parameters& params) {
     int x = (screenWidth - widthPx) / 2;
     int y = (screenHeight - heightPx) / 2;
 
-    std::wstring wideTitle(params.title.begin(), params.title.end());
+    std::wstring wideTitle = utf8_to_wide(params.title);
     m_hWnd = CreateWindowExW(
         exStyle, m_WindowClassName.c_str(), wideTitle.c_str(),
         style, x, y, widthPx, heightPx,
@@ -757,7 +770,7 @@ std::string Window::title() const {
 }
 
 void Window::set_title(const std::string& title) {
-    if (m_hWnd) SetWindowTextW(m_hWnd, std::wstring(title.begin(), title.end()).c_str());
+    if (m_hWnd) SetWindowTextW(m_hWnd, utf8_to_wide(title).c_str());
 }
 
 void Window::get_size(int32_t& width, int32_t& height) const {

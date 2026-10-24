@@ -15,6 +15,7 @@
 #include <stb_image.h>
 #include <spiration/application.h>
 #include <spiration/window/virtual_key.h>
+#include <spiration/window/ime.h>
 #include <spiration/window/x11_window.h>
 #include <spiration/ui/point.h>
 #include <spiration/ui/size.h>
@@ -512,6 +513,12 @@ bool x11_window::initialize(const window_parameters& params) {
     } else {
         application::instance()->logger()->log({logging::level::warning, "XOpenIM failed (check XMODIFIERS, e.g. @im=fcitx/@im=ibus)", "x11"});
     }
+    ime::set_caret_callback([this](float x, float y) {
+        ime_caret_x_ = x;
+        ime_caret_y_ = y;
+        update_ime_spot();
+    });
+    update_ime_spot();
 
     update_dpi();
 
@@ -1013,6 +1020,7 @@ void x11_window::handle_key_press(XKeyEvent* event) {
         ked.ctrl = (event->state & ControlMask) != 0;
         ked.shift = (event->state & ShiftMask) != 0;
         ked.alt = (event->state & Mod1Mask) != 0;
+        ked.meta = (event->state & Mod4Mask) != 0;
 
         if (!xim_) {
             setlocale(LC_ALL, "");
@@ -1044,6 +1052,7 @@ void x11_window::handle_key_press(XKeyEvent* event) {
                                  XNClientWindow, window_, XNFocusWindow, window_, nullptr);
             }
         }
+        if (xic_) update_ime_spot();
         if (xic_) {
             Status status;
             char buf[64] = {};
@@ -1202,6 +1211,14 @@ void x11_window::set_composition(const std::string& text, int cursor) {
     data.text = text;
     data.cursor = cursor < 0 ? -1 : cursor;
     widget_->handle_event(event_type::ime_composition, &data);
+}
+
+void x11_window::update_ime_spot() {
+    if (!xic_) return;
+    XPoint spot;
+    spot.x = static_cast<short>(ime_caret_x_);
+    spot.y = static_cast<short>(ime_caret_y_);
+    XSetICValues(xic_, XNSpotLocation, &spot, nullptr);
 }
 
 namespace {
