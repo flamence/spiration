@@ -14,6 +14,7 @@ namespace spiration {
 
 input_dialog::input_dialog() {
     widget_style.background_color = color::transparent();
+    widget::visible = false;
 
     auto f = std::make_unique<text_field>();
     f->font_size = 13.0f;
@@ -82,6 +83,7 @@ void input_dialog::show(const std::string& title, const std::string& placeholder
         field_->focus();
     }
     visible_ = true;
+    widget::visible = true;
     fade_.animate_to(1.0f, 150.0f);
     recalc_geometry();
     if (request_repaint_) request_repaint_();
@@ -89,6 +91,7 @@ void input_dialog::show(const std::string& title, const std::string& placeholder
 
 void input_dialog::dismiss() {
     visible_ = false;
+    widget::visible = false;
     if (field_) field_->blur();
     fade_.animate_to(0.0f, 150.0f);
     if (request_repaint_) request_repaint_();
