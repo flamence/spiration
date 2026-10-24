@@ -187,8 +187,10 @@ void text_field::handle_event(const event_type& type, void* data) {
 
     } else if (type == event_type::keyboard && focused_) {
         auto* kd = static_cast<key_event_data*>(data);
+        if (!kd->down) return;
 
         bool shift = kd->shift;
+        const bool cmd = primary_modifier_down(*kd);
 
         if (kd->codepoint >= 32 && kd->codepoint != 127) {
             if (has_selection()) delete_selection();
@@ -252,8 +254,8 @@ void text_field::handle_event(const event_type& type, void* data) {
                 kd->consumed = true;
                 if (request_repaint_) request_repaint_();
                 break;
-            case 65: // Ctrl+A
-                if (kd->ctrl) {
+            case 65: // 全选（Ctrl/Cmd+A）
+                if (cmd) {
                     sel_anchor_ = 0;
                     cursor_pos_ = text.size();
                     selecting_ = true;
@@ -261,14 +263,14 @@ void text_field::handle_event(const event_type& type, void* data) {
                     if (request_repaint_) request_repaint_();
                 }
                 break;
-            case 67: // Ctrl+C
-                if (kd->ctrl && has_selection()) {
+            case 67: // 复制（Ctrl/Cmd+C）
+                if (cmd && has_selection()) {
                     clipboard::copy(selected_text());
                     kd->consumed = true;
                 }
                 break;
-            case 86: // Ctrl+V
-                if (kd->ctrl) {
+            case 86: // 粘贴（Ctrl/Cmd+V）
+                if (cmd) {
                     std::string t = clipboard::paste();
                     if (!multiline && !t.empty()) {
                         // 单行：多行粘贴内容合并为空格分隔的一行。
@@ -286,8 +288,8 @@ void text_field::handle_event(const event_type& type, void* data) {
                     if (!t.empty()) { insert_at_cursor(t); kd->consumed = true; }
                 }
                 break;
-            case 88: // Ctrl+X
-                if (kd->ctrl && has_selection()) {
+            case 88: // 剪切（Ctrl/Cmd+X）
+                if (cmd && has_selection()) {
                     clipboard::copy(selected_text());
                     delete_selection();
                     kd->consumed = true;

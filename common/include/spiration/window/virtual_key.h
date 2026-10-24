@@ -36,5 +36,12 @@ static constexpr int F10 = 0x79;      // VK_F10
 static constexpr int F11 = 0x7A;      // VK_F11
 static constexpr int F12 = 0x7B;      // VK_F12
 
+// 字母与数字：值等于 ASCII 大写码，便于快捷键配置直接写出。
+static constexpr int A = 0x41;
+static constexpr int T = 0x54;
+static constexpr int W = 0x57;
+static constexpr int Digit1 = 0x31;
+static constexpr int Digit9 = 0x39;
+
 } // namespace vk
 } // namespace spiration

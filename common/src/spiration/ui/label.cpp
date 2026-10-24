@@ -376,11 +376,12 @@ void label::handle_event(const event_type& type, void* data) {
             }
         } else if (type == event_type::keyboard) {
             auto* kd = static_cast<key_event_data*>(data);
-            if (kd->ctrl && !kd->shift) {
-                if (kd->key_code == 67 && has_selection()) {  // Ctrl+C
+            if (!kd->down) return;
+            if (primary_modifier_down(*kd) && !kd->shift) {
+                if (kd->key_code == 67 && has_selection()) {  // 复制
                     clipboard::copy(selected_text());
                     kd->consumed = true;
-                } else if (kd->key_code == 65) {              // Ctrl+A
+                } else if (kd->key_code == 65) {              // 全选
                     notify_root_selection_started();
                     sel_anchor_ = 0;
                     sel_pos_ = text.size();

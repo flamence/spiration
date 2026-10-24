@@ -238,6 +238,7 @@ void text_area::handle_event(const event_type& type, void* data) {
     if (type == event_type::keyboard) {
         if (!focused_) return;
         auto* key = static_cast<key_event_data*>(data);
+        if (!key->down) return;
         handle_key(*key);
         return;
     }
@@ -405,15 +406,16 @@ void text_area::handle_key(const key_event_data& key) {
         }
     }
 
-    if (key.ctrl && key.key_code == 65) {
+    const bool cmd = primary_modifier_down(key);
+    if (cmd && key.key_code == 65) {
         handle_select_all();
-    } else if (key.ctrl && key.key_code == 67) {
+    } else if (cmd && key.key_code == 67) {
         handle_copy();
-    } else if (key.ctrl && key.key_code == 88) {
+    } else if (cmd && key.key_code == 88) {
         handle_cut();
-    } else if (key.ctrl && key.key_code == 86) {
+    } else if (cmd && key.key_code == 86) {
         handle_paste();
-    } else if (key.ctrl && key.key_code == 83) {
+    } else if (cmd && key.key_code == 83) {
         if (on_save) on_save();
     } else if (key.key_code == 13) {
         if (submit_on_enter && !key.shift) {
@@ -431,9 +433,9 @@ void text_area::handle_key(const key_event_data& key) {
     } else if (key.key_code == 46) {
         do_delete();
     } else if (key.key_code == 37) {
-        if (key.ctrl) cursor_word_left(); else cursor_left();
+        if (word_modifier_down(key)) cursor_word_left(); else cursor_left();
     } else if (key.key_code == 39) {
-        if (key.ctrl) cursor_word_right(); else cursor_right();
+        if (word_modifier_down(key)) cursor_word_right(); else cursor_right();
     } else if (key.key_code == 38) {
         cursor_up();
     } else if (key.key_code == 40) {

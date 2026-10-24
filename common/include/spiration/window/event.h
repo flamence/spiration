@@ -53,8 +53,33 @@ struct key_event_data {
     bool ctrl = false;
     bool shift = false;
     bool alt = false;
+    bool meta = false;    ///< Command（macOS）/ Super（Linux）/ Win（Windows）。
+    bool down = true;     ///< 按下为 true，抬起为 false。
     bool consumed = false;
 };
+
+/**
+ * @brief 平台“主”修饰键：macOS 为 Command，其余平台为 Ctrl。
+ *        快捷键统一用它判断，避免各平台重复分支。
+ */
+inline bool primary_modifier_down(const key_event_data& key) {
+#if defined(__APPLE__)
+    return key.meta;
+#else
+    return key.ctrl;
+#endif
+}
+
+/**
+ * @brief 按词移动光标的修饰键：macOS 为 Option，其余平台为 Ctrl。
+ */
+inline bool word_modifier_down(const key_event_data& key) {
+#if defined(__APPLE__)
+    return key.alt;
+#else
+    return key.ctrl;
+#endif
+}
 
 /**
  * @brief 输入法组合文本（preedit）更新事件。
