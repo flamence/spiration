@@ -38,9 +38,6 @@ public:
                                 const std::string& content) override;
 
 private:
-    /** @brief 所有打开的编辑器标签页指针列表。 */
-    std::vector<edit_tab*> editors_;
-
     /** @brief 获取当前激活的编辑器标签页。 */
     edit_tab* active_editor();
     /**

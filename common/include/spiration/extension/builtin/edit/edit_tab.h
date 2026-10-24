@@ -67,7 +67,11 @@ public:
     void confirm_saved(const ghc::filesystem::path& path);
 
     /** @brief 获取编辑器的文本内容。 */
-    const std::string& text() const { return editor_->text; }
+    const std::string& text() const {
+        // 防御：标签页在异常时序下可能尚未/不再持有编辑器，避免解引用空指针。
+        static const std::string empty;
+        return editor_ ? editor_->text : empty;
+    }
 
     /** @brief 获取当前关联的文件路径。 */
     const ghc::filesystem::path& file_path() const { return file_path_; }

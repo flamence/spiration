@@ -54,18 +54,22 @@ void extension::shutdown() {
 }
 
 edit_tab* extension::active_editor() {
-    for (auto* e : editors_) {
-        if (e->is_active()) return e;
-    }
-    return nullptr;
+    // 标签页由 root 的标签栏持有，用户可随时通过标签头关闭；此处每次从控件树
+    // 实时查询，避免缓存裸指针在标签页销毁后成为悬垂指针（保存时崩溃）。
+    spiration::root* root = dynamic_cast<spiration::root*>(
+        spiration::application::instance()->widget());
+    if (!root) return nullptr;
+    spiration::tab_bar* tab_bar = root->get_tab_bar();
+    if (!tab_bar) return nullptr;
+    // 以标签栏的激活索引为准：tab::active_ 在关闭激活标签页后可能未同步。
+    const int index = tab_bar->active_index();
+    if (index < 0) return nullptr;
+    return dynamic_cast<edit_tab*>(tab_bar->get_tab(index));
 }
 
 void extension::setup_editor_callbacks(edit_tab* tab) {
     tab->set_repaint_callback([this]() { api->request_repaint(); });
     tab->set_save_callback([this]() { save_current(); });
-    tab->set_activate_callback([this, tab]() {
-    });
-    editors_.push_back(tab);
 }
 
 void extension::new_editor_tab() {
