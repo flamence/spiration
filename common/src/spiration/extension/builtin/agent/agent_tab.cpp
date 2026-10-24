@@ -33,17 +33,18 @@ size_t trailing_incomplete_utf8(const std::string& s) {
     if (n == 0) return 0;
     const unsigned char last = static_cast<unsigned char>(s[n - 1]);
     if (last < 0x80) return 0;
-    if ((last & 0xC0) != 0x80) return 1;
-    size_t start = n;
-    while (start > 0 && (static_cast<unsigned char>(s[start - 1]) & 0xC0) == 0x80) --start;
-    if (start == n) return 0;
-    const unsigned char lead = static_cast<unsigned char>(s[start]);
+    size_t lead_index = n - 1;
+    while (lead_index > 0 &&
+           (static_cast<unsigned char>(s[lead_index]) & 0xC0) == 0x80) {
+        --lead_index;
+    }
+    const unsigned char lead = static_cast<unsigned char>(s[lead_index]);
     size_t total = 0;
     if ((lead & 0xF8) == 0xF0) total = 4;
     else if ((lead & 0xF0) == 0xE0) total = 3;
     else if ((lead & 0xE0) == 0xC0) total = 2;
     else return 0;
-    const size_t have = n - start;
+    const size_t have = n - lead_index;
     return (have < total) ? have : 0;
 }
 

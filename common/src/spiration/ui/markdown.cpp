@@ -74,6 +74,23 @@ std::vector<std::pair<std::string, size_t>> split_words_off(const std::string& s
     return out;
 }
 
+/// @brief UTF-8 首字节对应的完整字符长度（1~4 字节）。
+size_t utf8_char_length(char lead) {
+    const unsigned char c = static_cast<unsigned char>(lead);
+    if ((c & 0xF0) == 0xF0) return 4;
+    if ((c & 0xE0) == 0xE0) return 3;
+    if ((c & 0xC0) == 0xC0) return 2;
+    return 1;
+}
+
+/// @brief 粗估单个码点的绘制宽度；只用于超长单词切分，不参与最终排版测量。
+float estimate_codepoint_width(size_t byte_length, float font_size) {
+    if (byte_length == 1) return font_size * 0.55f;
+    if (byte_length == 2) return font_size * 0.75f;
+    if (byte_length == 4) return font_size * 1.25f;
+    return font_size;
+}
+
 bool is_hr(const std::string& t) {
     if (t.size() < 3) return false;
     char c = t[0];
@@ -229,18 +246,23 @@ std::vector<std::vector<markdown::run>> wrap_words(
                              : approx_width(wp.first, font_size);
                 if (!line.empty() && line_w + space_w + ww > width) flush();
                 if (ww > width && width > 0.0f) {
-                    // 超长单词按宽度切分，避免整行溢出。
-                    const float char_w = font_size * 0.5f;
-                    const size_t per_chunk = static_cast<size_t>(
-                        std::max(1.0f, width / char_w));
+                    // 超长单词按估算宽度切分，避免整行溢出。切分点必须落在
+                    // UTF-8 字符边界上：半个字符经平台文本转换后会显示成替换符。
                     size_t pos = 0;
                     while (pos < wp.first.size()) {
-                        size_t end = std::min(wp.first.size(), pos + per_chunk);
-                        while (end > pos + 1 &&
-                               (static_cast<unsigned char>(wp.first[end - 1]) & 0xC0) == 0x80) {
-                            --end;
+                        size_t end = pos;
+                        float est = 0.0f;
+                        while (end < wp.first.size()) {
+                            const size_t len = std::min(
+                                utf8_char_length(wp.first[end]),
+                                wp.first.size() - end);
+                            const float ch_w =
+                                estimate_codepoint_width(len, font_size);
+                            if (end > pos && est + ch_w > width) break;
+                            est += ch_w;
+                            end += len;
                         }
-                        if (end <= pos) end = pos + 1;
+                        if (end == pos) end += utf8_char_length(wp.first[pos]);
                         std::string chunk = wp.first.substr(pos, end - pos);
                         float cw = r ? r->measure_text_width(chunk, font_size, family)
                                      : approx_width(chunk, font_size);
