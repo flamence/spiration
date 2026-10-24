@@ -197,6 +197,9 @@ jobs:
             VERSION="${GITHUB_SHA:0:7}"
           fi
           echo "archive-name=spiration-$VERSION-harmonyos" >> "$GITHUB_OUTPUT"
+      
+      - run: |
+          sudo ln -sf /usr/lib/x86_64-linux-gnu/libxml2.so.16 /usr/lib/x86_64-linux-gnu/libxml2.so.2
 
       - uses: chen-linkai/build-hap@v1.1
         env:
