@@ -101,14 +101,14 @@ void vertical_layout::arrange(
             child->height = static_cast<float>(child->widget_style.height);
             currentY += child->height + mt + mb + spacing_;
         } else {
-            // 先设宽度，再调用 layout() 让子 widget 自行更新高度（几何未变则跳过）
-            if (child->needs_layout()) child->layout();
-            if (child->height <= 0.0f) {
-                size pref = child->layout_preferred_size();
-                child->height = pref.height;
-            }
+            // 先按最终宽度取首选高度，再写入 y，最后用最终几何布局一次并同步记录，
+            // 避免旧实现“layout → 改 y → 再 layout”的重复重排。
+            const float pref_h = child->layout_preferred_size().height;
+            if (pref_h > 0.0f) child->height = pref_h;
             child->y = currentY + mt;
+            if (child->needs_layout()) child->layout();
             currentY += child->height + mt + mb + spacing_;
+            child->finish_layout_geometry();
         }
     }
 }

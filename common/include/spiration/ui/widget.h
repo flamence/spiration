@@ -51,6 +51,17 @@ public:
     bool focusable = false;
     bool visible = true;
 
+private:
+    /// @brief 子树中处于 hover 状态的控件数，用于指针移出时只向“有悬停残留”
+    ///        的子树派发移动事件，避免每次鼠标移动遍历整棵树。
+    int hovered_descendants_ = 0;
+
+    void shift_hover_ancestors(int delta) {
+        for (widget* p = parent_; p; p = p->parent_) p->hovered_descendants_ += delta;
+    }
+
+public:
+
     style widget_style;
     
     widget() {
@@ -214,6 +225,7 @@ public:
             hovered_ = (original.x >= 0.0f && original.x <= width &&
                          original.y >= 0.0f && original.y <= height);
             if (hovered_ != was_hover) {
+                shift_hover_ancestors(hovered_ ? 1 : -1);
                 on_hover_change(hovered_);
                 // 悬停态属于控件自身视觉状态，变化时必须自行请求重绘。
                 // 窗口层因此不再对每条鼠标移动消息强制整窗重绘（见 Windows 消息循环帧调度），
@@ -225,6 +237,13 @@ public:
                 if (!child->visible) continue;
                 mouse_data->position.x = original.x - child->x;
                 mouse_data->position.y = original.y - child->y;
+                // 鼠标事件只派发给指针所在（或仍有悬停残留）的子树：
+                // 旧实现无条件递归全部子控件，控件多时每次移动都是全树遍历。
+                bool inside = mouse_data->position.x >= 0.0f &&
+                              mouse_data->position.x <= child->width &&
+                              mouse_data->position.y >= 0.0f &&
+                              mouse_data->position.y <= child->height;
+                if (!inside && !child->is_hovered() && !child->has_hovered_descendant()) continue;
                 child->handle_event(type, data);
                 if (mouse_data->consumed) break;
             }
@@ -246,6 +265,15 @@ public:
 
     bool is_hovered() const { return hovered_; }
 
+    /// @brief 子树中是否仍有控件处于悬停态（用于鼠标移出时的收尾派发）。
+    bool has_hovered_descendant() const { return hovered_descendants_ > 0; }
+
+    /**
+     * @brief 布局器写完子控件最终几何后调用：同步已记录几何并清除脏标记。
+     *        避免“测量时 layout 一次、定位后又 layout 一次”的重复重排。
+     */
+    void finish_layout_geometry() { on_layout_begin(); }
+
     /**
      * @brief 检测当前 widget 自身是否消耗了指定坐标的鼠标点击。
      * @return true 表示该 widget 在此位置是可交互的，不应穿透触发窗口拖拽
@@ -261,8 +289,11 @@ public:
      */
     bool hit_test_children(float x, float y) const {
         for (const auto& child : children_) {
+            if (!child->visible) continue;
             float cx = x - child->x;
             float cy = y - child->y;
+            // 先做矩形包含判断：旧实现无条件递归整棵子树。
+            if (cx < 0.0f || cx > child->width || cy < 0.0f || cy > child->height) continue;
             if (child->hit_test(cx, cy)) return true;
             if (child->hit_test_children(cx, cy)) return true;
         }
@@ -289,6 +320,10 @@ public:
     widget* add_child(std::unique_ptr<widget> child) {
         child->parent_ = this;
         widget* rawPtr = child.get();
+        // 延迟添加的控件必须继承宿主已注册的回调，否则重绘/窗口动作/右键菜单失效。
+        if (request_repaint_) rawPtr->set_repaint_callback(request_repaint_);
+        if (window_action_) rawPtr->set_window_action_callback(window_action_);
+        if (context_menu_cb_) rawPtr->set_context_menu_callback(context_menu_cb_);
         children_.push_back(std::move(child));
         invalidate_layout(); // 子项变化，父链需要重排
         return rawPtr;
@@ -311,6 +346,19 @@ public:
         return nullptr;
     }
 
+    /**
+     * @brief 一次性移除全部子控件（O(n)），避免逐个 remove_child 的 O(n²) 与重复标脏。
+     */
+    void clear_children() {
+        if (children_.empty()) return;
+        for (auto& child : children_) {
+            child->notify_destroyed_recursive();
+            child->parent_ = nullptr;
+        }
+        children_.clear();
+        invalidate_layout();
+    }
+
     widget* parent() const {
         return parent_;
     }
@@ -323,7 +371,7 @@ public:
      * @brief 为当前 widget 及其所有子 widget 注册重绘回调。
      * @param cb 无参回调，调用时触发窗口重绘
      */
-    void set_repaint_callback(std::function<void()> cb) {
+    virtual void set_repaint_callback(std::function<void()> cb) {
         request_repaint_ = cb;
         for (auto& child : children_) {
             child->set_repaint_callback(cb);
@@ -478,7 +526,7 @@ public:
     /**
      * @brief 注册窗口动作回调，递归设置整棵子树。
      */
-    void set_window_action_callback(std::function<void(int)> cb) {
+    virtual void set_window_action_callback(std::function<void(int)> cb) {
         window_action_ = cb;
         for (auto& child : children_) {
             child->set_window_action_callback(cb);

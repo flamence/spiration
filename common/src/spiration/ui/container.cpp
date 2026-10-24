@@ -30,6 +30,8 @@ void container::layout() {
             content_width_ = content_w + pl + pr;
             content_height_ = content_h + pt + pb;
             layout_manager_->arrange({pl, pt, content_w, content_h}, children());
+            // arrange 只负责几何；子控件内部布局统一在此递归一次。
+            widget::layout();
         } else {
             float avail_w = std::max(0.0f, width - pl - pr - (scroll_v ? scroll_bar_width : 0.0f));
             content_width_ = 0.0f;
@@ -42,8 +44,11 @@ void container::layout() {
                 float child_w = avail_w;
                 if (scroll_h) child_w = std::max(avail_w, pref.width);
                 child->width = child_w;
-                child->height = pref.height > 0.0f ? pref.height : child->height;
+                // 先按最终宽度布局，再取高度，保证同一帧内滚动范围不回退一帧。
                 if (child->needs_layout()) child->layout();
+                pref = child->layout_preferred_size();
+                child->height = pref.height > 0.0f ? pref.height : child->height;
+                child->finish_layout_geometry();
                 content_width_ = std::max(content_width_, child_w + pl + pr);
                 y += child->height;
             }

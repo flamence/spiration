@@ -41,11 +41,6 @@ public:
     float summary_height = 30.0f;
     float animation_ms = 180.0f;
 
-    /// @brief 动画期间每帧重排的祖先层数（含自身）。覆盖到最近的手动布局宿主
-    ///        （agent_tab 等）即可，避免触及 tab_bar/root 的全链根布局；
-    ///        动画结束时再做一次全链重排收尾。
-    unsigned relayout_depth = 4;
-
     /// @brief 内容区最大高度。
     float max_content_height = 0.0f;
 

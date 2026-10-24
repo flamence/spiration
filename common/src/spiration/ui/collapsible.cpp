@@ -40,12 +40,10 @@ void collapsible::set_expanded(bool v) {
     if (expanded == v) return;
     expanded = v;
     content_height_.animate_to(expanded ? 1.0f : 0.0f, animation_ms);
-    // 切换由 content_height_ 平滑驱动；layout() 的切换分支会把 height_anim_
-    // 逐帧同步到实际高度，此处无需预置目标（避免陈旧测量值导致跳变）。
+    // 只标脏，由帧循环合并成一次布局；动画期间的每帧重排在 tick 内统一处理。
+    invalidate_layout();
     if (request_repaint_) request_repaint_();
     if (on_toggle) on_toggle(expanded);
-    // 立即按当前过渡值重排一次（有界深度），动画期间由 tick 每帧跟随。
-    relayout_chain(relayout_depth);
 }
 
 void collapsible::layout() {
@@ -58,7 +56,7 @@ void collapsible::layout() {
         content_->y = summary_height;
         content_->width = width;
         content_->height = (max_content_height > 0.0f) ? max_content_height : 10000.0f;
-        content_->layout();
+        if (content_->needs_layout()) content_->layout();
         if (auto* c = dynamic_cast<container*>(content_)) {
             content_measured_h_ = c->content_height();
         } else {
@@ -127,12 +125,12 @@ void collapsible::tick(float dt_ms) {
         if (request_repaint_) request_repaint_();
         if (content_height_.is_animating() || height_anim_.is_animating() ||
             target_h_anim_.is_animating()) {
-            // 动画期间只重排到最近的手动布局宿主，避免每帧全链根布局。
-            relayout_chain(relayout_depth);
+            // 每帧只标脏，交给帧循环做一次布局（旧实现再手动沿祖先链 layout，
+            // 与帧循环叠加后动画期间每帧会重排 2~3 次）。
+            invalidate_layout();
         } else if (a_changed || was_a) {
-            // 切换动画结束：全链重排一次收尾（滚动范围、上层布局等）。
-            // 高度追逐（流式增长）结束不触发全链，避免反复全量布局造成卡顿。
-            relayout_chain();
+            // 切换动画结束：再标脏一次收尾（滚动范围、上层布局等）。
+            invalidate_layout();
             // 折叠动画完成：通知外部收起（如清空待办后隐藏胶囊）。
             if (!expanded && on_collapsed) on_collapsed();
         }
