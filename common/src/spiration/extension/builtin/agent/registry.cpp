@@ -54,6 +54,16 @@ std::vector<std::string> agent_registry::provider_names() const {
     return names;
 }
 
+void agent_registry::unregister_provider(const std::string& name) {
+    std::lock_guard<std::mutex> lk(mtx_);
+    providers_.erase(name);
+}
+
+bool agent_registry::has_provider(const std::string& name) const {
+    std::lock_guard<std::mutex> lk(mtx_);
+    return providers_.find(name) != providers_.end();
+}
+
 void agent_registry::register_tool(std::unique_ptr<tool> t) {
     if (!t) return;
     std::lock_guard<std::mutex> lk(mtx_);

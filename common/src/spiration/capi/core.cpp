@@ -171,6 +171,9 @@ const void* SPIRATION_CALL host_query_interface(
     if (interface_name == SPIRATION_UI_INTERFACE_NAME) {
         return ui_interface(required_version);
     }
+    if (interface_name == SPIRATION_AGENT_INTERFACE_NAME) {
+        return agent_interface(required_version);
+    }
     return NULL;
 }
 

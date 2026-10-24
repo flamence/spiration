@@ -143,6 +143,9 @@ void forget(const spiration_extension_desc* desc) {
     /* 关闭该拓展打开的标签页、移除其菜单项：否则用户此后点击这些界面
        元素会跳转进已卸载的动态库。 */
     release_ui_owned(desc);
+
+    /* 注销该拓展遗留的智能体 provider；`user_data` 由拓展自行释放。 */
+    release_agent_owned(desc);
 }
 
 const spiration_extension_desc* shim(extension* ext) {

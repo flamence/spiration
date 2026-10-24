@@ -34,6 +34,20 @@ SPIRATION_EXPORT const spiration_host_api* host_api();
 SPIRATION_EXPORT const spiration_ui_api* ui_interface(uint32_t required_version);
 
 /**
+ * @return 智能体可选接口；`required_version` 不被支持时返回 `nullptr`。
+ */
+SPIRATION_EXPORT const spiration_agent_api* agent_interface(
+    uint32_t required_version);
+
+/**
+ * @brief 强制注销某拓展注册的全部 provider（用于拓展卸载清理）。
+ * @param desc 拓展描述符。
+ * @note 只把 provider 从智能体注册表移除并置为失效，**不**访问其 `user_data`；
+ *       因此脚本类拓展仍应在关闭回调中主动注销并释放自己的状态。
+ */
+SPIRATION_EXPORT void release_agent_owned(const spiration_extension_desc* desc);
+
+/**
  * @brief 释放某拓展创建的界面资源（关闭其标签页、移除其菜单项）。
  * @note 由 `forget` 调用，实现位于 `capi/tab.cpp`。
  *       若不做此清理，用户在拓展卸载后点击其按钮或菜单项，

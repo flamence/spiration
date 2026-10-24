@@ -50,6 +50,17 @@ public:
      */
     std::unique_ptr<provider> create_provider(const std::string& name);
 
+    /**
+     * @brief 注销 provider（不存在时静默返回）。
+     * @param name provider 名称
+     */
+    void unregister_provider(const std::string& name);
+
+    /**
+     * @brief 是否已注册同名 provider。
+     */
+    bool has_provider(const std::string& name) const;
+
     /// @brief 已注册的 provider 名称。
     std::vector<std::string> provider_names() const;
 

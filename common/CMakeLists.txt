@@ -1,6 +1,7 @@
 include(../cmake/ConfigureDependencies.cmake)
 
 set(SPIRATION_CORE_SOURCES
+    src/spiration/capi/agent.cpp
     src/spiration/capi/core.cpp
     src/spiration/capi/diagnostics.cpp
     src/spiration/capi/events.cpp

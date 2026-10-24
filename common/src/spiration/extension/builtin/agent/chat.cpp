@@ -104,8 +104,8 @@ void chat_client::append_assistant(const chat_response& resp) {
         resp.reasoning_content.has_value()) {
         chat_message assistant;
         assistant.role            = "assistant";
-        assistant.content         = resp.content.value();
-        assistant.reasoning_content = resp.reasoning_content.value();
+        assistant.content         = resp.content;
+        assistant.reasoning_content = resp.reasoning_content;
         assistant.tool_calls      = resp.tool_calls;
         std::lock_guard<std::mutex> lk(history_mtx_);
         history_.push_back(assistant);
