@@ -180,6 +180,8 @@ jobs:
 
   build-harmonyos:
     needs: detect-changes
+    permissions:
+      contents: write
     if: needs.detect-changes.outputs.run-harmonyos == 'true'
     runs-on: ubuntu-latest
     steps:
