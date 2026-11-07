@@ -1,1 +1,1 @@
-C:/Users/clk/source/repos/spiration/README.md
+./README.md
