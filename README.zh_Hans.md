@@ -16,6 +16,10 @@
 
 详见 [为 Spiration 贡献](https://flamence.github.io/spiration.docs/contributing)。
 
+## 安全政策
+
+详见 [安全政策](https://flamence.github.io/spiration.docs/security/).
+
 ## 协议许可
 
 该项目仓库使用 [Apache License 2.0](LICENSE) 协议。

@@ -16,6 +16,10 @@ Learning more on [Spiration Documents](https://flamence.github.io/spiration.docs
 
 For details, see [Contributing to Spiration](https://flamence.github.io/spiration.docs/en/contributing/).
 
+## Security Policy
+
+For details, see [Security Policy](https://flamence.github.io/spiration.docs/en/security/).
+
 ## License
 
 This repository is licensed under the [Apache License 2.0](LICENSE).
